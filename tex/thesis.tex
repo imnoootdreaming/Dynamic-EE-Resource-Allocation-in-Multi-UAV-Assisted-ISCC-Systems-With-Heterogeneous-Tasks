@@ -1,0 +1,1681 @@
+
+\documentclass[10pt,journal,compsoc]{IEEEtran}  
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[10pt,journal,compsoc]{../sty/IEEEtran}
+\usepackage{amsmath, amssymb, amsfonts}
+% \usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{epstopdf}
+\usepackage[ruled, vlined, linesnumbered]{algorithm2e}
+\usepackage{footnote}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{bm}
+\usepackage[section] {placeins}
+\usepackage{color}
+\usepackage[T1]{fontenc}
+\usepackage{aecompl}
+\usepackage{pifont}
+\usepackage{bbding}
+\usepackage{amsmath}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{bbm}
+\usepackage{ntheorem}
+
+
+\newtheorem{theorem}{ \textbf{Theorem}}
+\newtheorem{lemma}{\textbf{Lemma}}
+%\newtheorem{proof}{\textbf{Proof}}
+\newtheorem{definition}{\textbf{Definition}}
+\newtheorem{proposition}{\textbf{Proposition}}
+\newtheorem*{proof}{Proof}
+\newtheorem{remark}{\textbf{Remark}}
+
+\usepackage{stfloats}
+
+\usepackage{algcompatible}
+% \usepackage{algorithm}
+\renewcommand{\algorithmicrequire}{ \textbf{Input:}}
+\renewcommand{\algorithmicensure}{ \textbf{Output:}}
+
+\ifodd 1 
+\newcommand{\rev}[1]{{\color{red}#1}} %revise of the text
+\newcommand{\revOld}[1]{} %revise of the text#1{\color{blue}#1}
+\newcommand{\com}[1]{\textbf{\color{blue} (COMMENT: #1)}} %comment of the text
+%\newcommand{\note}[1]{{\sffamily\itshape\bfseries\uline{#1}}}#1
+\else
+\newcommand{\rev}[1]{#1}
+\newcommand{\revOld}[1]{}
+\newcommand{\com}[1]{}
+\fi
+
+ \allowdisplaybreaks[4]
+
+
+
+
+% *** CITATION PACKAGES ***
+%
+\ifCLASSOPTIONcompsoc
+  % IEEE Computer Society needs nocompress option
+  % requires cite.sty v4.0 or later (November 2003)
+  \usepackage[nocompress]{cite}
+\else
+  % normal IEEE
+  \usepackage{cite}
+\fi
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+%
+% Note that some packages require special options to format as the Computer
+% Society requires. In particular, Computer Society  papers do not use
+% compressed citation ranges as is done in typical IEEE papers
+% (e.g., [1]-[4]). Instead, they list every citation separately in order
+% (e.g., [1], [2], [3], [4]). To get the latter we need to load the cite
+% package with the nocompress option which is supported by cite.sty v4.0
+% and later. Note also the use of a CLASSOPTION conditional provided by
+% IEEEtran.cls V1.7 and later.
+
+
+
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\ifCLASSINFOpdf
+  % \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+
+\begin{document}
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+\title{Dynamic Energy-Efficient Resource Allocation in Multi-UAV-Assisted ISCC Systems With Heterogeneous Tasks}
+%
+%
+% author names and IEEE memberships
+% note positions of commas and nonbreaking spaces ( ~ ) LaTeX will not break
+% a structure at a ~ so this keeps an author's name from being broken across
+% two lines.
+% use \thanks{} to gain access to the first footnote area
+% a separate \thanks must be used for each paragraph as LaTeX2e's \thanks
+% was not built to handle multiple paragraphs
+%
+%
+%\IEEEcompsocitemizethanks is a special \thanks that produces the bulleted
+% lists the Computer Society journals use for "first footnote" author
+% affiliations. Use \IEEEcompsocthanksitem which works much like \item
+% for each affiliation group. When not in compsoc mode,
+% \IEEEcompsocitemizethanks becomes like \thanks and
+% \IEEEcompsocthanksitem becomes a line break with idention. This
+% facilitates dual compilation, although admittedly the differences in the
+% desired content of \author between the different types of papers makes a
+% one-size-fits-all approach a daunting prospect. For instance, compsoc
+% journal papers have the author affiliations above the "Manuscript
+% received ..."  text while in non-compsoc journals this is reversed. Sigh.
+
+\author{Chengyi Xie, Shijun Lin,~\IEEEmembership{Member,~IEEE}, Xin Chen, Xuemin Hong,~\IEEEmembership{Member,~IEEE}, Jianghong Shi% <-this % stops a space
+\IEEEcompsocitemizethanks{\IEEEcompsocthanksitem  Chengyi Xie, Shijun Lin, Xin Chen, Xuemin Hong, and Jianghong Shi are with the Department of Informatics and
+Communication Engineering, Xiamen University, Xiamen 361000, China,
+e-mail: 23320241154638@stu.xmu.edu.cn, linsj@xmu.edu.cn, chenxin11@stu.xmu.edu.cn, xuemin.hong@xmu.edu.cn, shijh@xmu.edu.cn.
+%\IEEEcompsocthanksitem J. Doe and J. Doe are with Anonymous University.
+}% <-this % stops an unwanted space
+%\thanks{Manuscript received June, ~ 2022; revised ~  .}
+}
+
+% note the % following the last \IEEEmembership and also \thanks -
+% these prevent an unwanted space from occurring between the last author name
+% and the end of the author line. i.e., if you had this:
+%
+% \author{....lastname \thanks{...} \thanks{...} }
+%                     ^------------^------------^----Do not want these spaces!
+%
+% a space would be appended to the last name and could cause every name on that
+% line to be shifted left slightly. This is one of those "LaTeX things". For
+% instance, "\textbf{A} \textbf{B}" will typeset as "A B" not "AB". To get
+% "AB" then you have to do: "\textbf{A}\textbf{B}"
+% \thanks is no different in this regard, so shield the last } of each \thanks
+% that ends a line with a % and do not let a space in before the next \thanks.
+% Spaces after \IEEEmembership other than the last one are OK (and needed) as
+% you are supposed to have spaces between the names. For what it is worth,
+% this is a minor point as most people would not even notice if the said evil
+% space somehow managed to creep in.
+
+
+
+% The paper headers
+\markboth{IEEE transactions on Mobile computing}
+{Xie \MakeLowercase{\textit{et al.}}: Dynamic Energy-Efficient Resource Allocation in Multi-UAV-Assisted ISCC Systems With Heterogeneous Tasks}
+
+% The only time the second header will appear is for the odd numbered pages
+% after the title page when using the twoside option.
+%
+% *** Note that you probably will NOT want to include the author's ***
+% *** name in the headers of peer review papers.                   ***
+% You can use \ifCLASSOPTIONpeerreview for conditional compilation here if
+% you desire.
+
+
+
+% The publisher's ID mark at the bottom of the page is less important with
+% Computer Society journal papers as those publications place the marks
+% outside of the main text columns and, therefore, unlike regular IEEE
+% journals, the available text space is not reduced by their presence.
+% If you want to put a publisher's ID mark on the page you can do it like
+% this:
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2015 IEEE}
+% or like this to get the Computer Society new two part style.
+%\IEEEpubid{\makebox[\columnwidth]{\hfill 0000--0000/00/\$00.00~\copyright~2015 IEEE}%
+%\hspace{\columnsep}\makebox[\columnwidth]{Published by the IEEE Computer Society\hfill}}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark (Computer Society jorunal
+% papers don't need this extra clearance.)
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+% for Computer Society papers, we must declare the abstract and index terms
+% PRIOR to the title within the \IEEEtitleabstractindextext IEEEtran
+% command as these need to go into the title area created by \maketitle.
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+In this paper, we study the long-term energy-efficient resource allocation problem in multiple multi-antenna unmanned aerial vehicle (UAV) assisted integrated sensing, communication, and computation (ISCC) systems with two types of heterogeneous tasks, i.e., sensing tasks and entertainment tasks that coexist and compete for limited communication and computing resources.
+The problem is formulated as a time-dependent mixed-integer non-convex optimization problem with deeply coupled continuous and discrete variables.
+Due to the strong coupling among variables,
+traditional mathematical methods can hardly solve the considered problem in real-time. 
+Meanwhile, the hybrid action space consisting of both continuous and discrete actions makes standard reinforcement learning algorithms struggle to convergence.
+To address this, we decompose the original problem into an inner-outer optimization framework.
+Specifically, the inner-level subproblem is first simplified by variable substitutions and transformations.
+Then, to handle the non-convexity of rank-one constraints introduced by variable substitutions, we apply the penalty-based approach.
+Furthermore, to make the subproblem tractable, a closed-form expression of the computation frequency assigned by BS to CU is derived.
+Finally, the subproblem is transformed into a difference of convex functions (DC) problem and solved by the proposed penalty-based concave-convex procedure (PC3P) algorithm.
+For the outer-level subproblem, due to the mixed continuous-discrete action space,
+we propose a multi-head Beta proximal policy optimization (MHBPPO) algorithm to concurrently obtain the near-optimal continuous and discrete actions.
+Simulation results demonstrate that the proposed MHBPPO-PC3P algorithm achieves the best performance.
+\end{abstract}
+
+% Note that keywords are not normally used for peerreview papers.
+\begin{IEEEkeywords}
+Integrated sensing, communication and computation, unmanned aerial vehicle, penalty-based concave-convex procedure, multi-head Beta proximal policy optimization.
+\end{IEEEkeywords}}
+
+
+% make the title area
+\maketitle
+
+
+% To allow for easy dual compilation without having to reenter the
+% abstract/keywords data, the \IEEEtitleabstractindextext text will
+% not be used in maketitle, but will appear (i.e., to be "transported")
+% here as \IEEEdisplaynontitleabstractindextext when the compsoc
+% or transmag modes are not selected <OR> if conference mode is selected
+% - because all conference papers position the abstract like regular
+% papers do.
+\IEEEdisplaynontitleabstractindextext
+% \IEEEdisplaynontitleabstractindextext has no effect when using
+% compsoc or transmag under a non-conference mode.
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+\IEEEpeerreviewmaketitle
+
+
+
+\IEEEraisesectionheading{\section{Introduction}\label{sec: Introduction}}
+\IEEEPARstart{N}{ext} generation 6G wireless systems are envisioned to go beyond conventional communication networks into multi-functional networks that support ultra-reliable communication, high-precision sensing, and low-latency computation \cite{Intro:6G supports IoT, Intro:similarity of sensing and communication}.
+Such integration is expected to provide efficient services for communication-intensive, sensing-intensive, and computation-intensive applications\cite{Intro:ISAC becomes popular topic}.
+Motivated by this trend, recent research has increasingly focused on integrated sensing and communication (ISAC) \cite{
+Related works:ISAC:IoTJ:Pinching-Antennas-Assisted,
+Related works:ISAC:JSAC:Dual-Functional-UAV-Empowered,
+Related works:ISAC:JSAC:Robust-Covert-ISAC,
+Related works:ISAC:TWC:Channel-Sharing-Aided,
+Related works:ISAC:TWC:Efficient-UAV-Hovering,
+Related works:ISAC-PRO:IoTJ:Joint-Sensing-Communications,
+Related works:ISAC-PRO:TVT:URLLC-Aware-Trajectory,
+Related works:ISAC-PRO:WCL:Integrated-Sensing-And,
+Related works:ISAC-PRO:JSAC:NOMA-Aided-Joint
+}, 
+with some studies further extending this integration to sensing data computation and exploring integrated sensing, communication, and computation (ISCC) systems\cite{
+Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle,
+Related works:ISCC:TCCN:Collaborative-Optimization-Of,
+Related works:ISCC:TCOM:Joint-Offloading-And,
+%Related works:ISCC:TCOM:Multi-Functional-Beamforming,
+Related works:ISCC:TGCN:Adaptive-Digital-Twin,
+Related works:ISCC:TWC:Toward-Intelligent-Edge,
+Related works:ISCC:TMC:Joint-Trajectory-And,
+Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated,
+Related works:ISCC-PRO:TWC:Joint-Sensing-And
+}.
+
+
+Existing studies of ISAC can be classified into two categories. 
+The first category focuses on integrating sensing with user communication\cite{
+Related works:ISAC:IoTJ:Pinching-Antennas-Assisted,
+Related works:ISAC:JSAC:Dual-Functional-UAV-Empowered,
+Related works:ISAC:JSAC:Robust-Covert-ISAC,
+Related works:ISAC:TWC:Channel-Sharing-Aided,
+Related works:ISAC:TWC:Efficient-UAV-Hovering}. 
+In \cite{Related works:ISAC:IoTJ:Pinching-Antennas-Assisted}, Liu et al. maximized the minimum echo signal-to-interference-plus-noise ratio (SINR) in a multi-target sensing scenario by jointly optimizing the antenna positions and receive beamforming. 
+In \cite{Related works:ISAC:JSAC:Dual-Functional-UAV-Empowered}, Zheng et al. maximized the collected data for communication and sensing by jointly optimizing UAV trajectory, communication and sensing time allocation, and the user data upload scheme.
+% In \cite{Related works:ISAC:JSAC:Maximizing-The-Value}, Li et al. maximized the service value of communication and sensing by jointly optimizing the transmit power, bandwidth allocation, and cooperative sensing strategies. 
+In \cite{Related works:ISAC:JSAC:Robust-Covert-ISAC}, Yang et al. investigated a sensing-integrated covert communication system and maximized the covert transmission rate through jointly optimizing sensing beamforming, communication beamforming, and phase shifts of a reconfigurable intelligent surface (RIS). 
+In \cite{Related works:ISAC:TWC:Channel-Sharing-Aided}, Dou et al. proposed a multi-target sensing scheme that reuses cellular communication channels and maximized the radar energy efficiency by jointly optimizing sensing scheduling, transmit beamforming, and receive beamforming. 
+In \cite{Related works:ISAC:TWC:Efficient-UAV-Hovering}, Khalili et al. studied the energy minimization problem in an unmanned aerial vehicle (UAV)-assisted ISAC system by jointly optimizing the trajectory, velocity, communication beamforming, sensing power allocation, and hovering duration.
+The second category focuses on integrating sensing with user computation task offloading\cite{
+Related works:ISAC-PRO:IoTJ:Joint-Sensing-Communications,
+Related works:ISAC-PRO:TVT:URLLC-Aware-Trajectory,
+Related works:ISAC-PRO:WCL:Integrated-Sensing-And,
+Related works:ISAC-PRO:JSAC:NOMA-Aided-Joint}. 
+In \cite{Related works:ISAC-PRO:IoTJ:Joint-Sensing-Communications}, Huynh et al. addressed the weighted sum minimization of end-to-end latency and service placement cost in an ISAC-enabled mobile edge computing (MEC) system by jointly optimizing service placement, task offloading ratio, and bandwidth allocation.
+In \cite{Related works:ISAC-PRO:TVT:URLLC-Aware-Trajectory}, Qin et al. maximized the computation throughput of ISAC-enabled MEC systems by jointly optimizing UAV trajectory, beamforming, and computing resource allocation while satisfying the sensing and communication quality constraints and the power constraint.
+In \cite{Related works:ISAC-PRO:WCL:Integrated-Sensing-And}, Huang et al. minimized the energy consumption of ISAC-enabled MEC systems via joint optimization of computing resource allocation, offloading data size, offloading duration, and RIS phase shifts while guaranteeing the target radar estimation rate. 
+In \cite{Related works:ISAC-PRO:JSAC:NOMA-Aided-Joint}, Wang et al. maximized the computation rate of ISAC-enabled MEC systems with non-orthogonal multiple access (NOMA) by jointly optimizing transmit beamforming and computing resource allocation.
+
+However, the aforementioned studies of ISAC ignore the processing of sensing data. 
+In practice, sensing data are computing tasks that must be further processed to obtain critical information about sensing targets. 
+Therefore, ISCC has attracted extensive attention, as it jointly optimizes target sensing, sensing data offloading, and sensing data computing
+\cite{
+Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle,
+Related works:ISCC:TCCN:Collaborative-Optimization-Of,
+Related works:ISCC:TCOM:Joint-Offloading-And,
+%Related works:ISCC:TCOM:Multi-Functional-Beamforming,
+Related works:ISCC:TGCN:Adaptive-Digital-Twin,
+Related works:ISCC:TWC:Toward-Intelligent-Edge,
+Related works:ISCC:TMC:Joint-Trajectory-And,
+Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated,
+Related works:ISCC-PRO:TWC:Joint-Sensing-And}.
+
+
+Most existing ISCC studies assume that the size of sensing data is a predetermined constant\cite{
+Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle,
+Related works:ISCC:TCCN:Collaborative-Optimization-Of,
+Related works:ISCC:TCOM:Joint-Offloading-And,
+%Related works:ISCC:TCOM:Multi-Functional-Beamforming,
+Related works:ISCC:TGCN:Adaptive-Digital-Twin,
+Related works:ISCC:TWC:Toward-Intelligent-Edge,
+Related works:ISCC:TMC:Joint-Trajectory-And}. 
+% In \cite{Related works:ISCC:TCOM:Multi-Functional-Beamforming}, Zhao et al. minimized the Cramér-Rao bound (CRB) of radar sensing by jointly optimizing the transmit beamforming and local computing frequency. 
+In \cite{Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle}, Huang et al. adopted radar estimation mutual information as the sensing metric and minimized the weighted sum of UAV energy consumption and data collection delay by jointly optimizing sensing scheduling, slot allocation, sensing and communication power, and UAV trajectory. 
+In \cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of}, Wang et al. maximized the minimum echo SINR by jointly optimizing sensing scheduling, sensing and offloading beamforming, and computing resource allocation. 
+In \cite{Related works:ISCC:TCOM:Joint-Offloading-And}, Liu et al. proposed a three-tier ISCC architecture and minimized the average task execution delay by jointly optimizing the computation offloading decisions and transmit beamforming while satisfying echo SINR constraints. 
+In \cite{Related works:ISCC:TGCN:Adaptive-Digital-Twin}, Li et al. considered the average echo interference-to-noise ratio (INR) and jointly optimized the task offloading decisions, sensing and communication beamforming, UAV trajectory, and computing resource allocation to minimize the weighted sum of sensing errors and system energy consumption. 
+In \cite{Related works:ISCC:TWC:Toward-Intelligent-Edge}, Liu et al. minimized the inference latency of sensing tasks by jointly optimizing deep neural network (DNN) partition strategies, sensing and communication beamforming, and computing resource allocation. 
+In \cite{Related works:ISCC:TMC:Joint-Trajectory-And}, Xu et al. maximized the relay-link throughput of an autonomous aerial vehicle (AAV)-assisted ISCC system by jointly optimizing the beamforming vectors, and AAV trajectory.
+
+In practice, the amount of sensing data is usually determined by the sensing duration and radar estimation information rate, which makes the sensing process deeply coupled with the sensing data offloading and computing processes. Recently, researchers have started to investigate ISCC systems based on this sensing data size formulation\cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And}.
+In \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated}, Huang et al. quantified the data size of sensing task based on the radar estimation information rate and maximized the energy efficiency of ISAC devices by jointly optimizing sensing and offloading beamforming. 
+In \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And}, Liu et al. maximized the total amount of sensing data and minimized its age of information (AoI) by jointly optimizing sensing scheduling, transmit power, computing resource allocation, and UAV trajectory.
+% In practice, the amount of sensing data is usually determined by the sensing duration and radar estimation information rate. Thus, the sensing process and the sensing data offloading and computing processes are deeply coupled. Recently, two papers, i.e., \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And}, have focused on this topic. 
+% In \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated}, Huang et al. quantified the data size of sensing task based on the radar estimation information rate and maximized the energy efficiency of ISAC devices by jointly optimizing sensing and offloading beamforming. 
+% In \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And}, Liu et al. maximized the total amount of sensing data and minimized its age of information (AoI) by jointly optimizing sensing scheduling, transmit power, computing resource allocation, and UAV trajectory.
+
+In this work, we adopt the sensing data size formulation in \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And} and investigate a scenario incorporating UAV-assisted urban inspection and edge computing for cellular user (CU) entertainment tasks, where multiple UAVs sense the targets and offload the sensing data using the \rev{CU task offloading spectrum}. 
+We aim to minimize the system's long-term weighted energy consumption by jointly optimizing the UAV sensing and offloading beamforming vectors, the UAV receiving beamforming vector, UAV trajectory, offloading durations and computing resource allocation for both sensing and entertainment tasks, \rev{CU transmit powers}, and the spectrum sharing indicator.
+%We aim to minimize the long-term weighted energy consumption of the system by jointly optimizing the UAV sensing and offloading beamforming vectors, the UAV trajectory, the offloading durations and computing resource allocation for sensing and entertainment tasks,  CUs' transmit powers and the spectrum sharing indicator.
+%the sensing task offloading duration, the transmit power for CU's entertainment task offloading, the entertainment task offloading duration, the base station (BS) computing resource allocation for sensing and entertainment tasks, and the spectrum sharing factor.
+% Our work differs from \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And} in several aspects. 
+% First, works \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And} mainly focus on single-device sensing scenarios, which limits the sensing efficiency. 
+% In contrast, we consider multiple UAVs simultaneously sensing different targets within the same timeslot, which significantly improves the sensing efficiency while introducing more resource allocation challenges. 
+% Second, works \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated, Related works:ISCC-PRO:TWC:Joint-Sensing-And} only consider sensing tasks. 
+% In this paper, we investigate a more practical scenario where sensing tasks and entertainment tasks coexist and compete for communication and computing resources. 
+% Third, work \cite{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated} focuses on static scenarios, however, the practical wireless systems show highly dynamic locations and channel conditions. 
+% Therefore, we study a dynamic ISCC system that requires real-time resource allocation. 
+% Fourth, work \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And} considers single-antenna sensing devices. 
+% By contrast, we adopt multi-antenna sensing devices and use beamforming techniques to direct sensing signals toward sensing targets, thereby improving sensing efficiency. 
+% Finally, work \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And} assumes that sensing tasks are computed locally at sensing devices, ignoring the need for sensing tasks offloading. 
+% In this paper, we consider sensing devices without computing capabilities and jointly optimize the sensing process, sensing task offloading and computation processes, as well as entertainment tasks offloading and computation processes.
+The detailed contributions are outlined below.
+\begin{enumerate}
+        \item A long-term energy-efficient resource allocation problem is formulated for a multi-antenna, multi-UAV-assisted ISCC system with heterogeneous tasks. To effectively address the problem, we decompose it into an inner-outer optimization framework.
+         
+
+        \item In the inner-level subproblem, we first simplify it by introducing a new variable, constraint transformation and variable substitutions to decouple the numerous variables. Then, through using the penalty-based approach and further constraint transformation, we prove that the new subproblem can be transformed into a difference of convex functions (DC) problem and solved it by the proposed penalty-based concave-convex procedure (PC3P) algorithm.
+        
+
+        \item In the outer-level subproblem, considering the hybrid action space, we propose a multi-head Beta proximal policy optimization (MHBPPO) algorithm to obtain the real-time decision for both continuous and discrete actions. Simulation results demonstrate that the proposed algorithm achieves the best performance.
+        
+\end{enumerate}
+
+The remaining sections of this paper are organized as follows.
+Section \ref{sec: System Description} presents the details of the system model.
+Section \ref{sec: Problem Formulation} formulates the long-term energy-efficient resource allocation problem.
+Section \ref{sec:inner-level-optimization} describes the solution for the inner-level subproblem.
+Section \ref{sec:outer-level-optimization} proposes a MHBPPO algorithm to solve the outer-level subproblem with a hybrid continuous-discrete action space.
+Section \ref{sec: Performance Evaluation} provides simulation results that demonstrate the advantages of the proposed approach.
+Finally, Section \ref{sec: Conclusion} concludes this paper.
+
+
+\section{System Description}\label{sec: System Description}
+As shown in Fig.~\ref{chap:c5:fig:system_model}, a dynamic multi-UAV-assisted ISCC system for urban target detection comprises a single-antenna base station (BS), mobile single-antenna CUs, UAVs with $N$ transmit and receive antennas, and targets requiring timely detection.
+The system operation time is discretized into equal-duration timeslots, denoted as $\mathcal{T} = \left\{t, 1 \le t \le t_{\max}\right\}$, where each timeslot has duration $\tau$. In each timeslot, each CU has an entertainment task that requires offloading to the BS for computing assistance. Furthermore, due to the limited sensing range and complex urban environment, the BS cannot directly sense the targets and must rely on UAVs for target sensing. Spectrum sharing is allowed. To reduce mutual interference, at each timeslot, each UAV independently shares a CU's spectrum to sense a designated target and offloads the sensing data to the BS for computing.
+Please note that due to the short timeslot duration, sparse target distribution, and the need for high sensing accuracy, each UAV is required to sense the same target over multiple consecutive timeslots. 
+Thus, we introduce the concept of a sensing window, which spans $\varkappa$ timeslots. Within each sensing window, each UAV's sensing target remains unchanged.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=3in]{system_model_figure/system_model.pdf}
+    \caption{System model.}
+    \label{chap:c5:fig:system_model}
+\end{figure}
+
+In addition, we adopt the following assumptions. 
+First, compared with CUs' entertainment tasks, UAVs' sensing tasks usually have tighter delay constraints due to the stringent AoI requirement.
+Thus, we assume that at each timeslot, if a CU shares its spectrum with a UAV, the CU's offloading time exceeds the total time for the UAV's sensing and sensing data offloading.
+Second, the azimuth angle of each target relative to its corresponding UAV is assumed to be known\cite{Related works:ISAC:TWC:Channel-Sharing-Aided, Related works:ISCC:TCCN:Collaborative-Optimization-Of}. 
+Finally, since a timeslot typically has a short duration, we adopt a quasi-static assumption that the channels and the positions of the CUs and UAVs are fixed within each timeslot\cite{Related works:ISCC:TWC:Toward-Intelligent-Edge, Related works:ISCC:TCOM:Joint-Offloading-And}.
+
+
+
+
+
+%all channels follow a quasi-static block fading model, and perfect channel state information (CSI) is known \cite{Related works:ISCC:TWC:Toward-Intelligent-Edge, Related works:ISCC:TCOM:Joint-Offloading-And}.
+
+\section{Problem Formulation}\label{sec: Problem Formulation}
+Let $\mathcal{U} = \left\{u_{i}, 1 \le i \le I\right\}$ and $\mathcal{C} = \left\{c_{j}, 1 \le j \le J\right\}$ denote the sets of UAVs and CUs, respectively. Let $\eta_{i, j}(t) \in \{0,1\}$ denote the spectrum sharing indicator, where
+$\eta_{i, j}(t) = 1$ if and only if UAV $u_{i}$ chooses to reuse the spectrum of CU $c_{j}$ at timeslot $t$. As described in Section \ref{sec: System Description}, we have 
+\begin{align}\label{P0:UAV-one-CU}
+    \sum_{j = 1}^{J}\eta_{i, j}(t) = 1, \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T},
+\end{align}
+\begin{align}\label{P0:CU-Less-One-UAV}
+    \sum_{i = 1}^{I} \eta_{i, j}(t) \le 1, \forall c_{j} \in \mathcal{C}, \forall t \in \mathcal{T}.
+\end{align}
+
+
+
+
+
+
+
+
+
+% At timeslot $t$, when UAV $u_{i}$ reuses the spectrum of CU $c_{j}$, the detailed time scheduling is illustrated in . 
+% For each UAV, the sensing time in each timeslot is a constant, denoted by $\bar{D}^{\text{sen}}$.
+
+% Specifically, at timeslot $t$, CU $c_{j}$ offloads its entertainment task to the BS with a duration $D_{c_{j}}^{\text{off}}(t)$. 
+% Concurrently, the co-channel UAV $u_{i}$ sequentially executes the sensing and offloading periods. 
+% The sensing duration for all UAVs is assumed to be a constant value $\bar{D}^{\text{sen}}$.
+% The offloading duration for the sensing task of UAV $u_{i}$ is $D_{u_{i}}^{\text{off}}(t)$. 
+% After receiving the complete task from either UAV $u_{i}$ or CU $c_{j}$, the BS starts computation with the computation durations $D_{u_{i}}^{\text{cp}}(t)$ and $D_{c_{j}}^{\text{cp}}(t)$, respectively.
+\subsection{Mobility Model}
+In this paper, we adopt Cartesian coordinates to describe the device positions. 
+We assume that CUs and targets are located on the ground, while UAVs fly at altitude $H$\cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And}. 
+At timeslot $t$, the positions of UAV $u_{i}$, CU $c_{j}$, and the designated sensing target of UAV $u_{i}$ are $\bm{q}_{u_{i}}(t)=\left(x_{u_{i}}(t), y_{u_{i}}(t), H\right)$, $\bm{q}_{c_{j}}(t)=\left(x_{c_{j}}(t), y_{c_{j}}(t), 0\right)$, and $\bm{q}_{o_{i}}(t) = \left(x_{o_{i}}(t), y_{o_{i}}(t), 0\right)$, respectively. 
+Due to the limited mobility of UAVs, we have 
+\begin{align}\label{P0:UAV-speed}
+    V_{\min}\tau \le \left\|\bm{q}_{u_{i}}(t + 1) - \bm{q}_{u_{i}}(t)\right\| \le V_{\max} \tau, \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T},
+\end{align}
+where $V_{\min}$ and $V_{\max}$ represent the minimum and maximum velocities of UAVs, respectively. We further impose the following constraint to prevent UAV collisions.
+\begin{align}\label{P0:UAV-collision}
+    & \left\|\bm{q}_{u_{i_{1}}}(t) - \bm{q}_{u_{i_{2}}}(t)\right\| \ge d^{\text{UAV}}_{\min}, %\notag \\    & 
+    \forall u_{i_{1}}, u_{i_{2}} \in \mathcal{U}, i_{1} \neq i_{2}, \forall t \in \mathcal{T},
+\end{align}
+where $d_{\min}^{\text{UAV}}$ is the minimum inter-UAV distance.
+
+% The propulsion energy consumption of UAV $u_{i}$ at timeslot $t$ is \cite{Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle}
+% \begin{align}\label{tempP0:UAV-Flying-Energy-Consumption}
+%     & E_{u_{i}}^{\text{fly}}(t) = \frac{\varrho_{1}\left\|\bm{q}_{u_{i}}(t + 1) - \bm{q}_{u_{i}}(t)\right\|^{3}}{\tau^2} \notag \\
+%     & + \frac{\varrho_{2}\tau^2}{\left\|\bm{q}_{u_{i}}(t + 1) - \bm{q}_{u_{i}}(t)\right\|}.
+% \end{align}
+% where $\varrho_{1}$ and $\varrho_{2}$ represent parameters during UAVs' flight.
+
+Considering the inertial motion of CUs, we adopt the Gaussian-Markov mobility model to describe their trajectories\cite{System model: CUs-mobility}. 
+At timeslot $(t + 1)$, the position of CU $c_{j}$ can be expressed as
+\begin{align}
+    \bm{q}_{c_{j}}(t + 1) = \bm{q}_{c_{j}}(t) + \tau\bm{v}_{c_{j}}(t),
+\end{align}
+where $\bm{v}_{c_{j}}(t) = \left(v^{x}_{c_{j}}(t), v^{y}_{c_{j}}(t), 0\right)$ represents the velocity of CU $c_{j}$ at timeslot $t$. It equals
+\begin{align}
+    \bm{v}_{c_{j}}(t) = \bar{\mu}\bm{v}_{c_{j}}(t - 1) + \left(1 - \bar{\mu}\right)\bar{\bm{v}} + \bar{\varrho}\sqrt{1 - \bar{\mu}}\bm{n}_{c_{j}},
+\end{align}
+where  $\bar{\bm{v}}$, $\bar{\varrho}$, and $\bar{\mu}$ are the mean velocity, velocity standard deviation, and memory level, respectively.
+$\bm{n}_{c_{j}} = \big({n}^{x}_{c_{j}}, {n}^{y}_{c_{j}}, 0\big)$ is a Gaussian random vector, where ${n}^{x}_{c_{j}} \sim \mathcal{N}\left(0, \varsigma^{2}\right)$ and ${n}^{y}_{c_{j}} \sim \mathcal{N}\left(0, \varsigma^{2}\right)$.
+
+
+\subsection{Channel Model}
+Let $\bm{h}_{c_{j}, u_{i}}(t) \in \mathbb{C}^{1 \times N}$, $\bm{h}_{u_{i},\text{BS}}(t) \in \mathbb{C}^{N \times 1}$, and $h_{c_{j}, \text{BS}}(t) \in \mathbb{C}^{1 \times 1}$ denote the channel gains from CU $c_{j}$ to UAV $u_{i}$, from UAV $u_{i}$ to the BS, and from CU $c_{j}$ to the BS at timeslot $t$, respectively. All of them are modeled as Rician fading\cite{Related works:ISAC:JSAC:Robust-Covert-ISAC, Related works:ISCC:TMC:Joint-Trajectory-And}. That is,
+% Since the channels between CU $c_{j}$ and UAV $u_{i}$, UAV $u_{i}$ and BS, as well as CU $c_{j}$ and BS contain line of sight (LoS) and non-line of sight (NLoS) components .
+% Therefore, all links are modeled as Rician fading channels. 
+% Let $\bm{h}_{c_{j}, u_{i}}(t) \in \mathbb{C}^{1 \times N}$, $\bm{h}_{u_{i},\text{BS}}(t) \in \mathbb{C}^{N \times 1}$, and $h_{c_{j}, \text{BS}}(t) \in \mathbb{C}^{1 \times 1}$ denote the links between UAV $u_{i}$ and CU $c_{j}$, UAV $u_{i}$ and BS, as well as CU $c_{j}$ and BS at timeslot $t$, we have 
+\begin{equation}
+    \begin{array}{c}
+    \bm{h}_{c_{j}, u_{i}}(t) = \sqrt{\rho d_{c_{j},u_{i}}^{-\alpha_{1}}(t)}\left(\sqrt{\frac{\kappa}{1 + \kappa}}\bm{h}_{c_{j}, u_{i}}^{\text{LoS}}(t) %\notag \\ & 
+    + \sqrt{\frac{1}{1 +  \kappa}}\bm{h}_{c_{j}, u_{i}}^{\text{NLoS}}\right),
+    \end{array}
+\end{equation}
+%\begin{align}
+    \begin{equation}
+    \begin{array}{c}
+    %&
+    \bm{h}_{u_{i},\text{BS}}(t) = \sqrt{\rho d_{u_{i},\text{BS}}^{-\alpha_{2}}(t)}\left(\sqrt{\frac{\kappa}{1 + \kappa}}\bm{h}_{u_{i},\text{BS}}^{\text{LoS}}(t) %\notag \\ & 
+    + \sqrt{\frac{1}{1 +  \kappa}}\bm{h}_{u_{i}, \text{BS}}^{\text{NLoS}}\right),
+    \end{array}
+    \end{equation}
+%\end{align}
+%\begin{align}
+    \begin{equation}
+    \begin{array}{c}
+    %&
+    h_{c_{j}, \text{BS}}(t) = \sqrt{\rho d_{c_{j}, \text{BS}}^{-\alpha_{3}}(t)}\left(\sqrt{\frac{\kappa}{1 + \kappa}}h_{c_{j}, \text{BS}}^{\text{LoS}} %\notag \\ & 
+    + \sqrt{\frac{1}{1 +  \kappa}}h_{c_{j}, \text{BS}}^{\text{NLoS}}\right),
+    \end{array}
+    \end{equation}
+%\end{align}
+where $\rho$ denotes the reference path loss at $1\, \text{m}$. %the path loss at a reference distance of 1 meter.
+$d_{c_{j},u_{i}}(t)$, $d_{u_{i}, \text{BS}}(t)$, and $d_{c_{j}, \text{BS}}(t)$ represent the distance from CU $c_{j}$ to UAV $u_{i}$, from UAV $u_{i}$ to the BS, and from CU $c_{j}$ to the BS at timeslot $t$, respectively.
+$\alpha_{1}$, $\alpha_{2}$, and $\alpha_{3}$ are the path loss factors of the corresponding links.
+$\kappa$ denotes the Rician factor.
+$\bm{h}^{\text{LoS}}_{c_{j}, u_{i}}(t) \in \mathbb{C}^{1 \times N}$ and $\bm{h}^{\text{LoS}}_{u_{i}, \text{BS}}(t) \in \mathbb{C}^{N \times 1}$, and 
+$h^{\text{LoS}}_{c_{j}, \text{BS}} \in \mathbb{C}^{1 \times 1}$ are the line-of-sight (LoS) components. They equal  
+$\left[1, e^{j\frac{2\pi \mathfrak{d}}{\lambda}\sin\phi_{c_{j}, u_{i}}(t)}, \dots, e^{j\frac{2\pi \mathfrak{d}\left(N - 1\right)}{\lambda}\sin\phi_{c_{j}, u_{i}}(t)}\right]$,
+$\Big[1, e^{j\frac{2\pi \mathfrak{d}}{\lambda}\sin\phi_{u_{i}, \text{BS}}(t)}, \dots, e^{j\frac{2\pi \mathfrak{d}\left(N - 1\right)}{\lambda}\sin\phi_{u_{i}, \text{BS}}(t)}\Big]^T$ and 
+$1$, respectively. Here, $\mathfrak{d}$ and $\lambda$ denotes the antenna spacing and carrier wavelength. $\phi_{c_{j}, u_{i}}(t)$ and $\phi_{u_{i}, \text{BS}}(t)$ are the azimuth angles from CU $c_{j}$ to UAV $u_{i}$ and from UAV $u_{i}$ to the BS at timeslot $t$, respectively. 
+$\bm{h}^{\text{NLoS}}_{c_{j}, u_{i}} \in \mathbb{C}^{1 \times N}$ and $\bm{h}^{\text{NLoS}}_{u_{i}, \text{BS}} \in \mathbb{C}^{N \times 1}$, and 
+$h^{\text{NLoS}}_{c_{j}, \text{BS}} \in \mathbb{C}^{1 \times 1}$ are the non-line-of-sight (NLoS) components. Each element of them is a random variable that follows $\mathcal{CN}\left(0, 1\right)$.
+
+According to \cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of} and \cite{Related works:ISCC:TCOM:Joint-Offloading-And}, when UAV $u_{i}$ senses its designated target at timeslot $t$, the corresponding sensing channel matrix $\mathbf{A}(\theta_{i}(t))$ equals 
+\begin{align}
+    \mathbf{A}(\theta_{i}(t))=\sqrt{\xi_{0} \rho d_{i}^{-4}(t)} \bm{a}_{r}\left(\theta_{i}(t)\right)\bm{a}^{H}_{t}\left(\theta_{i}(t)\right),
+\end{align}
+where $\theta_{i}(t)$ and $d_{i}(t)$ denotes the azimuth angle and the distance from UAV $u_{i}$ to its designated sensing target at timeslot $t$. $\xi_{0}$ is the radar cross-section. $\bm{a}_{t}(\theta_{i}(t))$ and $\bm{a}_{r}(\theta_{i}(t))$ are the transmit and receive steering vectors. Both of them equal $\left[1, e^{j 2 \pi  \frac{\mathfrak{d}}{\lambda}\sin \theta_{i}(t)}, \ldots, e^{j 2 \pi \frac{\mathfrak{d}}{\lambda} (N - 1) \sin \theta_{i}(t)}\right]^{T}$.
+
+
+
+% \begin{align}
+%     &\bm{a}_{t}\left(\theta_{i}(t)\right) = \bm{a}_{r}(\theta_{i}(t)) %\notag \\  & 
+%     = \left[1, e^{j 2 \pi  \frac{\mathfrak{d}}{\lambda}\sin \theta_{i}(t)}, \ldots, e^{j 2 \pi \frac{\mathfrak{d}}{\lambda} (N - 1) \sin \theta_{i}(t)}\right]^{T}.
+% \end{align}
+% Let $\theta_{i}(t)$ denote the azimuth angle of the designated target that UAV $u_{i}$ needs to sense at timeslot $t$. 
+% Therefore, the transmit steering vector $\bm{a}_{t}(\theta_{i}(t))$ and the receive steering vector $\bm{a}_{r}(\theta_{i}(t))$ can be expressed as\cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of}
+% \begin{align}
+%     &\bm{a}_{t}\left(\theta_{i}(t)\right) = \bm{a}_{r}(\theta_{i}(t)) \notag \\
+%     & = \left[1, e^{j 2 \pi  \frac{\mathfrak{d}}{\lambda}\sin \theta_{i}(t)}, \ldots, e^{j 2 \pi \frac{\mathfrak{d}}{\lambda} \left(N - 1\right) \sin \theta_{i}(t)}\right]^{T}.
+% \end{align}
+
+% According to \cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of} and \cite{Related works:ISCC:TCOM:Joint-Offloading-And}, 
+% the sensing channel matrix $\mathbf{A}(\theta_{i}(t))$ between UAV $u_{i}$ and designated target at time $t$ is
+% \begin{align}
+%     \mathbf{A}(\theta_{i}(t))=\sqrt{\xi_{0} \rho d_{i}^{-4}(t)} \bm{a}_{r}\left(\theta_{i}(t)\right)\bm{a}^{H}_{t}\left(\theta_{i}(t)\right).
+% \end{align}
+% where $\xi_{0}$ is the radar cross-section, and $d_{i}(t)$ is the distance between UAV $u_{i}$ and the designated target at timeslot $t$.
+
+
+\subsection{UAV Target Sensing}
+Let $\bm{w}_{i}(t) \in \mathbb{C}^{N \times 1}$ and $\bm{g}_{i}(t) \in \mathbb{C}^{N \times 1}$ denote the sensing beamforming vector and receiving beamforming vector of UAV $u_{i}$ at timeslot $t$, respectively. According to \cite{System model: Radar-estimation-rate, Related works:ISAC:JSAC:Dual-Functional-UAV-Empowered, Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle}, 
+the radar estimation information rate when UAV $u_{i}$ uses a CU's spectrum to sense its designated target at timeslot $t$,  $R_{i}^{\text{sen}}(t)$, equals  
+%\begin{align}\label{radar-estimation-information-rate}
+    \begin{equation}\label{radar-estimation-information-rate}
+    \begin{array}{l}
+    %& 
+    R_{i}^{\text{sen}}(t) = \frac{\delta}{2\nu} %\notag \\  &
+    \log_2 \left( 1 %\notag \\  & 
+    +  \frac{2\sigma_{\text{pre}}^{2}\gamma^{2}B^{3}\nu \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\sum \limits_{j = 1 }^{J} \eta_{i, j}(t) p_{j}(t) \left|\bm{g}_{i}^{H}(t)\bm{h}_{c_{j}, u_{i}}^{H}(t)\right|^{2} + \sigma^{2}} \right),
+    \end{array}
+    \end{equation}
+%\end{align}
+where $\delta$, $\nu$, $\sigma^{2}_{\text{pre}}$, and $\gamma$ denote the radar duty factor,  the radar pulse duration,  the variance of the radar return prediction, and  the radar spectral shape parameter.  $B$, $p_{j}(t)$, and $\sigma^{2}$  denote the channel bandwidth, 
+the transmit power of CU $c_{j}$ at timeslot $t$, and  the power of the additive white Gaussian noise.
+
+For $\bm{w}_{i}(t)$ and $\bm{g}_{i}(t)$, we have the following constraints.
+\begin{align}\label{P0:UAV-Sen-Max-Power}
+\left\|\bm{w}_{i}(t)\right\|^{2} \le P^{\max}_{\text{UAV}}, \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T},
+\end{align}
+\begin{align}\label{P0:rec-beamforming}
+    \left\| \bm{g}_{i}(t) \right\|^{2} = 1, \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T},
+\end{align}
+where $P^{\max}_{\text{UAV}}$ is the UAV maximum transmit power.
+
+Furthermore, to ensure successful sensing, the received echo SINR at each UAV should be no less than the sensing threshold $\epsilon$, that is,
+%\begin{align}\label{P0:Sensing-SINR}
+    \begin{equation}\label{P0:Sensing-SINR}
+    \begin{array}{l}
+    \frac{\left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\sum \limits_{j = 1 }^{J} \eta_{i, j}(t) p_{j}(t) \left|\bm{g}_{i}^{H}\bm{h}_{c_{j}, u_{i}}^{H}(t)\right|^{2} + \sigma^{2}} \ge \epsilon, \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T}.
+    \end{array}
+    \end{equation}
+%\end{align}
+
+
+\subsection{Sensing Task Offloading}
+Let $\bm{b}_{i}(t) \in \mathbb{C}^{N \times 1}$ denote the offloading beamforming vector of UAV $u_{i}$ at timeslot $t$. The transmission rate when UAV $u_{i}$ uses a CU's spectrum to offload its sensing task to the BS at timeslot $t$, $R_{i}^{\text{off}}(t)$, equals
+%\begin{align}\label{eq:UAV-Offloading-Rate}
+    \begin{equation}\label{eq:UAV-Offloading-Rate}
+    \begin{array}{l}
+    R_{i}^{\text{off}}(t) = B \log_2 \left( 1 + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\bm{b}_{i}(t)\right|^{2}}{\sum \limits_{j = 1}^{J} \eta_{i, j}(t)p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sigma^{2}} \right),
+    \end{array}
+    \end{equation}
+%\end{align}
+where
+$\bm{b}_{i}(t)$  satisfies
+%Since the offloading beamforming vector should not exceed the UAVs' maximum power, we have
+\begin{align}\label{P0:UAV-Off-Max-Power}
+\left\|\bm{b}_{i}(t)\right\|^{2} \le P^{\max}_{\text{UAV}},  \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T}.
+\end{align}
+
+Let $D_{u_{i}}^{\text{off}}(t)$ and $\bar{D}^{\text{sen}}$ denote the duration of sensing task offloading and constant duration of sensing.
+To ensure that all the data from sensing can be completely offloaded, we have
+\begin{align}\label{P0:UAVs-task-successful-offloading}
+&D_{u_{i}}^{\text{off}}(t)R_{i}^{\text{off}}(t) \ge \bar{D}^{\text{sen}}R_{i}^{\text{sen}}(t), \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T}.
+\end{align}
+
+% UAV $u_{i}$ completes the sensing task offloading within timeslot $t$, 
+% we have $D_{u_{i}}^{\text{off}}(t)R_{i}^{\text{off}}(t) \ge \bar{D}^{\text{sen}}R_{i}^{\text{sen}}(t)$, 
+% according to equations \eqref{radar-estimation-information-rate} and \eqref{eq:UAV-Offloading-Rate},
+% which can be further expressed as
+% \begin{align}\label{P0:UAVs-task-successful-offloading}
+%     & D_{u_{i}}^{\text{off}}(t)B \log_2 \left( 1 + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\bm{b}_{i}(t)\right|^{2}}{\sum_{j = 1}^{J} \eta_{i, j}(t)p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sigma^{2}} \right)\notag \\
+%     & \ge \xi_{1} \log_2 \Bigg(1 +  \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\sum_{j = 1 }^{J} \eta_{i, j}(t) p_{j}(t) \left|\bm{g}_{i}^{H}\bm{h}_{c_{j}, u_{i}}^{H}(t)\right|^{2} + \sigma^{2}}\Bigg), \notag \\
+%     & \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T}.
+% \end{align}
+% where $\xi_{1} = \frac{\bar{D}^{\text{sen}} \delta}{2\nu}$ and
+% $\xi_{2} = 2\sigma_{\text{pre}}^{2}\gamma^{2}B^{3} \nu$.
+
+\subsection{CU Entertainment Task Offloading}
+Let $D_{c_{j}}^{\text{off}}(t)$ denote the duration of entertainment task offloading of CU $c_{j}$ at timeslot $t$. According to the assumption in Section \ref{sec: System Description}, we have 
+\begin{align}\label{P0:Task-Fresh}
+    \bar{D}^{\text{sen}} + D_{u_{i}}^{\text{off}}(t) \le \sum_{j = 1}^{J} \eta_{i, j}(t) D_{c_{j}}^{\text{off}}(t), \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T}.
+\end{align}
+
+For the entertainment task offloading of CU 
+$c_{j}$, there are two cases. One is that CU $c_{j}$ shares its spectrum with a UAV, while the other is that CU $c_{j}$ does not share its spectrum with any UAV.
+In the case that CU $c_{j}$ shares its spectrum with a UAV, 
+the offloading process of CU $c_{j}$'s entertainment task should be divided into three periods due to the interference variations. 
+In the first offloading period,  CU $c_{j}$ offloads while its spectrum-sharing UAV performs sensing. Thus, the offloading rate in the first offloading period $R_{j}^{1}(t)$ equals
+%\begin{align}
+    \begin{equation}
+    \begin{array}{l}
+    R_{j}^{1}(t) = B \log_2 \left( 1 + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sum \limits_{i = 1}^{I} \eta_{i, j}(t) \left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)  \bm{w}_{i}(t)\right|^{2} + \sigma^{2}} \right).
+    \end{array}
+    \end{equation}    
+%\end{align}
+In the second offloading period, CU $c_{j}$ offloads while its spectrum-sharing UAV performs sensing data offloading. Then, the offloading rate in the second offloading period $R_{j}^{2}(t)$ equals
+    \begin{equation}
+    \begin{array}{l}
+    R_{j}^{2}(t) = B \log_2 \left( 1 + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sum \limits_{i = 1}^{I} \eta_{i, j}(t) \left|\bm{h}^{H}_{u_{i}, \text{BS}}(t) \bm{b}_{i}(t)\right|^{2} + \sigma^{2}} \right).
+    \end{array}
+    \end{equation} 
+In the third offloading period, CU $c_{j}$ offloads without spectrum sharing. Thus, the offloading rate in the third offloading period $R_{j}^{3}(t)$ equals
+%\begin{align}\label{CU-No-Interference}
+    \begin{equation}\label{CU-No-Interference}
+    \begin{array}{l}
+    R_{j}^{3}(t) = B \log_2 \left( 1 + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sigma^{2}} \right).
+    \end{array}
+    \end{equation}
+%\end{align}
+
+In the case that CU $c_{j}$ does not share its spectrum with any UAV. The offloading rate during the entire offloading process equals $R_{j}^{3}(t)$. Then, we can summarize a general constraint for the above two CU offloading cases to ensure that the entertainment task of each CU in each timeslot is completely offloaded. That is,
+\begin{align} \label{P0:CUs-task-successful-offloading}
+    & \sum_{i = 1}^{I} \eta_{i, j}(t)\bar{D}^{\text{sen}} R_{j}^{1}(t)  
+     + \sum_{i = 1}^{I} \eta_{i, j}(t)D_{u_{i}}^{\text{off}}(t) R_{j}^{2}(t) \notag \\
+    & + \bigg(D_{c_{j}}^{\text{off}}(t) - \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} -\sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t)\bigg) R_{j}^{3}(t) \notag \\ 
+    &\ge L_{j}(t), \forall c_{j} \in \mathcal{C}, \forall t \in \mathcal{T},
+\end{align}
+where $L_{j}(t)$ denotes the data size of CU $c_{j}$'s entertainment task at timeslot $t$. 
+
+We also have a CU transmit power constraint as follows. 
+\begin{align}\label{P0:CU-Max-Power}
+    p_{j}(t) \le P^{\max}_{\text{CU}}, \forall c_{j} \in \mathcal{C}, \forall t \in \mathcal{T},
+\end{align}
+where $P^{\max}_{\text{CU}}$ denotes the CU maximum transmit power.
+
+
+\subsection{Task Computing} 
+Let $f_{u_{i}}(t)$ and $f_{c_{j}}(t)$ denote the computing resources allocated by the BS to UAV $u_{i}$'s sensing task and CU $c_{j}$'s entertainment task at timeslot $t$, respectively. 
+We have the following time and computing resource constraints.
+\begin{align}\label{P0:UAV-task-delay}
+    %\begin{array}{l} 
+    &\bar{D}^{\text{sen}} + D_{u_{i}}^{\text{off}}(t) + \frac{C^{\text{sen}}\bar{D}^{\text{sen}}R_{i}^{\text{sen}}(t)}{f_{u_{i}}(t)}  \le D^{\text{sen}}_{\max},  \forall u_{i} \in \mathcal{U}, \forall t \in \mathcal{T},
+    %\end{array}
+\end{align}
+\begin{align}\label{P0:CU-task-delay}
+    D_{c_{j}}^{\text{off}}(t) + \frac{C_{{j}}(t)L_{j}(t)}{f_{c_{j}}(t)} \le D^{\max}_{{j}}(t), \forall c_{j} \in \mathcal{C}, \forall t \in \mathcal{T},
+\end{align}
+\begin{align}\label{P0:BS-Max-Frequency}
+    \sum_{u_{i} \in \mathcal{U}}f_{u_{i}}(t) + \sum_{c_{j} \in \mathcal{C}}f_{c_{j}}(t) \le F_{\max}, \forall t \in \mathcal{T},
+\end{align}
+where $C^{\text{sen}}$ and $C_{{j}}(t)$ denote the CPU cycles required to process one bit of sensing data and one bit of CU $c_{j}$'s entertainment task data at timeslot $t$, respectively. $D^{\text{sen}}_{\max}$ and $D^{\max}_{{j}}(t)$ are the delay tolerances for sensing and CU $c_{j}$'s entertainment task at timeslot $t$. $F_{\max}$ is the total computing resource of the BS.
+
+\subsection{Problem Statement}
+In this paper, we aim to minimized the weighted total energy consumption of the dynamic multi-UAV-assisted ISCC system with heterogeneous tasks.
+The energy consumption be divided into three parts.
+The first part is the energy consumption of BS tasks computing, which equals
+\begin{align}\label{tempP0:BS-Energy-Consumption}
+    & E^{\text{BS}}(t) = \kappa \Bigg( \sum_{u_{i} \in \mathcal{U}} C^{\text{sen}}\left(f_{u_{i}}(t)\right)^{2} \xi_{1} \log_2 \Bigg(1 \notag \\
+    & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\sum_{j = 1 }^{J} \eta_{i, j}(t) p_{j}(t) \left|\bm{g}_{i}^{H}\bm{h}_{c_{j}, u_{i}}^{H}(t)\right|^{2} + \sigma^{2}}\Bigg) \notag \\
+    & + \sum_{c_{j} \in \mathcal{C}}\left(C_{{j}}(t)L_{j}(t)\left(f_{c_{j}}(t)\right)^{2}\right) \Bigg), \forall t \in \mathcal{T}.
+\end{align}
+where $\kappa$ is the effective switching capacitance of CPU in BS, 
+$\xi_{1} = \frac{\bar{D}^{\text{sen}} \delta}{2\nu}$ and
+$\xi_{2} = 2\sigma_{\text{pre}}^{2}\gamma^{2}B^{3} \nu$.
+
+The second part is the energy consumption of UAV sensing, sensing task offloading and flying, which equals
+\begin{align}\label{tempP0:UAV-Flying-Energy-Consumption}
+    & E^{\text{UAVs}}(t) = \sum_{u_{i} \in \mathcal{U}} \Bigg(\bar{D}^{\text{sen}}\left\|\bm{w}_{i}(t)\right\|^{2} + D_{u_{i}}^{\text{off}}(t)\left\|\bm{b}_{i}(t)\right\|^{2}  \notag \\
+    & + \frac{\varrho_{1}\left\|\bm{q}_{u_{i}}(t + 1) - \bm{q}_{u_{i}}(t)\right\|^{3}}{\tau^2} + \frac{\varrho_{2}\tau^2}{\left\|\bm{q}_{u_{i}}(t + 1) - \bm{q}_{u_{i}}(t)\right\|}\Bigg), \notag \\
+    &  \forall t \in \mathcal{T}.
+\end{align}
+where $\varrho_{1}$ and $\varrho_{2}$ represent parameters during UAVs' flight.
+
+The third part is the energy consumption of CU entertainment tasks offloading, which equals
+\begin{align}\label{tempP0:UAV-Flying-Energy-Consumption}
+    & E^{\text{CUs}}(t) = \sum_{c_{j} \in \mathcal{C}} D_{c_{j}}^{\text{off}}(t)p_{j}(t), \forall t \in \mathcal{T}.
+\end{align}
+
+Let $\omega_{1}$, $\omega_{2}$, and $\omega_{3}$ represent the weight coefficients for the BS, UAVs, and CUs, respectively, where $\omega_{1} + \omega_{2} + \omega_{3} = 1$. 
+Therefore, the weighted total energy consumption of the system at timeslot $t$ is given by
+\begin{equation}
+\begin{array}{l}
+    E^{\text{sum}}(t) = \omega_{1}E^{\text{BS}}(t) + \omega_{2}E^{\text{UAVs}}(t) + \omega_{3}E^{\text{CUs}}(t), \forall t \in \mathcal{T}.
+\end{array}
+\end{equation}
+
+
+Thus, we have the following problem $P0$
+\begin{align}
+P0:\,\, & \notag\\
+\min \,\, &\frac{1}{t_{\max}} \sum_{t=1}^{t_{\max}} E^{\text{sum}}(t)\notag\\
+\text{s.t.}\,\,& \eqref{P0:UAV-one-CU},  \eqref{P0:CU-Less-One-UAV}, \eqref{P0:UAV-speed}, \eqref{P0:UAV-collision}, \eqref{P0:rec-beamforming}, \eqref{P0:UAV-Sen-Max-Power}, \eqref{P0:Sensing-SINR}, \eqref{P0:UAV-Off-Max-Power}, \notag\\
+&  \eqref{P0:UAVs-task-successful-offloading}, \eqref{P0:CUs-task-successful-offloading}, \eqref{P0:CU-Max-Power}, \eqref{P0:Task-Fresh}, \eqref{P0:UAV-task-delay}, \eqref{P0:CU-task-delay}, \eqref{P0:BS-Max-Frequency}, \notag \\
+\text{var.}\,\, & \left\{\bm{w}_{i}(t), \bm{b}_{i}(t), \bm{g}_{i}(t), \bm{q}_{u_{i}}(t), D_{u_{i}}^{\text{off}}(t), f_{u_{i}}(t)\right\}_{u_{i} \in \mathcal{U}, t \in \mathcal{T}},  \notag \\
+& \left\{p_{j}(t), D_{c_{j}}^{\text{off}}(t), f_{c_{j}}(t)\right\}_{c_{j} \in \mathcal{C}, t \in \mathcal{T}}, \notag \\
+& \left\{\eta_{i, j}(t)\right\}_{u_{i} \in \mathcal{U}, c_{j} \in \mathcal{C}, t \in \mathcal{T}}.  \notag
+\end{align}
+
+Problem $P0$ is non-convex and difficult to solve since it involves a large number of time-varying and strongly coupled continuous and discrete variables.
+A direct application of traditional deep reinforcement learning (DRL) algorithms to problem $P0$ may suffer from slow convergence, performance degradation, and high computational complexity.
+To address these issues, we adopt DRL to obtain only part of the variables in problem $P0$ and then apply traditional convex optimization theory to solve the remaining variables.
+Therefore, we propose a hierarchical two-layer optimization framework that integrates DRL with traditional convex optimization theory as illustrated in Fig.\ref{}.
+In the outer layer, to handle the hybrid continuous-discrete action space, we propose the MHBPPO algorithm, which uses multiple output heads to concurrently generate continuous actions, i.e., the UAV receiving beamforming vector, the UAV trajectory, the offloading duration of sensing tasks, the CU transmit power, as well as the discrete action, i.e., the spectrum sharing indicator.
+During each timeslot, the MHBPPO agent interacts with the environment to obtain the real-time decision.
+Based on the decision of MHBPPO, we can derive the inner layer problem $P1$. 
+Problem $P1$ is then reformulated as problem $P2$ by introducing auxiliary variables.
+Through variable substitution and a penalty-based approach, problem $P2$ is then transformed into problem $P3$.
+Then, by applying constraint transformation, problem $P3$ is converted into DC problem $P4$, which is finally solved by PC3P via its approximations, i.e., problem $P5$. 
+The output of the inner layer consists of the UAV sensing and offloading beamforming vectors, the offloading duration for entertainment tasks, and computing resource allocation for both sensing and entertainment tasks.
+These output is fed back to the environment with the decision of MHBPPO for reward calculation.
+
+\section{Inner-Level Optimization}\label{sec:inner-level-optimization}
+In the inner-level optimization, we focus on optimizing the $\bm{w}_{i}(t)$, $\bm{b}_{i}(t)$, $f_{u_{i}}(t)$, $D_{c_{j}}^{\text{off}}(t)$ and $f_{c_{j}}(t)$ when given $\bm{g}_{i}(t)$, $\bm{q}_{u_{i}}(t)$, $D_{u_{i}}^{\text{off}} (t)$, $\eta_{i, j}(t)$, and $p_{j}(t)$.
+For notational simplicity, we define
+$E_{u_i}^{\text{fly}}(t)$ $\triangleq$ $\frac{\varrho_1\left\|\bm{q}_{u_i}(t+1)-\bm{q}_{u_i}(t)\right\|^3}{\tau^2}$ $+$ $\frac{\varrho_2\tau^2}{\left\|\bm{q}_{u_i}(t+1)-\bm{q}_{u_i}(t)\right\|}$,
+$\Gamma_{i}(t)$ $\triangleq$ $\sum_{j = 1 }^{J} \eta_{i, j}(t) p_{j}(t) \left|\bm{g}_{i}^{H}\bm{h}_{c_{j}, u_{i}}^{H}(t)\right|^{2}$ $+$ $\sigma^{2}$,
+$\Phi_i(t)$ $\triangleq$ $\sum_{j=1}^{J}\eta_{i,j}(t)p_{j}(t)\left|h_{c_{j},\text{BS}}(t)\right|^{2}$ $+$ $\sigma^{2}$,
+$\Theta_j(t)$ $\triangleq$ $\sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}}$ $+$ $\sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t)$ and
+$\upsilon_j(t)$ $\triangleq$ $\log_2 \big( 1 + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sigma^{2}} \big)$.
+Thus, problem $P0$ can be reformulated as the following problem $P1$.
+\begin{align}
+P1:\,\, & \notag\\
+    \min \,\, &\omega_{1} \kappa \Bigg( \sum_{u_{i} \in \mathcal{U}}C^{\text{sen}}\left(f_{u_{i}}(t)\right)^{2} \xi_{1} \log_2 \Bigg(1 \notag \\
+    & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg) + \sum_{c_{j} \in \mathcal{C}}\Big(C_{{j}}(t)L_{j}(t) \notag\\
+    & \times \left(f_{c_{j}}(t)\right)^{2}\Big) \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Bigg(\bar{D}^{\text{sen}}\left\|\bm{w}_{i}(t)\right\|^{2}   \notag \\
+    & + D_{u_{i}}^{\text{off}}(t)\left\|\bm{b}_{i}(t)\right\|^{2} + E_{u_{i}}^{\text{fly}}(t) \Bigg) + \omega_{3} \sum_{c_{j} \in \mathcal{C}} D_{c_{j}}^{\text{off}}(t)p_{j}(t). \notag\\
+    \text{s.t.}\,\, 
+    & \left\|\bm{w}_{i}(t)\right\|^{2} - P^{\max}_{\text{UAV}} \le 0, \forall u_{i} \in \mathcal{U},  \label{P1:UAV-Sen-Max-Power} \\
+    & \epsilon - \frac{\left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\Gamma_{i}(t)} \le 0, \forall u_{i} \in \mathcal{U}, \label{P1:Sensing-SINR} \\
+    & \left\|\bm{b}_{i}(t)\right\|^{2} -  P^{\max}_{\text{UAV}} \le 0,  \forall u_{i} \in \mathcal{U},  \label{P1:UAV-Off-Max-Power} \\
+    & \xi_{1} \log_2 \Bigg(1 +  \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg) - D_{u_{i}}^{\text{off}}(t)B \notag \\
+    & \times \log_2 \left( 1 + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\bm{b}_{i}(t)\right|^{2}}{\Phi_i(t)} \right)\le 0, \forall u_{i} \in \mathcal{U}, \label{P1:UAVs-task-successful-offloading} \\
+    & L_{j}(t) - \sum_{i = 1}^{I} \eta_{i, j}(t)\bar{D}^{\text{sen}} B \log_2 \Bigg( 1 \notag \\
+    & + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sum_{i = 1}^{I} \eta_{i, j}(t) \left|\bm{h}^{H}_{u_{i}, \text{BS}}(t) \bm{w}_{i}(t)\right|^{2} + \sigma^{2}} \Bigg)  \notag \\
+    & - \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t) B \log_2 \Bigg( 1 \notag \\
+    & + \frac{p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2}}{\sum_{i = 1}^{I} \eta_{i, j}(t) \left|\bm{h}^{H}_{u_{i}, \text{BS}}(t) \bm{b}_{i}(t)\right|^{2} + \sigma^{2}} \Bigg) \notag \\
+    & - \big(D_{c_{j}}^{\text{off}}(t) - \Theta_j(t)\big)B \upsilon_j(t) \le 0, \forall c_{j} \in \mathcal{C}, \label{P1:CUs-task-successful-offloading} \\
+    & \bar{D}^{\text{sen}} + D_{u_{i}}^{\text{off}}(t) - \sum_{j = 1}^{J} \eta_{i, j}(t)D_{c_{j}}^{\text{off}}(t) \le 0, \forall u_{i} \in \mathcal{U}, \label{P1:Task-Fresh}  \\ 
+    & \bar{D}^{\text{sen}}f_{u_{i}}(t) + D_{u_{i}}^{\text{off}}(t)f_{u_{i}}(t) + C^{\text{sen}} \xi_{1} \log_2 \Bigg(1 \notag \\
+    & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg) - D^{\text{sen}}_{\max}(t)f_{u_{i}}(t)\notag \\
+    & \le 0, \forall u_{i} \in \mathcal{U}, \label{P1:UAV-task-delay} \\
+    & D_{c_{j}}^{\text{off}}(t) + \frac{C_{{j}}(t)L_{j}(t)}{f_{c_{j}}(t)} - D^{\max}_{{j}}(t) \le 0, \forall c_{j} \in \mathcal{C}, \label{P1:CU-task-delay} \\
+    & \sum_{u_{i} \in \mathcal{U}}f_{u_{i}}(t) + \sum_{c_{j} \in \mathcal{C}}f_{c_{j}}(t) - F_{\max} \le 0, \label{P1:BS-Max-Frequency} \\
+    \text{var.}\,\, & \left\{\bm{w}_{i}(t), \bm{b}_{i}(t), f_{u_{i}}(t)\right\}_{u_{i} \in \mathcal{U}, t \in \mathcal{T}}, \notag \\
+    & \left\{D_{c_{j}}^{\text{off}}(t), f_{c_{j}}(t)\right\}_{c_{j} \in \mathcal{C}, t \in \mathcal{T}}.  \notag
+\end{align}
+
+The non-convexity of problem $P1$ comes from the strong coupling among the numerous optimization variables. 
+To address this, we introduce auxiliary variables $z_{i}(t)$, which satisfy
+\begin{align}\label{tempP2:Auxiliary-Variable-1}
+    z_{i}(t) \ge \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg), \forall u_{i} \in \mathcal{U}.
+\end{align}
+
+By substituting $z_{i}(t)$ into problem $P1$, we can obtain the following problem $P2$.
+\begin{align}
+    P2:\,\, & \notag\\
+    \min \,\, &\omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}}\left(C^{\text{sen}}\left(f_{u_{i}}(t)\right)^{2}z_{i}(t)\right) + \sum_{c_{j} \in \mathcal{C}}\Big(C_{{j}}(t) \notag \\
+    & \times L_{j}(t)\left(f_{c_{j}}(t)\right)^{2}\Big) \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Bigg(\bar{D}^{\text{sen}}\left\|\bm{w}_{i}(t)\right\|^{2}   \notag \\
+    & + D_{u_{i}}^{\text{off}}(t)\left\|\bm{b}_{i}(t)\right\|^{2} + E_{u_{i}}^{\text{fly}}(t) \Bigg) + \omega_{3} \sum_{c_{j} \in \mathcal{C}} D_{c_{j}}^{\text{off}}(t)p_{j}(t). \notag\\
+    \text{s.t.}\,\, & \eqref{P1:UAV-Sen-Max-Power}, \eqref{P1:Sensing-SINR}, \eqref{P1:UAV-Off-Max-Power}, \eqref{P1:CUs-task-successful-offloading}, \eqref{P1:Task-Fresh}, \eqref{P1:CU-task-delay}, \eqref{P1:BS-Max-Frequency}, \eqref{tempP2:Auxiliary-Variable-1}, \notag \\
+    & z_{i}(t) -  D_{u_{i}}^{\text{off}}(t) B\log_2 \Bigg( 1 + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\bm{b}_{i}(t)\right|^{2}}{\Phi_i(t)} \Bigg) \notag \\
+    & \le 0, \forall u_{i} \in \mathcal{U}, \label{P1-1:UAVs-task-successful-offloading}  \\
+    & \bar{D}^{\text{sen}}f_{u_{i}}(t) + D_{u_{i}}^{\text{off}}(t)f_{u_{i}}(t) + C^{\text{sen}}z_{i}(t) - D^{\text{sen}}_{\max}(t)f_{u_{i}}(t) \notag \\
+    & \le 0, \forall u_{i} \in \mathcal{U}, \label{P1-1:UAV-task-delay}  \\
+    \text{var.}\,\, & \left\{\bm{w}_{i}(t), \bm{b}_{i}(t), f_{u_{i}}(t), z_{i}(t)\right\}_{u_{i} \in \mathcal{U}}, \left\{D_{c_{j}}^{\text{off}}(t), f_{c_{j}}(t)\right\}_{c_{j} \in \mathcal{C}}.  \notag
+\end{align}
+
+\begin{theorem}\label{theorem:P1-equals-P2}
+    Let $E_{P1}^{\text{sum} \star}$ and $E_{P2}^{\text{sum} \star}$ 
+    denote the optimal value for problem $P1$ and $P2$, we have $E_{P1}^{\text{sum} \star} = E_{P2}^{\text{sum} \star}$.
+    Futhermore, let ${\bm{\zeta}}^{\star}_{P2} = \big\{{\bm{w}}^{\star}_{i}(t), {\bm{b}}^{\star}_{i}(t), {f}^{\star}_{u_{i}}(t), z^{\star}_{i}(t), {D}_{c_{j}}^{\text{off}\star}(t), {f}^{\star}_{c_{j}}(t)\big\}$ 
+    denote the optimal solution for problem $P2$, we can know that the optimal solution for problem $P1$
+    is ${\bm{\zeta}}^{\star}_{P1} = \big\{{\bm{w}}^{\star}_{i}(t), {\bm{b}}^{\star}_{i}(t), {f}^{\star}_{u_{i}}(t), {D}_{c_{j}}^{\text{off}\star}(t), {f}^{\star}_{c_{j}}(t)\big\}$.
+\end{theorem}
+\begin{proof}
+    Let $\tilde{\bm{\zeta}}_{P2} = \big\{\tilde{\bm{w}}_{i}(t), \tilde{\bm{b}}_{i}(t), \tilde{f}_{u_{i}}(t), \tilde{z}_{i}(t), \tilde{D}_{c_{j}}^{\text{off}}(t), \tilde{f}_{c_{j}}(t)\big\}$ denote the feasible solution for problem $P2$.
+    To prove $E_{P1}^{\text{sum} \star} = E_{P2}^{\text{sum} \star}$, we first prove that the vector $\tilde{\bm{\zeta}}_{P1} = \big\{\tilde{\bm{w}}_{i}(t), \tilde{\bm{b}}_{i}(t), \tilde{f}_{u_{i}}(t), \tilde{D}_{c_{j}}^{\text{off}}(t), \tilde{f}_{c_{j}}(t)\big\}$ is a feasible solution for problem $P1$.
+    Due to the constraints \eqref{P1:UAV-Sen-Max-Power}, \eqref{P1:Sensing-SINR}, \eqref{P1:UAV-Off-Max-Power}, \eqref{P1:CUs-task-successful-offloading}, \eqref{P1:Task-Fresh}, \eqref{P1:CU-task-delay} and \eqref{P1:BS-Max-Frequency} related to ${\bm{w}}_{i}(t)$, ${\bm{b}}_{i}(t)$, ${f}_{u_{i}}(t)$, ${D}_{c_{j}}^{\text{off}}(t)$ and ${f}_{c_{j}}(t)$.
+    Given that $\tilde{\bm{\zeta}}_{P2}$ is a feasible solution, $\tilde{\bm{\zeta}}_{P1}$ also satisfies the aforementioned constraints. 
+    According to the constraints \eqref{tempP2:Auxiliary-Variable-1}, \eqref{P1-1:UAVs-task-successful-offloading} and \eqref{P1-1:UAV-task-delay} of problem $P2$, we have
+    \begin{align}\label{P1-1-Convert-P1-Proof-1}
+        & \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \tilde{\bm{w}}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg) \notag \\
+        & - D_{u_{i}}^{\text{off}}(t)B \log_2 \Bigg( 1  + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\tilde{\bm{b}}_{i}(t)\right|^{2}}{\Phi_i(t)} \Bigg) \notag \\
+        &  \le \tilde{z}_{i}(t) -  D_{u_{i}}^{\text{off}}(t) B\log_2 \Bigg( 1 + \frac{\left|\bm{h}^{H}_{u_{i}, \text{BS}}(t)\tilde{\bm{b}}_{i}(t)\right|^{2}}{\Phi_i(t)} \Bigg) \le 0,
+    \end{align}
+    \begin{align}\label{P1-1-Convert-P1-Proof-2}
+        & \bar{D}^{\text{sen}}\tilde{f}_{u_{i}}(t) + D_{u_{i}}^{\text{off}}(t)\tilde{f}_{u_{i}}(t) - D^{\text{sen}}_{\max}(t)\tilde{f}_{u_{i}}(t) + C^{\text{sen}} \xi_{1} \notag \\
+        & \times \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \tilde{\bm{w}}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg)  \le \bar{D}^{\text{sen}}\tilde{f}_{u_{i}}(t) \notag \\
+        & + D_{u_{i}}^{\text{off}}(t)\tilde{f}_{u_{i}}(t) - D^{\text{sen}}_{\max}(t)\tilde{f}_{u_{i}}(t) + C^{\text{sen}}\tilde{z}_{i}(t) \le 0.
+    \end{align}
+    Based on \eqref{P1-1-Convert-P1-Proof-1} and \eqref{P1-1-Convert-P1-Proof-2}, we can know that $\tilde{\bm{\zeta}}_{P1}$ satisfies the constraints \eqref{P1:UAVs-task-successful-offloading} and \eqref{P1:UAV-task-delay}. 
+    Therefore, $\tilde{\bm{\zeta}}_{P1}$ is a feasible solution for problem $P1$.
+
+    Let $E^{\text{sum}}_{P1}\big(\tilde{\bm{\zeta}}_{P1}\big)$ and $E^{\text{sum}}_{P2}\big(\tilde{\bm{\zeta}}_{P2}\big)$ denote the objective function values for problems $P1$ and $P2$ evaluated at the feasible solutions $\tilde{\bm{\zeta}}_{P1}$ and $\tilde{\bm{\zeta}}_{P2}$, respectively. 
+    Next, we prove ${E}_{P2}^{\text{sum} \star} \ge {E}_{P1}^{\text{sum} \star}$ and ${E}_{P1}^{\text{sum} \star} \ge {E}_{P2}^{\text{sum} \star}$ hold simultaneously by two steps.
+    In the first step, we prove ${E}_{P2}^{\text{sum} \star} \ge {E}_{P1}^{\text{sum} \star}$. 
+    Based on constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$, we have
+    \begin{align}\label{P1-P2-Relation}
+        & E^{\text{sum}}_{P2}\big(\tilde{\bm{\zeta}}_{P2}\big) = \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}}C^{\text{sen}}\left(\tilde{f}_{u_{i}}(t)\right)^{2}\tilde{z}_{i}(t) + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t) \notag \\
+        & \times L_{j}(t) \left(\tilde{f}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}} \left\|\tilde{\bm{w}}_{i}(t)\right\|^{2} \notag \\ 
+        & + D_{u_{i}}^{\text{off}}(t)\left\|\tilde{\bm{b}}_{i}(t)\right\|^{2} + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}\tilde{D}_{c_{j}}^{\text{off}}(t) p_{j}(t) \notag \\
+        & \ge \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}}\left(\tilde{f}_{u_{i}}(t)\right)^{2} \xi_{1} \log_2 \Bigg(1 \notag \\
+        & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \tilde{\bm{w}}_{i}(t)\right|^{2}}{\Gamma_{i}(t)} \Bigg)  + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t) L_{j}(t)  \notag \\
+        & \times \left(\tilde{f}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\left\|\tilde{\bm{w}}_{i}(t)\right\|^{2} + D_{u_{i}}^{\text{off}}(t) \left\|\tilde{\bm{b}}_{i}(t)\right\|^{2} \notag \\
+        & + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}\tilde{D}_{c_{j}}^{\text{off}}(t)p_{j}(t) = E^{\text{sum}}_{P1}\big(\tilde{\bm{\zeta}}_{P1}\big).
+    \end{align}
+    Therefore, for any feasible solution $\tilde{\bm{\zeta}}_{P2}$ for problem $P2$, we have $ E^{\text{sum}}_{P2}\big(\tilde{\bm{\zeta}}_{P2}\big) \ge E^{\text{sum}}_{P1}\big(\tilde{\bm{\zeta}}_{P1}\big) \ge {E}_{P1}^{\text{sum} \star}$.
+    Since all feasible solutions for problem $P2$ satisfy this inequality, we obtain ${E}_{P2}^{\text{sum} \star} = \min_{\tilde{\bm{\zeta}}_{P2}}E^{\text{sum}}_{P2}\big(\tilde{\bm{\zeta}}_{P2}\big) \ge {E}_{P1}^{\text{sum} \star}$, thereby completing the proof of the first step.
+    In the second step, we prove ${E}_{P1}^{\text{sum} \star} \ge {E}_{P2}^{\text{sum} \star}$.
+    According to constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$, we can find a feasible solution $\tilde{z}_{i}(t) = \xi_{1} \log_2 \Big(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Big)$ that still satisfies constraints \eqref{P1-1:UAVs-task-successful-offloading} and \eqref{P1-1:UAV-task-delay} of problem $P2$.
+    Thus, let $\big\{{\bm{\zeta}}^{\star}_{P1} \cup \left\{\tilde{z}_{i}(t)\right\}\big\}$ denote a feasible solution for problem $P2$, we have
+    % Based on constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$, a feasible solution for problem $P2$ can be denote as $\big\{{\bm{\zeta}}^{\star}_{P1} \cup \left\{\tilde{z}_{i}(t)\right\}\big\}$, 
+    % where $\tilde{z}_{i}(t) = \xi_{1} \log_2 \bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\bigg)$.
+    \begin{align}
+        & E^{\text{sum}\star}_{P1} = E^{\text{sum}}_{P1}\left({\bm{\zeta}}^{\star}_{P1}\right) = \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}}\left({f}^{\star}_{u_{i}}(t)\right)^{2} \xi_{1} \log_2 \bigg(1  \notag \\
+        & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\bigg) + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t)L_{j}(t)  \notag \\
+        & \times \left({f}^{\star}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\left\|{\bm{w}}^{\star}_{i}(t)\right\|^{2} + D_{u_{i}}^{\text{off}}(t) \left\|{\bm{b}}^{\star}_{i}(t)\right\|^{2} \notag \\
+        & + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}{D}_{c_{j}}^{\text{off} \star}(t)p_{j}(t) \notag \\
+        & = E_{P2}^{\text{sum}}\left(\big\{{\bm{\zeta}}^{\star}_{P1} \cup \left\{\tilde{z}_{i}(t)\right\}\big\}\right) = \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}}\left({f}^{\star}_{u_{i}}(t)\right)^{2} \tilde{z}_{i}(t) \notag \\
+        & + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t)L_{j}(t)\left({f}^{\star}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\left\|{\bm{w}}^{\star}_{i}(t)\right\|^{2}\notag \\
+        & + D_{u_{i}}^{\text{off}}(t)\left\|{\bm{b}}^{\star}_{i}(t)\right\|^{2} + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}{D}_{c_{j}}^{\text{off} \star}(t)p_{j}(t) \notag \\
+        & \ge  E_{P2}^{\text{sum} \star}.
+    \end{align}
+
+    Based on the above discussions, the inequalities ${E}_{P2}^{\text{sum} \star} \ge {E}_{P1}^{\text{sum} \star}$ and ${E}_{P1}^{\text{sum} \star} \ge {E}_{P2}^{\text{sum} \star}$ hold simultaneously. 
+    Thus, problems $P1$ and $P2$ have the same optimal value, i.e., ${E}_{P1}^{\text{sum} \star} = {E}_{P2}^{\text{sum} \star}$.
+
+    Then, we prove that if the optimal solution for problem $P2$ is ${\bm{\zeta}}^{\star}_{P2}$, the optimal solution for problem $P1$ is ${\bm{\zeta}}^{\star}_{P1}$.
+    First, we use a proof by contradiction to demonstrate that the constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$ must be satisfied as an equality at ${\bm{\zeta}}^{\star}_{P2}$. 
+    Assume that the constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$ is not satisfied as an equality at ${\bm{\zeta}}^{\star}_{P2}$, that is,
+    \begin{align}
+        & {z}^{\star}_{i}(t) > \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg).
+    \end{align}
+    Then, there must exist a smaller solution $\grave{z}_{i}(t)$ that satisfies
+    \begin{align}
+         & {z}^{\star}_{i}(t) > \grave{z}_{i}(t) \ge \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg).
+    \end{align}
+
+    Since the objective function of problem $P2$ is monotonically increasing with respect to $z_{i}(t)$. 
+    Furthermore, $\grave{z}_{i}(t)$ still satisfies the constraints \eqref{P1-1:UAVs-task-successful-offloading} and \eqref{P1-1:UAV-task-delay} of problem $P2$. 
+    Thus, $\grave{z}_{i}(t)$ is a better solution than ${z}^{\star}_{i}(t)$. 
+    This contradicts the claim that ${z}^{\star}_{i}(t)$ is the optimal solution. 
+    Therefore, the constraint \eqref{tempP2:Auxiliary-Variable-1} of problem $P2$ must be satisfied as an equality at ${\bm{\zeta}}^{\star}_{P2}$, that is
+    \begin{align}\label{P1-1:Z-Equals}
+        {z}^{\star}_{i}(t) = \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\Bigg).
+    \end{align}
+
+    From the equation \eqref{P1-1:Z-Equals} and the conclusion ${E}_{P1}^{\text{sum} \star} = {E}_{P2}^{\text{sum} \star}$, we have 
+    \begin{align}\label{Proof:P1-P2-Same-Solution}
+        &{E}_{P1}^{\text{sum} \star} = {E}_{P2}^{\text{sum} \star} = {E}_{P2}^{\text{sum}}\left({\bm{\zeta}}^{\star}_{P2}\right) = \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}} \left({f}^{\star}_{u_{i}}(t)\right)^{2} \notag \\
+        & \times {z}^{\star}_{i}(t) + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t)L_{j}(t)\left({f}^{\star}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}} \notag \\
+        & \times \left\|{\bm{w}}^{\star}_{i}(t)\right\|^{2} + D_{u_{i}}^{\text{off}}(t)\left\|{\bm{b}}^{\star}_{i}(t)\right\|^{2} + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}{D}_{c_{j}}^{\text{off} \star}(t) \notag \\
+        & \times p_{j}(t) = \omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}} \left({f}^{\star}_{u_{i}}(t)\right)^{2} \xi_{1} \log_2 \bigg(1 \notag \\
+        & + \frac{\xi_{2} \left|\bm{g}^{H}_{i}(t)\mathbf{A}(\theta_{i}(t)) \bm{w}^{\star}_{i}(t)\right|^{2}}{\Gamma_{i}(t)}\bigg) + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t)L_{j}(t) \notag \\
+        & \times \left({f}^{\star}_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\left\|{\bm{w}}^{\star}_{i}(t)\right\|^{2} + D_{u_{i}}^{\text{off}}(t) \left\|{\bm{b}}^{\star}_{i}(t)\right\|^{2} \notag \\
+        & + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}{D}_{c_{j}}^{\text{off} \star}(t)p_{j}(t) = {E}_{P1}^{\text{sum}}\left({\bm{\zeta}}^{\star}_{P1}\right).
+    \end{align}
+    Therefore, if the optimal solution for problem $P2$ is ${\bm{\zeta}}^{\star}_{P2}$, the optimal solution for problem $P1$ is ${\bm{\zeta}}^{\star}_{P1}$.
+\end{proof}
+
+% \begin{lemma}\label{lemma:Radar-Estimation-Information-Rate}
+%     Constraint \eqref{tempP2:Auxiliary-Variable-1} can be reformulated as
+%     \begin{align}\label{tempP2+:Auxiliary-Variable-1}
+%         &  \xi_{1} \log_2 \det \Big(\bm{\Delta}_{i}(t) + \xi_{2}\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\bm{w}^{H}_{i}(t) \mathbf{A}^{H}(\theta_{i}(t))\Big) \notag \\
+%         & - \xi_{1}\log_{2} \det \left(\bm{\Delta}_{i}(t)\right) - z_{i}(t) \le 0, \forall u_{i} \in \mathcal{U}.
+%     \end{align}
+%     where $\det\left(\cdot\right)$ denotes the determinant of a matrix.
+% \end{lemma}
+% \begin{proof}
+%     Note that $\bm{\Delta}_{i}(t)$ in equation \eqref{tempP2:Auxiliary-Variable-1} contains the noise term $\sigma^{2}\mathbf{I}_{N}$. 
+%     Therefore, it is a positive-definite matrix and is invertible. 
+%     By the matrix determinant lemma, $\det (\mathbf{X} + \bm{u}\bm{v}^{H}) = \left(1 + \bm{v}^{H}\mathbf{X}^{-1}\bm{u}\right)\det\left(\mathbf{X}\right)$. 
+%     Let $\mathbf{X} = \bm{\Delta}_{i}(t)$, $\bm{u} = \mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)$, $\bm{v}^{H} = \xi_{2}\bm{w}^{H}_{i}(t) \mathbf{A}^{H}(\theta_{i}(t))$. 
+%     Thus, constraint \eqref{tempP2:Auxiliary-Variable-1} can be rewritten as
+%     \begin{align}\label{z-auxiliary-variable-middle-res}
+%        & z_{i}(t) \ge \xi_{1} \notag \\
+%        & \times \log_2 \Big(\frac{\det\left(\bm{\Delta}_{i}(t) + \xi_{2}\mathbf{A}(\theta_{i}(t)) \bm{w}_{i}(t)\bm{w}^{H}_{i}(t) \mathbf{A}^{H}(\theta_{i}(t))\right)}{\det\left(\bm{\Delta}_{i}(t)\right)}\Big).
+%     \end{align}
+    
+%     By further transforming equation \eqref{z-auxiliary-variable-middle-res}, we can obtain constraint \eqref{tempP2+:Auxiliary-Variable-1}.
+% \end{proof}
+
+Let $\mathbf{W}_{i}(t) \triangleq \bm{w}_{i}(t)\bm{w}^{H}_{i}(t)$ and $\mathbf{B}_{i}(t) \triangleq \bm{b}_{i}(t)\bm{b}^{H}_{i}(t)$, which introduces the following constraints\cite{Solution: Rank-One-Penalty-1, Solution: Rank-One-Penalty-2}
+\begin{align}\label{P2:Sen-Semi-Positive}
+    -\mathbf{W}_{i}(t) \preceq   0, \forall u_{i} \in \mathcal{U},
+\end{align}
+\begin{align}\label{P2:Sen-Rank-1}
+    \text{Rank}\left(\mathbf{W}_{i}(t)\right) = 1, \forall u_{i} \in \mathcal{U},
+\end{align}
+\begin{align}\label{P2:Off-Semi-Positive}
+    -\mathbf{B}_{i}(t) \preceq  0, \forall u_{i} \in \mathcal{U},
+\end{align}
+\begin{align}\label{P2:Off-Rank-1}
+    \text{Rank}\left(\mathbf{B}_{i}(t)\right) = 1, \forall u_{i} \in \mathcal{U}.
+\end{align}
+
+Let $\mathbf{G}_{i}(t) \triangleq \mathbf{A}^{H}(\theta_{i}(t))\,\bm{g}_{i}(t)\bm{g}^{H}_{i}(t)\,\mathbf{A}(\theta_{i}(t))$. Then, constraints \eqref{P1:UAV-Sen-Max-Power}, \eqref{P1:Sensing-SINR}, \eqref{P1:UAV-Off-Max-Power} and \eqref{tempP2:Auxiliary-Variable-1} can be rewritten as
+\begin{align}\label{P2:UAV-Sen-Max-Power}
+    \operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) - P^{\max}_{\text{UAV}} \le 0, \forall u_{i} \in \mathcal{U},
+\end{align}
+\begin{align}\label{P2:Sensing-SINR}
+    \epsilon\Gamma_{i}(t) - \operatorname{Tr}\left(\mathbf{G}_{i}(t)\mathbf{W}_{i}(t)\right) \le 0, \forall u_{i} \in \mathcal{U},
+\end{align}
+\begin{align}\label{P2:UAV-Off-Max-Power}
+    \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - P^{\max}_{\text{UAV}} \le 0,  \forall u_{i} \in \mathcal{U},
+\end{align}
+% \begin{align}\label{P2:Auxiliary-Variable-1}
+%     \xi_{1} \log_2 \Bigg(1 + \frac{\xi_{2} \operatorname{Tr} \left( \mathbf{G}_{i}(t)\mathbf{W}_{i}(t) \right)}{\Gamma_{i}(t)}\Bigg) - z_{i}(t) \le 0, \forall u_{i} \in \mathcal{U},
+% \end{align}
+\begin{align}\label{P2:Auxiliary-Variable-1}
+    & \xi_{1} \log_2 \Big(\xi_{2} \operatorname{Tr} \left( \mathbf{G}_{i}(t)\mathbf{W}_{i}(t) \right) + \Gamma_{i}(t) \Big) - \xi_{1} \log_2 \big(\Gamma_{i}(t)\big) \notag \\
+    & - z_{i}(t) \le 0, \forall u_{i} \in \mathcal{U},
+\end{align}
+% \begin{align}\label{P2:Auxiliary-Variable-1}
+%     \xi_{2} \operatorname{Tr} \left( \mathbf{G}_{i}(t)\mathbf{W}_{i}(t) \right) + \Gamma_{i}(t) -  \Gamma_{i}(t) 2^{\frac{z_{i}(t)}{\xi_{1}}} \le 0, \forall u_{i} \in \mathcal{U},
+% \end{align}
+where $\operatorname{Tr}\left(\cdot\right)$ denotes the trace of a matrix.
+
+Let $\mathbf{H}_{u_{i},\text{BS}} \triangleq \bm{h}_{u_{i}, \text{BS}}(t)\bm{h}^{H}_{u_{i}, \text{BS}}(t)$. 
+Then, constraints \eqref{P1:CUs-task-successful-offloading} and \eqref{P1-1:UAVs-task-successful-offloading} can be reformulated as
+\begin{align}\label{P2:CUs-task-successful-offloading}
+    & L_{j}(t) - \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B \log_{2}\Big( p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sum_{i = 1}^{I} \eta_{i, j}(t) \notag \\
+    & \times \operatorname{Tr}\left(\mathbf{H}_{u_{i}, \text{BS}}(t)\mathbf{W}_{i}(t)\right) + \sigma^{2}\Big) - \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t)B \notag \\
+    & \times \log_{2}\Big(p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i}, \text{BS}}(t)\mathbf{B}_{i}(t)\right) \notag \\
+    & + \sigma^{2}\Big) - \bigg(D_{c_{j}}^{\text{off}}(t) - \Theta_{j}(t)\bigg) B \upsilon_{j}(t) + \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B  \notag \\
+    & \times \log_{2}\Big( \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i}, \text{BS}}(t)\mathbf{W}_{i}(t)\right) + \sigma^{2}\Big) \notag \\
+    & + \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t) B \log_{2}\Big( \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i}, \text{BS}}(t)\mathbf{B}_{i}(t)\right) \notag \\
+    &  + \sigma^{2}\Big)  \le 0, \forall c_{j} \in \mathcal{C},
+\end{align}
+\begin{align}\label{P2:UAVs-task-successful-offloading}
+    & z_{i}(t) - D_{u_{i}}^{\text{off}}(t) B \log_{2}\Big(\operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{B}_{i}(t)\right) + \Phi_{i}(t) \Big) \notag \\
+    & + D_{u_{i}}^{\text{off}}(t) B \log_{2}\left(\Phi_{i}(t)\right) \le 0, \forall u_{i} \in \mathcal{U}.
+\end{align}
+
+However, the introduced new constraints \eqref{P2:Sen-Rank-1} and \eqref{P2:Off-Rank-1} are highly non-convex rank-one constraints. 
+To address this, the semidefinite relaxation (SDR) technique is applied to eliminate the rank-one constraints. Then, based on the obtained optimal solutions $\mathbf{W}^{\star}_{i}(t)$ and $\mathbf{B}^{\star}_{i}(t)$, 
+eigenvalue decomposition or Gaussian randomization methods can be used to recover $\bm{w}^{\star}_{i}(t)$ and $\bm{b}^{\star}_{i}(t)$ \cite{Related works:ISAC:JSAC:Robust-Covert-ISAC}. 
+However, the recovered solutions $\mathbf{W}^{\star}_{i}(t)$ and $\mathbf{B}^{\star}_{i}(t)$ often struggle to satisfy the rank-one constraints, and the random vectors generated by Gaussian randomization method frequently lead to performance degradation, or even fail to satisfy the constraints of problem $P2$.
+Therefore, we introduce penalty terms to address the rank-one constraints \eqref{P2:Sen-Rank-1} and \eqref{P2:Off-Rank-1} \cite{Solution: Rank-One-Penalty-1, Solution: Rank-One-Penalty-2}. 
+Specifically, the rank-one constraints \eqref{P2:Sen-Rank-1} and \eqref{P2:Off-Rank-1} are equivalent to
+\begin{align}\label{tempP2:Penalty-1}
+    \operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) - \left\|\mathbf{W}_{i}(t)\right\|_{2} = 0, 
+\end{align}
+\begin{align}\label{tempP2:Penalty-2}
+    \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - \left\|\mathbf{B}_{i}(t)\right\|_{2}  = 0,
+\end{align}
+where $\left\|\cdot\right\|_{2}$ denotes the spectral norm of a matrix. 
+It should be noted that, for semi-positive definite matrices $\mathbf{W}_{i}(t) \succeq 0$ and $\mathbf{B}_{i}(t) \succeq 0$, the inequality $\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) - \left\|\mathbf{W}_{i}(t)\right\|_ {2} \ge 0$ and $\operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - \left\|\mathbf{B}_{i}(t)\right\|_ {2} \ge 0$ are always satisfied, and the equality holds if and only if $\text{Rank}\left(\mathbf{W}_{i}(t)\right) = 1$ and $\text{Rank}\left(\mathbf{B}_{i}(t)\right) = 1$.
+Let $\rho > 0$ denote the penalty factor, problem $P2$ can be reformulated as the following penalty-based problem $P3$
+\begin{align}
+P3:\,\, & \notag\\
+    \min \,\, &\omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}} C^{\text{sen}} \left(f_{u_{i}}(t)\right)^{2} z_{i}(t) + \sum_{c_{j} \in \mathcal{C}} C_{{j}}(t) L_{j}(t) \notag \\
+    & \times \left(f_{c_{j}}(t)\right)^{2} \Bigg) + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) \notag \\ 
+    & + D_{u_{i}}^{\text{off}}(t) \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}D_{c_{j}}^{\text{off}}(t)p_{j}(t)  \notag\\
+    & + \rho \sum_{u_{i} \in \mathcal{U}}\big(\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) - \left\|\mathbf{W}_{i}(t)\right\|_{2} \notag \\
+    & + \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - \left\|\mathbf{B}_{i}(t)\right\|_{2}\big). \notag \\
+    \text{s.t.}\,\,& \eqref{P1:Task-Fresh}, \eqref{P1:CU-task-delay}, \eqref{P1:BS-Max-Frequency}, \eqref{P1-1:UAV-task-delay}, \eqref{P2:Sen-Semi-Positive}, \eqref{P2:Off-Semi-Positive}, \notag \\
+    & \eqref{P2:UAV-Sen-Max-Power}, \eqref{P2:Sensing-SINR}, \eqref{P2:UAV-Off-Max-Power}, \eqref{P2:Auxiliary-Variable-1}, \eqref{P2:CUs-task-successful-offloading}, \eqref{P2:UAVs-task-successful-offloading}, \notag \\
+    \text{var.}\,\, & \left\{\mathbf{W}_{i}(t), \mathbf{B}_{i}(t), f_{u_{i}}(t), z_{i}(t)\right\}_{u_{i} \in \mathcal{U}}, \left\{D_{c_{j}}^{\text{off}}(t)\right\}_{c_{j} \in \mathcal{C}}.  \notag
+\end{align}
+\begin{lemma}\label{lemma:CU-Frequency}
+    In penalty-based problem $P3$, constraint \eqref{P1:CU-task-delay} can be rewritten as
+    \begin{align}\label{lemma1:equation}
+        D_{c_{j}}^{\text{off}}(t) + \frac{C_{{j}}(t)L_{j}(t)}{f_{c_{j}}(t)} - D^{\max}_{j}(t)= 0, \forall c_{j} \in \mathcal{C}.
+    \end{align}
+\end{lemma}
+\begin{proof}
+    Let ${D}_{c_{j}}^{\text{off} \star}(t)$ and ${f}^{\star}_{c_{j}}(t)$ denote the optimal solutions of $D_{c_{j}}^{\text{off}}(t)$ and $f_{c_{j}}(t)$ for problem $P3$, respectively. 
+    To prove that \eqref{lemma1:equation} always holds, we use a proof by contradiction. 
+    Suppose that the optimal solutions ${D}_{c_{j}}^{\text{off} \star}(t)$ and $f^{\star}_{c_{j}}(t)$ satisfy the constraints \eqref{P1:CU-task-delay} but do not satisfy equation \eqref{lemma1:equation}, we have
+    \begin{align}\label{lemma-temp-0}
+       {D}_{c_{j}}^{\text{off} \star}(t) + \frac{C_{{j}}(t)L_{j}(t)}{{f}^{\star}_{c_{j}}(t)} - D^{\max}_{j}(t) < 0.
+    \end{align}
+
+    Since the objective function of problem $P3$ increases monotonically with $f_{c_{j}}(t)$, and a smaller value of $f_{c_{j}}(t)$ obviously satisfy constraint \eqref{P1:BS-Max-Frequency}. 
+    Therefore, since the constraint \eqref{lemma-temp-0} is strictly less than $0$, we can always find a smaller value $\grave{f}_{c_{j}}(t)$ that satisfies the following inequality
+    \begin{align}
+        & {D}_{c_{j}}^{\text{off} \star}(t) + \frac{C_{{j}}(t)L_{j}(t)}{{f}^{\star}_{c_{j}}(t)} - D^{\max}_{j}(t) \notag \\
+        & < {D}_{c_{j}}^{\text{off} \star}(t) + \frac{C_{{j}}(t)L_{j}(t)}{\grave{f}_{c_{j}}(t)} - D^{\max}_{j}(t) \le 0.
+    \end{align}
+    This indicates that $\grave{f}_{c_{j}}(t)$ is a better solution than ${f}^{\star}_{c_{j}}(t)$, which contradicts the optimality of ${f}^{\star}_{c_{j}}(t)$.
+    Thus, the optimal solutions ${D}_{c_{j}}^{\text{off} \star}(t)$ and ${f}^{\star}_{c_{j}}(t)$ should satisfy equation \eqref{lemma1:equation}, i.e., constraint \eqref{P1:CU-task-delay} can be rewritten as equation \eqref{lemma1:equation} in problem $P3$.
+\end{proof}
+
+According to equation \eqref{lemma1:equation}, the computing resource allocation for entertainment task of CU $c_{j}$ is
+\begin{align}\label{temp:CU-Frequency}
+    f_{c_{j}}(t) = \frac{C_{{j}}(t)L_{j}(t)}{D_{{j}}^{\max}(t) - D_{c_{j}}^{\text{off}}(t)}.
+\end{align}
+
+To ensure $f_{c_{j}}(t)$ remains positive at timeslot $t$, we have
+\begin{align}\label{P3:CU-Frequency-Always-Positive}
+    D_{c_{j}}^{\text{off}}(t) - D_{{j}}^{\max}(t) < 0, \forall c_{j} \in \mathcal{C}.
+\end{align}
+
+By substituting \eqref{lemma1:equation} into penalty-based problem $P3$ and rewriting the product term $z_{i}(t)\big(f_{u_{i}}(t)\big)^{2}$ in the objective function as $\frac{1}{2}\big(z_{i}(t) + \big(f_{u_{i}}(t)\big)^{2}\big)^{2} - \frac{1}{2}\big(z_{i}(t)\big)^{2} - \frac{1}{2}\big(f_{u_{i}}(t)\big)^{4}$, we can obtain the following penalty-based problem $P4$
+\begin{align}
+P4:\,\, & \notag\\
+    \min \,\, &\omega_{1}\kappa \Bigg(\sum_{u_{i} \in \mathcal{U}}\Bigg(\frac{C^{\text{sen}}\left( z_{i}(t) + \left(f_{u_{i}}(t)\right)^{2}\right)^{2}}{2} - \frac{C^{\text{sen}}\left(z_{i}(t)\right)^{2}}{2} \notag \\
+    & - \frac{C^{\text{sen}}\left(f_{u_{i}}(t)\right)^{4}}{2}\Bigg) + \sum_{c_{j} \in \mathcal{C}}\Bigg(\frac{\left(C_{{j}}(t)L_{j}(t)\right)^{3}}{\left(D^{\max}_{j}(t) - D_{c_{j}}^{\text{off}}(t)\right)^{2}}\Bigg) \Bigg) \notag \\
+    & + \omega_{2} \sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}} \operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) + D_{u_{i}}^{\text{off}}(t)\operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) \notag \\
+    & + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}D_{c_{j}}^{\text{off}}(t)p_{j}(t) + \rho \sum_{u_{i} \in \mathcal{U}} \big(\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) \notag \\ 
+    &  - \left\|\mathbf{W}_{i}(t)\right\|_{2} + \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - \left\|\mathbf{B}_{i}(t)\right\|_{2}\big)\notag \\
+    \text{s.t.}\,\,& \eqref{P1:Task-Fresh}, \eqref{P1-1:UAV-task-delay}, \eqref{P2:Sen-Semi-Positive}, \eqref{P2:Off-Semi-Positive}, \eqref{P2:UAV-Sen-Max-Power}, \eqref{P2:Sensing-SINR}, \eqref{P2:UAV-Off-Max-Power}, \eqref{P2:Auxiliary-Variable-1}, \eqref{P2:CUs-task-successful-offloading}, \eqref{P2:UAVs-task-successful-offloading}, \eqref{P3:CU-Frequency-Always-Positive}, \notag \\
+    & \sum_{u_{i} \in \mathcal{U}} f_{u_{i}}(t) + \sum_{c_{j} \in \mathcal{C}} \left(\frac{C_{{j}}(t)L_{j}(t)}{D_{{j}}^{\max}(t) - D_{c_{j}}^{\text{off}}(t)}\right) - F_{\max} \le 0, \label{P3:BS-Max-Frequency} \\
+    \text{var.}\,\, & \left\{\mathbf{W}_{i}(t), \mathbf{B}_{i}(t), f_{u_{i}}(t), z_{i}(t)\right\}_{u_{i} \in \mathcal{U}}, \left\{D_{c_{j}}^{\text{off}}(t)\right\}_{c_{j} \in \mathcal{C}}.  \notag
+\end{align}
+
+\begin{lemma}\label{lemma:Prove-Convex-1}
+    Given constant $p \ge 1$ and $q \ge 1$, function $\Xi_{1}(x, y) = \left(x^{p} + y^{q}\right)^{2}$ is convex for $x \ge 0$ and $y \ge 0$.
+\end{lemma}
+\begin{proof}
+    The Hessian matrix of $\Xi_{1}(x, y)$ equals
+    \begin{align}
+        &\begin{bmatrix}
+        &\frac{\partial^{2}\Xi_{1}(x ,y)}{\partial x^{2}} &
+        &\frac{\partial^{2}\Xi_{1}(x ,y)}{\partial x \partial y} \\
+        &\frac{\partial^{2}\Xi_{1}(x ,y)}{\partial y \partial x} &
+    &\frac{\partial^{2}\Xi_{1}(x ,y)}{\partial y^{2}}
+        \end{bmatrix}
+        = \notag \\
+        &\begin{bmatrix}
+        \begin{aligned}
+        &2p(p-1)x^{p-2}(x^p+y^q) \\
+        &+2p^2x^{2p-2}
+        \end{aligned}
+        &
+        2pq\,x^{p-1}y^{q-1}
+        \\
+        2pq\,x^{p-1}y^{q-1}
+        &
+        \begin{aligned}
+        &2q(q-1)y^{q-2}(x^p+y^q) \\
+        &+2q^2y^{2q-2}
+        \end{aligned}
+        \end{bmatrix}.
+    \end{align}
+
+    The first-order principal minor of Hessian matrix are $2p(p-1)x^{p-2}(x^p+y^q)+2p^2x^{2p-2}$ and $2q(q-1)y^{q-2}(x^p+y^q)+2q^2y^{2q-2}$, 
+    and the second-order principal minor is $4pqx^{p-2}y^{q-2}\left(x^{p} + y^{q}\right)\big((p - 1)(q - 1)\left(x^{p} + y^{q}\right) + (p - 1)qy^{q} + (q - 1)px^{p}\big)$. 
+    Since $p \ge 1$, $q \ge 1$, $x \ge 0$ and $y \ge 0$, all the principal minors are non-negative, and thus the Hessian matrix is positive semidefinite. 
+    Therefore, given constant $p \ge 1$ and $q \ge 1$, the function $\Xi_{1}(x, y) = (x^p + y^q)^2$ is convex for $x \ge 0$ and $y \ge 0$.
+\end{proof}
+\begin{lemma}\label{lemma:Prove-Convex-2}
+    Given non-negative constant $a$ and $b$, function $\Xi_{2}(x) = \frac{a}{\left(b - x\right)^{p}}$ is convex when $p > 0$ and $0 \le x < b$.
+\end{lemma}
+\begin{proof}
+    The second derivative of $\Xi_{2}(x)$ is
+    \begin{align}
+        \frac{\mathrm{d}^{2}\Xi_{2}(x)}{\mathrm{d}x^{2}} = \frac{(p + 1)pa}{\left(b - x\right)^{p + 2}}.
+    \end{align}
+    Obviously, for any non-negative constants $a$ and $b$, when $p > 0$ and $0 \le x < b$, we have $\frac{(p + 1)pa}{\left(b - x\right)^{p + 2}} \ge 0$. 
+    Therefore, function $\Xi_{2}(x) = \frac{a}{\left(b - x\right)^{p}}$ is convex.
+\end{proof}
+
+\begin{lemma}\label{lemma:Prove-Convex-3}
+    Given constants $a_{1}, \dots, a_{k}$ and $b$, and constant matrices $\mathbf{A}_{1}, \dots, \mathbf{A}_{k}$,
+    % When $\mathbf{A} + \sum_{k =  1} ^{K} a_{k}\mathbf{B}_{k}\mathbf{X}_{k}\mathbf{B}_{k}^{H} \succ 0$, function $\Xi_{3}(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}) = -\log_2 \det \Big(\mathbf{A} + \sum_ {k =  1}^{K} a_{k}\mathbf{B}_{k}\mathbf{X}_{k}\mathbf{B}_{k}^{H}\Big)$ is convex.
+    When $b + \sum_{k =  1}^{K} a_{k}\operatorname{Tr}\left(\mathbf{A}_{k}\mathbf{X}_{k}\right) > 0$, function $\Xi_{3}(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}) = -\log_2 \Big(b + \sum_{k =  1}^{K} a_{k}\operatorname{Tr}\left(\mathbf{A}_{k}\mathbf{X}_{k}\right)\Big)$ is convex.
+\end{lemma}
+\begin{proof}
+    Let $G_{1}(y) = -\log_2 \left(y\right)$.
+    % According to \cite{Solution: Convex-Optimization-Book}, when $\mathbf{Y} \succ 0$, function $G_{1}(\mathbf{Y})$ is convex.
+    When $y > 0$, function $G_{1}(y)$ is convex. 
+    Let $H_{1}\left(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}\right) = b + \sum_{k =  1}^{K} a_{k}\operatorname{Tr}\left(\mathbf{A}_{k}\mathbf{X}_{k}\right)$.
+    Since $\operatorname{Tr}\left(\mathbf{X}\right)$ is a linear function of the matrix variable $\mathbf{X}$\cite{Solution: Convex-Optimization-Book}.
+    Thus, $H_{1}\left(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}\right)$ are affine transformations with respect to the matrix variables $\mathbf{X}_{1}, \dots, \mathbf{X}_{K}$. 
+    Since convex functions remain convex after affine transformations of their domains \cite {Solution: Convex-Optimization-Book}, the composite functions $G_{1}(H_{1}(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}))$ are convex.
+
+    Therefore, given constant $a_{1}, \dots, a_{k}$, $b$ and constant matrices $\mathbf{A}_{1}, \dots, \mathbf{A}_{k}$,
+    When $b + \sum_{k =  1}^{K} a_{k}\operatorname{Tr}\left(\mathbf{A}_{k}\mathbf{X}_{k}\right) > 0$, function $\Xi_{3}(\mathbf{X}_{1}, \dots, \mathbf{X}_{K}) = -\log_2 \Big(b + \sum_{k =  1}^{K} a_{k}\operatorname{Tr}\left(\mathbf{A}_{k}\mathbf{X}_{k}\right)\Big)$ is convex.
+\end{proof}
+
+\begin{theorem}
+    Penalty-based problem $P4$ can be written in the form of a convex difference.
+\end{theorem}
+\begin{proof}
+    The objective function of penalty-based problem $P4$ can be written as $\digamma_{0}^{\dagger}\left(\bm{\zeta}\right) - \digamma_{0}^{\ddagger}\left(\bm{\zeta}\right)$,
+    where $\digamma_{0}^{\dagger}\left(\bm{\zeta}\right) = \omega_{1}\kappa \sum_{u_{i} \in \mathcal{U}}\frac{C^{\text{sen}} \left( z_{i}(t) + \left(f_{u_{i}}(t)\right)^{2}\right)^{2}}{2}
+    + \omega_{1}\kappa \sum_{c_{j} \in \mathcal{C}}\Bigg(\frac{\left(C_{{j}}(t)L_{j}(t)\right)^{3}}{\left(D^{\max}_{j}(t) - D_{c_{j}}^{\text{off}}(t)\right)^{2}}\Bigg)
+    + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) + D_{u_{i}}^{\text{off}}(t)\operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) + E_{u_{i}}^{\text{fly}}(t)\Big)
+    + \omega_{3}\sum_{c_{j} \in \mathcal{C}}D_{c_{j}}^{\text{off}}(t)p_{j}(t) + \rho \sum_{u_{i} \in \mathcal{U}}\left(\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) + \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right)\right)$,
+    $\digamma_{0}^{\ddagger}\left(\bm{\zeta}\right) =  \omega_{1}\kappa \sum_{u_{i} \in \mathcal{U}}\Bigg(\frac{C^{\text{sen}}\left(z_{i}(t)\right)^{2}}{2}  
+    +  \frac{C^{\text{sen}}\left(f_{u_{i}}(t)\right)^{4}}{2}\Bigg) + \rho \sum_{u_{i} \in \mathcal{U}} \left(\left\|\mathbf{W}_{i}(t)\right\|_{2} +  \left\|\mathbf{B}_{i}(t)\right\|_{2}\right)$.
+    According to lemmas \ref{lemma:Prove-Convex-1} and \ref{lemma:Prove-Convex-2}, we can know that $\left( z_{i}(t) + \left(f_{u_{i}}(t)\right)^{2}\right)^{2}$ and $\frac{\left(C_{{j}}(t)L_{j}(t)\right)^{3}}{\left(D^{\max}_{j}(t) - D_{c_{j}}^{\text{off}}(t)\right)^{2}}$ are convex.
+    Based on \cite{Solution: Convex-Optimization-Book}, we can know that spectral norm $\left\|\cdot\right\|_{2}$ is convex.
+    Therefore, $\digamma_{0}^{\dagger}\left(\bm{\zeta}\right)$ and $\digamma_{0}^{\ddagger}\left(\bm{\zeta}\right)$ are non-negative weighted sums of convex functions, and are thus convex.
+
+    The constraint \eqref{P2:Auxiliary-Variable-1} corresponding to UAV $u_{i}$ can be written as $\digamma_{1, i}^{\dagger}\left(\bm{\zeta}\right) - \digamma_{1, i}^{\ddagger}\left(\bm{\zeta}\right)$,
+    where $\digamma_{1, i}^{\dagger}\left(\bm{\zeta}\right) = - \xi_{1}\log_{2} \left(\Gamma_{i}(t)\right) - z_{i}(t)$,
+    $\digamma_{1, i}^{\ddagger}\left(\bm{\zeta}\right) = - \xi_{1} \log_2 \Big( \xi_{2} \operatorname{Tr} \left( \mathbf{G}_{i}(t)\mathbf{W}_{i}(t) \right) + \Gamma_{i}(t) \Big)$.
+    $\digamma_{1, i}^{\dagger}\left(\bm{\zeta}\right)$ is a affine function with respect to $z_{i}(t)$ and thus convex.
+    According to lemma \ref{lemma:Prove-Convex-3}, $\digamma_{1, i}^{\ddagger}\left(\bm{\zeta}\right)$ is also convex.
+    The constraint \eqref{P2:CUs-task-successful-offloading} corresponding to CU $c_{j}$ can be written as $\digamma_{2, j}^{\dagger}\left(\bm{\zeta}\right) - \digamma_{2, j}^{\ddagger}\left(\bm{\zeta}\right)$,
+    where $\digamma_{2, j}^{\dagger}\left(\bm{\zeta}\right) =  L_{j}(t) - \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B \log_{2}\Big( p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{W}_{i}(t)\right) + \sigma^{2}\Big) 
+    - \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t) B \log_{2}\Big(p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} + \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{B}_{i}(t)\right) + \sigma^{2}\Big) 
+    - \big(D_{c_{j}}^{\text{off}}(t) - \Theta_{j}(t)\big) B \upsilon_{j}(t)$,
+    $\digamma_{2, j}^{\ddagger}\left(\bm{\zeta}\right) = - \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B \log_{2}\Big(\sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{W}_{i}(t)\right) + \sigma^{2}\Big)
+    - \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t) B \times \log_{2}\Big(\sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{B}_{i}(t)\right) + \sigma^{2}\Big)$.
+    According to lemma \ref{lemma:Prove-Convex-3}, we can know that $\digamma_{2, j}^{\dagger}\left(\bm{\zeta}\right)$ and $\digamma_{2, j}^{\ddagger}\left(\bm{\zeta}\right)$ are convex.
+
+    Considering the left-hand sides of constraints \eqref{P1:Task-Fresh}, \eqref{P1-1:UAV-task-delay}, \eqref{P2:Sen-Semi-Positive}, \eqref{P2:Off-Semi-Positive}, \eqref{P2:UAV-Sen-Max-Power}, \eqref{P2:Sensing-SINR}, \eqref{P2:UAV-Off-Max-Power}, \eqref{P2:UAVs-task-successful-offloading}, and \eqref{P3:CU-Frequency-Always-Positive} are all convex. 
+    Additionally, the left-hand side of constraint \eqref{P3:BS-Max-Frequency} is also convex according to lemma \ref{lemma:Prove-Convex-2}. 
+    Therefore, the above constraints can be regarded as a convex difference form.
+
+    In summary, penalty-based problem $P4$ can be written in convex difference form.
+\end{proof}
+
+However, since penalty-based problem $P4$ still has nonzero terms $\digamma_{0}^{\ddagger}\left(\bm{\zeta}\right)$, $\digamma_{1, i}^{\ddagger}\left(\bm{\zeta}\right)$, $\forall u_{i} \in \mathcal{U}$, and $\digamma_{2, j}^{\ddagger}\left(\bm{\zeta}\right)$, $\forall c_{j} \in \mathcal{C}$, the problem $P4$ remains non-convex. 
+To address this, we apply the CCCP algorithm to solve it \cite{Solution: Rank-One-Penalty-1}.
+Let $z^{(n)}_{i}(t)$, $f^{(n)}_{u_{i}}(t)$, $\mathbf{W}^{(n)}_{i}(t)$, and $\mathbf{B}^{(n)}_{i}(t)$ denote the optimal solutions of $z_{i}(t)$, $f_{u_{i}}(t)$, $\mathbf{W}_{i}(t)$, and $\mathbf{B}_{i}(t)$ at the $n$-th iteration. 
+According to \cite{Solution: Rank-One-Penalty-1, Solution: Rank-One-Penalty-2}, the objective function can be linearized at the $(n + 1)$-th iteration as
+\begin{align}\label{CCCP:Obj}
+    & \omega_{1}\kappa \sum_{u_{i} \in \mathcal{U}}\frac{C^{\text{sen}} \left( z_{i}(t) + \left(f_{u_{i}}(t)\right)^{2}\right)^{2}}{2} \notag \\
+    & + \omega_{1}\kappa \sum_{c_{j} \in \mathcal{C}}\left(\frac{\left(C_{{j}}(t)L_{j}(t)\right)^{3}}{\left(D^{\max}_{j}(t) - D_{c_{j}}^{\text{off}}(t)\right)^{2}}\right) \notag \\
+    & + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) + D_{u_{i}}^{\text{off}}(t)\operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) + E_{u_{i}}^{\text{fly}}(t)\Big) \notag \\
+    & + \omega_{3}\sum_{c_{j} \in \mathcal{C}}D_{c_{j}}^{\text{off}}(t)p_{j}(t) - \omega_{1}\kappa \sum_{u_{i} \in \mathcal{U}}\Bigg( \frac{C^{\text{sen}}\left(z_{i}^{(n)}(t)\right)^{2}}{2} \notag \\
+    & + \frac{C^{\text{sen}}\left(f_{u_{i}}^{(n)}(t)\right)^{4}}{2} + C^{\text{sen}}z_{i}^{(n)}(t)\Big(z_{i}(t) - z_{i}^{(n)}(t)\Big) \notag \\
+    & + 2C^{\text{sen}}\left(f_{u_{i}}^{(n)}(t)\right)^{3}\left(f_{u_{i}}(t) - f_{u_{i}}^{(n)}(t)\right) \Bigg) \notag \\
+    & + \rho \sum_{u_{i} \in \mathcal{U}} \bigg(\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) - \left\|\mathbf{W}^{(n)}_{i}(t)\right\|_{2} + \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) \notag \\
+    & - \left\|\mathbf{B}^{(n)}_{i}(t)\right\|_{2} - \operatorname{Tr}\Big(\bm{\nu}_{\max}\left(\mathbf{W}^{(n)}_{i}(t)\right)\bm{\nu}^{H}_{\max}\left(\mathbf{W}^{(n)}_{i}(t)\right) \notag \\
+    & \times \Big(\mathbf{W}_{i}(t) - \mathbf{W}^{(n)}_{i}(t)\Big)\Big) - \operatorname{Tr}\Big(\bm{\nu}_{\max}\left(\mathbf{B}^{(n)}_{i}(t)\right) \notag \\
+    & \times \bm{\nu}^{H}_{\max} \left(\mathbf{B}^{(n)}_{i}(t)\right)\left(\mathbf{B}_{i}(t) - \mathbf{B}^{(n)}_{i}(t)\right)\Big)\bigg).
+\end{align}
+where, $\bm{\nu}_{\max}\left(\cdot\right)$ represents the eigenvector corresponding to the largest eigenvalue of the matrix.
+
+According to \cite{Solution: Linear-log2-Tr-X}, constrains \eqref{P2:Auxiliary-Variable-1} and \eqref{P2:CUs-task-successful-offloading} can be linearized at the $(n + 1)$-th iteration as 
+
+\begin{align}\label{CCCP:Auxiliary-Variable-1}
+    & - \xi_{1}\log_{2} \big(\Gamma_{i}(t)\big) - z_{i}(t) + \xi_{1} \log_2 \Big(\bm{\Psi}_{i}^{(n)}(t)\Big) \notag \\
+    & + \frac{\xi_{1} \xi_{2}}{\ln 2 \cdot \bm{\Psi}_{i}^{(n)}(t)} \operatorname{Tr}\Big(\mathbf{G}_{i}(t)\Big(\mathbf{W}_{i}(t) - \mathbf{W}_{i}^{(n)}(t)\Big)\Big) \notag \\
+    & \le 0, \forall u_{i} \in \mathcal{U},
+\end{align}
+
+
+\begin{align}\label{CCCP:CUs-task-successful-offloading}
+    & L_{j}(t) - \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B \log_{2}\Big( p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} \notag \\
+    & + \sum_{i = 1}^{I} \eta_{i, j}(t)\operatorname{Tr}\left(\mathbf{H}_{u_{i}, \text{BS}}(t)\mathbf{W}_{i}(t)\right) + \sigma^{2}\Big) \notag \\
+    & - \sum_{i = 1}^{I} \eta_{i, j}(t) D_{u_{i}}^{\text{off}}(t) B \log_{2}\Big(p_{j}(t) \left|h_{c_{j}, \text{BS}}(t)\right|^{2} \notag \\
+    & + \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{B}_{i}(t)\right) + \sigma^{2}\Big) \notag \\
+    & - \big(D_{c_{j}}^{\text{off}}(t) - \Theta_{j}(t)\big) B \upsilon_{j}(t) + \sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}} B  \notag \\
+    & \times \log_{2}\left(\bm{\Psi}_{j, 1}^{(n)}(t)\right) + \sum_{i = 1}^{I} \eta_{i, j}(t)D_{u_{i}}^{\text{off}}(t) B \log_{2}\left(\bm{\Psi}_{j, 2}^{(n)}(t)\right)\notag \\
+    & + \frac{\sum_{i = 1}^{I} \eta_{i, j}(t) \bar{D}^{\text{sen}}B}{\ln 2 \cdot \bm{\Psi}_{j, 1}^{(n)}(t)} \sum_{i=1}^I \eta_{i, j}(t) \operatorname{Tr}\Big( \mathbf{H}_{u_{i},\text{BS}}(t)\Big(\mathbf{W}_{i}(t) \notag \\ 
+    & - \mathbf{W}_{i}^{(n)}(t)\Big) \Big) + \frac{\sum_{i = 1}^{I} \eta_{i, j}(t)D_{u_{i}}^{\text{off}}(t) B}{\ln 2 \cdot \bm{\Psi}_{j, 2}^{(n)}(t)} \sum_{i=1}^I \eta_{i, j}(t) \notag \\
+    & \times \operatorname{Tr}\Big( \mathbf{H}_{u_{i},\text{BS}}(t)\left(\mathbf{B}_{i}(t) - \mathbf{B}_{i}^{(n)}(t)\right) \Big) \le 0, \forall c_{j} \in \mathcal{C}.
+\end{align}
+where $\bm{\Psi}_{i}^{(n)}(t) = \xi_{2}\operatorname{Tr}\left(\mathbf{G}_{i}(t)\mathbf{W}^{(n)}_{i}(t)\right) + \Gamma_{i}(t)$, 
+$\bm{\Psi}_{j, 1}^{(n)}(t) = \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{W}^{(n)}_{i}(t)\right) + \sigma^{2}$ and
+$\bm{\Psi}_{j, 2}^{(n)}(t) = \sum_{i = 1}^{I} \eta_{i, j}(t) \operatorname{Tr}\left(\mathbf{H}_{u_{i},\text{BS}}(t)\mathbf{B}^{(n)}_{i}(t)\right) + \sigma^{2}$.
+
+Therefore, at the $(n + 1)$-th iteration, penalty-based problem $P4$ can be transformed into the following penalty-based problem $P5$
+\begin{align}
+    P5:\,\, & \notag\\
+    \min \,\, & \omega_{1}\kappa \sum_{u_{i} \in \mathcal{U}}\frac{C^{\text{sen}} \left( z_{i}(t) + \left(f_{u_{i}}(t)\right)^{2}\right)^{2}}{2} \notag \\
+    & + \omega_{1}\kappa \sum_{c_{j} \in \mathcal{C}}\Bigg(\frac{\left(C_{{j}}(t)L_{j}(t)\right)^{3}}{\left(D^{\max}_{j}(t) - D_{c_{j}}^{\text{off}}(t)\right)^{2}}\Bigg) \notag \\
+    & + \omega_{2}\sum_{u_{i} \in \mathcal{U}} \Big(\bar{D}^{\text{sen}}\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) + D_{u_{i}}^{\text{off}}(t)\operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) \notag \\
+    & + E_{u_{i}}^{\text{fly}}(t)\Big) + \omega_{3}\sum_{c_{j} \in \mathcal{C}}D_{c_{j}}^{\text{off}}(t)p_{j}(t) - \omega_{1}\kappa \notag \\
+    & \times \sum_{u_{i} \in \mathcal{U}}\Bigg( \frac{C^{\text{sen}}\left(z_{i}^{(n)}(t)\right)^{2} + C^{\text{sen}}\left(f_{u_{i}}^{(n)}(t)\right)^{4}}{2}\notag \\
+    & + C^{\text{sen}}z_{i}^{(n)}(t)\Big(z_{i}(t) - z_{i}^{(n)}(t)\Big) + 2C^{\text{sen}} \left(f_{u_{i}}^{(n)}(t)\right)^{3} \notag \\
+    & \times \left(f_{u_{i}}(t) - f_{u_{i}}^{(n)}(t)\right) \Bigg) + \rho \sum_{u_{i} \in \mathcal{U}} \bigg(\operatorname{Tr}\left(\mathbf{W}_{i}(t)\right) \notag \\
+    & - \left\|\mathbf{W}^{(n)}_{i}(t)\right\|_{2} + \operatorname{Tr}\left(\mathbf{B}_{i}(t)\right) - \left\|\mathbf{B}^{(n)}_{i}(t)\right\|_{2} \notag \\
+    & - \operatorname{Tr}\Big(\bm{\nu}_{\max}\left(\mathbf{W}^{(n)}_{i}(t)\right)\bm{\nu}^{H}_{\max}\left(\mathbf{W}^{(n)}_{i}(t)\right) \notag \\
+    & \times \left(\mathbf{W}_{i}(t) - \mathbf{W}^{(n)}_{i}(t)\right)\Big) - \operatorname{Tr}\Big(\bm{\nu}_{\max}\left(\mathbf{B}^{(n)}_{i}(t)\right) \notag \\
+    & \times \bm{\nu}^{H}_{\max}\left(\mathbf{B}^{(n)}_{i}(t)\right)\left(\mathbf{B}_{i}(t) - \mathbf{B}^{(n)}_{i}(t)\right)\Big)\bigg). \notag \\
+    \text{s.t.}\,\,& \eqref{P1:Task-Fresh}, \eqref{P1-1:UAV-task-delay}, \eqref{P2:Sen-Semi-Positive}, \eqref{P2:Off-Semi-Positive}, \eqref{P2:UAV-Sen-Max-Power}, \eqref{P2:Sensing-SINR}, \notag \\
+    & \eqref{P2:UAV-Off-Max-Power}, \eqref{P2:UAVs-task-successful-offloading},  \eqref{P3:CU-Frequency-Always-Positive}, \eqref{P3:BS-Max-Frequency}, \eqref{CCCP:Auxiliary-Variable-1}, \eqref{CCCP:CUs-task-successful-offloading},   \notag \\
+    \text{var.}\,\, & \left\{\mathbf{W}_{i}(t), \mathbf{B}_{i}(t), f_{u_{i}}(t), z_{i}(t)\right\}_{u_{i} \in \mathcal{U}}, \left\{D_{c_{j}}^{\text{off}}(t)\right\}_{c_{j} \in \mathcal{C}}.  \notag
+\end{align}
+
+Penalty-based problem $P5$ is convex and can be efficiently solved using CVX tools \cite{Solution: Convex-Optimization-Book}. 
+Specifically, the details of the Penalty-based Concave-Convex Procedure (PC3P) algorithm is shown in Algorithm \ref{Penalty-Based-CCCP}.
+Let $x^{(0)}$ $=$ $\left\{\mathbf{W}^{(0)}_{i}(t), \mathbf{B}^{(0)}_{i}(t), f^{(0)}_{u_{i}}(t), z^{(0)}_{i}(t), D_{c_{j}}^{\text{off}(0)}(t)\right\}$ denote the initial feasible solution, 
+$x^{(n)}$ $=$ $\left\{\mathbf{W}^{(n)}_{i}(t), \mathbf{B}^{(n)}_{i}(t), f^{(n)}_{u_{i}}(t), z^{(n)}_{i}(t), D_{c_{j}}^{\text{off}(n)}(t)\right\}$ denote the solution obtained at the $n$-th iteration, and $X^{(n)}$ denote the objective function value for penalty-based problem $P5$ computed by $x^{(n)}$.
+In each iteration, the PC3P algorithm updates the current solution set $x^{(n)}$ based on the optimal solution $x^{\star}$ obtained by this iteration. 
+This process repeated until the convergence conditions $\frac{\left|X^{(n)} - X^{(n - 1)}\right|}{\left|X^{(n - 1)}\right|} \le \gamma_{1}$ and $\sum_{u_{i} \in \mathcal{U}}\Big(\operatorname{Tr}\left(\mathbf{W}^{(n)}_{i}(t)\right)-\left\|\mathbf{W}^{(n)}_{i}(t)\right\|_{2} + \operatorname{Tr}\left(\mathbf{B}^{(n)}_{i}(t)\right)-\left\|\mathbf{B}^{(n)}_{i}(t)\right\|_{2}\Big) \leq \gamma_{2}$ are satisfied,  
+where $\gamma_{1}$ and $\gamma_{2}$ are the predefined thresholds.
+
+ \begin{algorithm}[t]
+     \caption{The details of PC3P algorithm}
+     \label{Penalty-Based-CCCP}
+     \renewcommand{\algorithmicrequire}{\textbf{input:}}
+     \renewcommand{\algorithmicensure}{\textbf{output:}}
+     \begin{algorithmic}[1]
+         %input
+         \REQUIRE Initialize the number of iterations $n = 0$, feasible \STATEx \quad \, solution $x^{(0)}$, penalty factor $\rho$, thresholds $\gamma_{1}$ and \STATEx \quad \, $\gamma_{2}$.
+         \REPEAT
+             \STATE $n = n + 1$.
+             \STATE Applying CVX to solve penalty-based problem  \STATEx \quad  $P5$ based on $x^{(n - 1)}$, and then obtain current \STATEx \quad optimal solution ${x}^{\star}$.
+             \STATE Let $x^{(n)} \leftarrow  {x}^{\star}$.
+         \UNTIL $\frac{\left|X^{(n)} - X^{(n - 1)}\right|}{\left|X^{(n - 1)}\right|} \le \gamma_{1}$ and $\sum_{u_{i} \in \mathcal{U}}\Big(\operatorname{Tr}\Big(\mathbf{W}^{(n)}_{i}(t)\Big)$ \STATEx \qquad $-\left\|\mathbf{W}^{(n)}_{i}(t)\right\|_{2} + \operatorname{Tr}\left(\mathbf{B}^{(n)}_{i}(t)\right)-\left\|\mathbf{B}^{(n)}_{i}(t)\right\|_{2}\Big)$ \STATEx \qquad $\leq \gamma_{2}$.
+         \ENSURE ${x}^{\star} = \left\{{\mathbf{W}}^{\star}_{i}(t), {\mathbf{B}}^{\star}_{i}(t), {f}^{\star}_{u_{i}}(t), {z}^{\star}_{i}(t), {D}_{c_{j}}^{\text{off} \star}(t)\right\}$.
+        %  \STATEx \qquad ${\bm{w}}^{\star}_{i}(t) = \text{EVD}\left({\mathbf{W}}^{\star}_{i}(t)\right)$, ${\bm{b}}^{\star}_{i}(t) = \text{EVD}\left({\mathbf{B}}^{\star}_{i}(t)\right)$.
+     \end{algorithmic}
+ \end{algorithm}
+
+\section{Outer-Level Optimization}\label{sec:outer-level-optimization}
+Since the outer-level problem consists of both continuous and discrete actions, the standard PPO algorithm is struggled to handle it directly.
+To address this, we introduce multi-head Beta proximal policy optimization (MHBPPO) algorithm to solve this complex mixed action space problem.
+Specifically, we apply multiple continuous and discrete heads instead of a single-output head of PPO to output continuous and discrete actions concurrently without additional techniques,
+where the UAV receiving beamforming vector, the UAV trajectory, the sensing task offloading duration, and CUs' transmit powers are generated by multiple continuous heads,
+and the spectrum sharing indicator is generated by multiple discrete heads.
+% with each UAV corresponding to a discrete head used to select a CU to reuse its spectrum
+Additionally, we introduce the inherently bounded Beta distribution instead of the unbounded Gaussian distribution to avoid the bias caused by action clipping \cite{c4:Beta-distribution}.
+The details of MHBPPO are described as follows.
+\subsection{Basic Definitions}
+\subsubsection{State space}
+Let $\bm{q}_{k}$, $1 \le k \le K$ denote the position of $k$-th target. We assume that there are more targets than UAVs in the systems, i.e., $K > I$. 
+As described in Section \ref{sec: System Description}, we divide the total system operation time $T$ into multiple windows, each lasting $\varkappa$ timeslots. 
+Within each window, UAV $u_{i}$ is assigned to a designated target $o_{i}$. 
+Therefore, at timeslot $t$, the state space $\mathcal{S}_{t}$ includes the channel conditions, the UAVs' position, the targets' position, the number of remaining timeslots until the window switch $\bar{t}$, and the positions of designated targets that UAV $u_{i}$ needs to sense in the current and next windows, $\bm{q}_{o_{i}}$ and $\bm{q}_{o^{\text{next}}_{i}}$. 
+Thus, we have
+\begin{align}\label{c5:State-Sapce}
+    \mathcal{S}_{t} =
+    \begin{Bmatrix}
+        \mathbf{H}_{u_{1}}^{\mathcal{C}}(t), \dots, \mathbf{H}_{u_{I}}^{\mathcal{C}}(t); \bm{h}_{u_{1}, \mathrm{BS}}(t), \dots, \bm{h}_{u_{I}, \mathrm{BS}}(t); \\
+        h_{c_{1}, \mathrm{BS}}(t), \dots, h_{c_{J}, \mathrm{BS}}(t); \bm{q}_{u_{1}}(t), \dots, \bm{q}_{u_{I}}(t); \\
+        \bm{q}_{1}, \dots, \bm{q}_{K}; \bar{t};\bm{q}_{o_{1}}, \dots, \bm{q}_{o_{I}}; \bm{q}_{o^{\text{next}}_{1}}, \dots, \bm{q}_{o^{\text{next}}_{I}}
+    \end{Bmatrix}.
+\end{align}
+\subsubsection{Action space}
+At timeslot $t$, the action space should consist of all outer-level optimization variables, including the UAV receiving beamforming vector, the UAV trajectory, the sensing task offloading duration, the spectrum sharing indicator, and the transmit power for CU's entertainment task offloading. 
+Due to the constraints \eqref{P0:UAV-one-CU} and \eqref{P0:CU-Less-One-UAV}, the spectrum sharing indicator $\eta_{i, j}(t)$ is represented as a highly sparse matrix. 
+To reduce the complexity of the action space, let $\bar{\eta}_{i}(t)$ denote the index of CU with which UAV $u_{i}$ chooses to reuse its spectrum. 
+However, the action space still contains both continuous and discrete actions.
+Thus, we decompose it into a continuous action space $\mathcal{A}^{\text{con}}_{t}$ and a discrete action space $\mathcal{A}^{\text{dis}}_{t}$,
+which are respectively generated by the continuous and discrete heads of MHBPPO.
+Specifically, $\mathcal{A}^{\text{con}}_{t}$ includes the UAV receiving beamforming vector, UAV trajectory, sensing task offloading duration, and transmit power for CU's entertainment task offloading, while $\mathcal{A}^{\text{dis}}_{t}$ includes $\bar{\eta}_{i}(t)$,
+where $\mathcal{A}^{\text{con}}_{t}$ and $\mathcal{A}^{\text{dis}}_{t}$ are given by
+\begin{align}\label{c5:Action-Continuous-Sapce}
+    \mathcal{A}^{\text{con}}_{t} = 
+    \begin{Bmatrix}
+        \bm{g}_{1}(t), \dots, \bm{g}_{I}(t);\bm{q}_{u_{1}}(t), \dots, \bm{q}_{u_{I}}(t); \\
+        D_{u_{1}}^{\text{off}}(t), \dots, D_{u_{I}}^{\text{off}}(t);  p_{1}(t), \dots, p_{J}(t)
+    \end{Bmatrix},
+\end{align}
+\begin{align}\label{c5:Action-Discrete-Sapce}
+    \mathcal{A}^{\text{dis}}_{t} = 
+    \begin{Bmatrix}
+        \bar{\eta}_{1}(t), \dots, \bar{\eta}_{I}(t)
+    \end{Bmatrix}.
+\end{align}
+\subsubsection{Reward}
+At timeslot $t$, the reward $r_{t}$ is defined as
+\begin{align}\label{c5:Reward-Function}
+    r_{t} = \exp\left(\frac{-E_{P5}(t)}{1000}\right) + \chi_{1}(t) + \chi_{2}(t) + \chi_{3}(t),
+\end{align}
+where $\exp\left(\frac{-E_{P5}(t)}{1000}\right)$ is used to penalize high objective function values of penalty-based problem $P5$, thereby encouraging the agent to minimize $E_{P5}(t)$ to obtain a higher reward.
+$\chi_{1}(t)$ represents the penalty for violating the UAV trajectory constraint. 
+At timeslot $t$, when the actions generated by agent violate constraints \eqref{P0:UAV-speed} or \eqref{P0:UAV-collision}, $\chi_{1}(t) = -1$; otherwise, $\chi_{1}(t) = 0$.
+$\chi_{2}(t)$ is used to penalize spectrum sharing conflicts and is defined as
+\begin{align}
+    \chi_2(t) = -\sum_{j=1}^{J} \max\left(0, \sum_{i=1}^{I} \eta_{i,j}(t) - 1\right).
+\end{align}
+Specifically, when the spectral resources of each CU are reused by at most one UAV, $\chi_2(t) = 0$; otherwise, $\chi_2(t)$ equals the number of UAVs exceeding this limit. 
+$\chi_{3}(t)$ is used to penalize the actions generated by agent that make problem $P5$ unsolvable. 
+If problem $P5$ is unsolvable, $\chi_{3}(t) = -1$; otherwise, $\chi_{3}(t) = 0$.  
+\subsection{MHBPPO Algorithm}
+Different from traditional PPO, which can only output a single type of action space, MHBPPO adopts a multi-head architecture to simultaneously output continuous and discrete actions.
+Following the architecture of the hybrid action space framework in work \cite{c5:IoTJ:HPPO}, the Actor network in the proposed MHBPPO algorithm consists of two shared feature extraction layers, multiple continuous heads, and multiple discrete heads,
+while the Critic network consists of a three-layer fully connected network.
+Furthermore, unlike the traditional Gaussian distribution used for continuous action output \cite{c5:IoTJ:HPPO}, the multiple continuous heads in MHBPPO apply the Beta distribution. 
+This ensures that the sampled continuous action naturally falls within the interval $\left(0, 1 \right)$, thereby avoiding the gradient bias caused by the introduction of additional action clipping operations of Gaussian distribution \cite{c4:Beta-distribution}.
+For the discrete action, MHBPPO applies multiple categorical heads to output the spectrum sharing indicator for each UAV separately.
+Specifically, each discrete head corresponds to a single UAV and outputs the CU index it selects, thereby avoiding the Cartesian product of discrete action space due to a single categorical head, and consequently reducing the computational complexity of the proposed algorithm.
+\begin{algorithm}[!t]
+    \caption{MHBPPO Algorithm.}
+    \label{MHBPPO algorithm}
+    \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+    \renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+    \begin{algorithmic}[1]
+        \REQUIRE Initialize $E$, $\Omega$, $\gamma$, $\lambda$, $\varepsilon$, $\phi$, $\psi$, $\Upsilon^{\text{a}}(1)$, $\Upsilon^{\text{c}}(1)$, $\varphi_{\text{con}}$, \STATEx \quad \, $\varphi_{\text{dis}}$, and $\mathcal{B}$
+
+        \FOR{$e = 1$ to $E$}
+            \FOR{$t = 1$  to $T$}
+                \STATE Obtain $\mathcal{S}_{t}$ and normalize it to get $\bar{\mathcal{S}}_{t}$.
+                \STATE Obtain $\mathcal{A}_t^{\text{con}}$ and $\mathcal{A}_t^{\text{dis}}$ from $\pi_{\phi}^{\text{con}} (\cdot \mid \bar{\mathcal{S}}_{t})$ and \STATEx \qquad $\pi_{\phi}^{\text{dis}}(\cdot \mid \bar{\mathcal{S}}_{t})$.
+                \STATE Execute action in the environment to obtain ${\mathcal{S}}_{t + 1}$ \STATEx \qquad and $r_{t}$. Then normalize ${\mathcal{S}}_{t + 1}$ to $\bar{\mathcal{S}}_{t + 1}$ and \STATEx \qquad normalize $r_{t}$ to $\bar{r}_{t}$.
+                \STATE Store $\Big(\bar{\mathcal{S}}_{t}, \mathcal{A}_t^{\text{con}}, \mathcal{A}_t^{\text{dis}}, \bar{\mathcal{S}}_{t + 1}, \bar{r}_{t},$ \STATEx
+                $\qquad \log \pi_{\tilde{\phi}}^{\text{con}}(\mathcal{A}_t^{\text{con}} \mid \bar{\mathcal{S}}_t),
+                \log \pi_{\tilde{\phi}}^{\text{dis}}(\mathcal{A}_t^{\text{dis}} \mid \bar{\mathcal{S}}_{t}), \beta_{t}\Big)$ into $\mathcal{B}$
+            \ENDFOR
+            \STATE Compute the advantage function and the TD target \STATEx \quad by equations \eqref{c5:GAE} and \eqref{c5:TD-target}.
+            \FOR{$\omega = 1$ to $\Omega$}
+                \STATE Randomly sample small batches from $\mathcal{B}$ and \STATEx \qquad update the network parameters according to \STATEx \qquad equations \eqref{c5:actor-para-update} and \eqref{c5:critic-para-update}.
+            \ENDFOR
+            \STATE Clear $\mathcal{B}$ and update the learning rates according to \STATEx \quad equations \eqref{c5:actor-decay-rate} and \eqref{c5:critic-decay-rate}.
+        \ENDFOR
+    \end{algorithmic}
+\end{algorithm}
+
+Specifically, the MHBPPO algorithm consists of $E$ training rounds, each of which contains $T$ timeslots.
+At the $t$-th timeslot of the $e$-th training episode, the agent first normalizes the state $\mathcal{S}_t$ to $\bar{\mathcal{S}}_t$ using the state normalization function.
+Based on $\bar{\mathcal{S}}_t$, the Actor outputs a continuous policy $\pi_{\phi}^{\text{con}}(\cdot \mid \bar{\mathcal{S}}_{t})$ and a discrete policy $\pi_{\phi}^{\text{dis}}(\cdot \mid \bar{\mathcal{S}}_{t})$ according to the current network parameters $\phi$,
+and obtains continuous action $\mathcal{A}_t^{\text{con}}$ and discrete action $\mathcal{A}_t^{\text{dis}}$ through sampling and mapping operations.
+Then, execute $\mathcal{A}_t^{\text{con}}$ and $\mathcal{A}_t^{\text{dis}}$ in the environment to obtain the next state $\mathcal{S}_{t + 1}$, the reward $r_{t}$, and the termination flag $\beta_{t}$,
+where $\beta_{t} \in \{0, 1\}$. If the current timeslot $t$ equals $T$, then $\beta_{t} = 1$; otherwise $\beta_{t} = 0$.
+To improve training stability, $\mathcal{S}_{t + 1}$ and $r_{t}$ are processed through the state normalization function and the reward scaling function to obtain $\bar{\mathcal{S}}_{t + 1}$ and $\bar{r}_{t}$, respectively.
+Then, the experience $\Big(\bar{\mathcal{S}}_{t}, \mathcal{A}_t^{\text{con}}, \mathcal{A}_t^{\text{dis}}, \bar{\mathcal{S}}_{t + 1}, \bar{r}_{t},
+\log \pi_{\tilde{\phi}}^{\text{con}}(\mathcal{A}_t^{\text{con}} \mid \bar{\mathcal{S}}_t),
+\log \pi_{\tilde{\phi}}^{\text{dis}}(\mathcal{A}_t^{\text{dis}} \mid \bar{\mathcal{S}}_{t}), \beta_{t}\Big)$ is stored in the rollout buffer $\mathcal{B}$,
+where $\log \pi_{\tilde{\phi}}^{\text{con}}(\mathcal{A}_t^{\text{con}} \mid \bar{\mathcal{S}}_t)$ represents the log probability of the action $\mathcal{A}_t^{\text{con}}$ sampled by the old policy $\pi_{\tilde{\phi}}^{\text{con}}(\cdot \mid \bar{\mathcal{S}}_t)$.
+$\log \pi_{\tilde{\phi}}^{\text{dis}}(\mathcal{A}_t^{\text{dis}} \mid \bar{\mathcal{S}}_{t})$ represents the log probability of the action $\mathcal{A}_t^{\text{dis}}$ sampled by the old policy $\pi_{\tilde{\phi}}^{\text{dis}}(\cdot \mid \bar{\mathcal{S}}_{t})$.
+
+Once an episode ends, the advantage function $\hat{A}_t$ is computed based on $\mathcal{B}$.
+Let $\hat{A}_{T+1} = 0$, the advantage function for each timeslot can be computed recursively by
+\begin{align}\label{c5:GAE}
+\hat{A}_t &= \delta_t + \gamma \lambda (1 - \beta_{t})\hat{A}_{t+1}, 1 \le t \le T,
+\end{align}
+where $\delta_t = \bar{r}_t + \gamma (1 - \beta_{t})V_{\psi}(\bar{\mathcal{S}}_{t+1}) - V_{\psi}(\bar{\mathcal{S}}_t)$,
+$\delta_t$ is the TD error at timeslot $t$, $\gamma$ is the discount factor, $\lambda$ is the GAE factor.
+Furthermore, the TD target for the Critic is given by
+\begin{align}\label{c5:TD-target}
+V_t^{\text{tar}} = \hat{A}_t + V_{\psi}(\bar{\mathcal{S}}_t), \quad 1 \le t \le T.
+\end{align}
+where $\psi$ denotes the parameters of the Critic network at the current episode. 
+
+Then, we apply $\Omega$ epochs of parameter updates on the Actor and Critic networks using $\mathcal{B}$.
+At epoch $\omega$, we randomly sample a mini-batch index set $\mathcal{I}^{\omega,e}$ from $\mathcal{B}$.
+Following the definition of the PPO clipped surrogate objective function in \cite{c5:IoTJ:HPPO} and \cite{c5:HPPO}, we define the loss function of the Actor network as
+\begin{align}\label{c5:actor-network-update}
+& \mathcal{L}^{\text{act}}(\phi)
+= \frac{1}{|\mathcal{I}^{\omega,e}|}\sum_{t \in \mathcal{I}^{\omega,e}}
+\Big(
+-\min\Big(\vartheta_t^{\text{con}}(\phi)\hat{A}_t,\,
+\text{clip}\big(\vartheta_t^{\text{con}}(\phi), \notag \\
+& 1-\varepsilon, 1+\varepsilon\big)\hat{A}_t\Big) - \min\Big(\vartheta_t^{\text{dis}}(\phi)\hat{A}_t,\,
+\text{clip}\big(\vartheta_t^{\text{dis}}(\phi), 1-\varepsilon, \notag \\
+& 1+\varepsilon\big)\hat{A}_t\Big)
+-\varphi_{\text{con}}\mathcal{H}_t^{\text{con}}
+-\varphi_{\text{dis}}\mathcal{H}_t^{\text{dis}}
+\Big),
+\end{align}
+where $\left|\cdot\right|$ denotes the number of elements in a set, and $\varepsilon$ denotes the clipping factor that prevents large policy updates. 
+$\mathcal{H}_t^{\text{con}}$ and $\mathcal{H}_t^{\text{dis}}$ denote the policy entropy for continuous and discrete actions.
+$\varphi_{\text{con}}$ and $\varphi_{\text{dis}}$ denote the corresponding entropy regularization coefficients,
+$\vartheta_t^{\text{con}}(\phi) = \frac{\pi_{{\phi}}^{\text{con}}(\mathcal{A}_t^{\text{con}} \mid \bar{\mathcal{S}}_{t})} {\pi_{\tilde{\phi}}^{\text{con}}(\mathcal{A}_t^{\text{con}} \mid \bar{\mathcal{S}}_{t})}$ 
+and $\vartheta_t^{\text{dis}}(\phi) = \frac{\pi_{{\phi}}^{\text{dis}}(\mathcal{A}_t^{\text{dis}} \mid \bar{\mathcal{S}}_{t})}{\pi_{\tilde{\phi}}^{\text{dis}}(\mathcal{A}_t^{\text{dis}} \mid \bar{\mathcal{S}}_{t})}$ denote the probability ratios for continuous and discrete actions, respectively.
+
+The loss function of the Critic network is given by
+\begin{align}\label{c5:critic-network-update}
+\mathcal{L}^{\text{val}}(\psi) =
+\frac{1}{|\mathcal{I}^{\omega,e}|}\sum_{t \in \mathcal{I}^{\omega,e}}
+\left(
+V_{\psi}(\bar{\mathcal{S}}_t)-V_t^{\text{tar}}
+\right)^2.
+\end{align}
+
+Then, the Actor and Critic network parameters $\phi$ and $\psi$ are updated by
+\begin{align}\label{c5:actor-para-update}
+\phi \leftarrow \phi - \Upsilon^{\text{a}}(e)\nabla_{\phi}\mathcal{L}^{\text{act}}(\phi),
+\end{align}
+\begin{align}\label{c5:critic-para-update}
+\psi \leftarrow \psi - \Upsilon^{\text{c}}(e)\nabla_{\psi}\mathcal{L}^{\text{val}}(\psi),
+\end{align}
+where $\Upsilon^{\text{a}}(e)$ and $\Upsilon^{\text{c}}(e)$ represent the learning rates of the Actor and Critic networks in episode $e$, respectively.
+
+After $\Omega$ updates in the current episode, we apply the following learning rate decay strategy to update learning rates
+\begin{align}\label{c5:actor-decay-rate}
+\Upsilon^{\text{a}}(e + 1) = \Upsilon^{\text{a}}(1)\left(1-\frac{e}{E}\right),
+\end{align}
+\begin{align}\label{c5:critic-decay-rate}
+\Upsilon^{\text{c}}(e + 1) = \Upsilon^{\text{c}}(1)\left(1-\frac{e}{E}\right),
+\end{align}
+where $\Upsilon^{\text{a}}(1)$ and $\Upsilon^{\text{c}}(1)$ represent the initial learning rates of the Actor network and the Critic network, respectively.
+
+\section{Performance Evaluation}\label{sec: Performance Evaluation}
+\subsection{Simulation Setup}\label{sec: Simulation Setup}
+The simulation environment is configured as follows. 
+The simulation area is a rectangular region centered at $\left(0\,\text{m}, 0\,\text{m}, 0\,\text{m}\right)$ with a length and width of $600$ m. 
+The BS is deployed at $\left(0\,\text{m}, 0\,\text{m}, 20\,\text{m}\right)$, while UAVs, CUs, and targets are randomly distributed within a circular region centered at the BS with a radius of $600$ m. 
+There are $4$ UAVs, $10$ CUs, and $40$ targets in the systems.
+According to \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And} and \cite{Simulation: UAV-Flying}, the UAV flight parameters are set as follows. 
+The fixed flight altitude is $100$ m, the maximum and minimum velocity are $40$ m/s and $5$ m/s, respectively. 
+The propulsion energy consumption parameters $\varrho_{1}$ and $\varrho_{2}$ are $0.00614$ and $15.976$, respectively, and the minimum safe distance between UAVs is $5$ m.
+According to \cite{Related works:ISAC-PRO:IoTJ:Joint-Sensing-Communications} and \cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of}, the channel parameters are set as follows. 
+The bandwidth is $10$ MHz, the noise power density is $-174$ dBm/Hz, the reference path loss at a distance of one meter is $-30$ dB, the Rician factor is $10$ dB, and the path loss factors $\alpha_{1}$, $\alpha_{2}$, and $\alpha_{3}$ are $2$, $2$, and $2.5$, respectively.
+According to \cite{Related works:ISAC-PRO:WCL:Integrated-Sensing-And} and \cite{Related works:ISCC-PRO:TWC:Joint-Sensing-And}, the parameters for the UAV sensing process are set as follows. 
+The target's radar cross-section is $10 \, \text{m}^{2}$, the target's detection threshold is $20$ dB, the radar duty factor is $10^{-2}$, the variance of range fluctuation process is $10^{-14}$, the radar pulse duration is $2 \times 10^{-5}$, the radar spectral shape parameter is $\frac{\pi}{\sqrt{3}}$, and the duration of sensing process is $0.1$ s.
+According to \cite{Related works:ISCC:TCCN:Collaborative-Optimization-Of}, the BS computational parameters are set as follows. The number of CPU cycles required for the BS to compute 1 bit of data is $10^{3}$, the maximum computation capacity of the BS is $10$ GHz, and the effective switching capacitance of the BS CPU is $10^{-28}$.
+According to \cite{Simulation: Gauss-Markov-Model}, the Markov model parameters are set as follows. The initial velocities of all CUs are $\left(1\,\text{m/s}, 0\,\text{m/s}, 0\,\text{m/s}\right)$, the memory level is $0.4$, the asymptotic mean of the velocity is $\left(1\,\text{m/s}, 0\,\text{m/s}, 0\,\text{m/s}\right)$, the standard deviation of the velocity is $2$, and the variance of the uncorrelated random Gaussian process is $1$.
+In addition, according to \cite{Related works:ISAC:TWC:Efficient-UAV-Hovering}, the number of antennas on UAV is $6$, and the antenna spacing is $0.5 \lambda$. The maximum transmit power of the UAV and CU are $40$ dBm and $23$ dBm, respectively. The maximum tolerable delay for sensing and entertainment tasks is $0.2$ s and $0.6$ s, respectively. The data size of the entertainment task for each CU is $170$ kbits, the number of timeslots in a sensing window is $4$, the duration of each timeslot is $0.6$ s, and the weight coefficients $\omega_{1}$, $\omega_{2}$ and $\omega_{3}$ are $0.2$, $0.4$, $0.4$, respectively.
+
+The convergence thresholds $\gamma_{1}$ and $\gamma_{2}$ for the PC3P algorithm are $10^{-6}$, and the penalty factor $\rho$ is $0.1$. 
+The hyperparameter settings for the MHBPPO algorithm are set as follows. 
+The initial learning rates for both the Actor and Critic networks are $3 \times 10^{-4}$, the discount factor $\gamma$ is $0.99$, the GAE factor $\lambda$ is $0.95$, the clipping factor $\varepsilon$ is $0.2$, the continuous action entropy regularization coefficient $\varphi_{\text{con}}$ is $0.05$, and the discrete action entropy regularization coefficient $\varphi_{\text{dis}}$ is $0.01$. 
+Additionally, the number of training episodes $E$ is $8000$, the number of timeslots per episode $T$ is $40$, and the number of epochs $\Omega$ is $5$.
+\subsection{Performance of PC3P}
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=3in]{simulation_figure/energy_rank1_with_iter_under_rho0.1_uav4.pdf}
+    \caption{Performance of PC3P.}
+    \label{chap:c5:fig:pc3p_performance}
+\end{figure}
+
+
+Fig.\ref{chap:c5:fig:pc3p_performance} represents the performance of PC3P algorithm. 
+As shown in the Fig.\ref{chap:c5:fig:pc3p_performance}, we can know that the energy term in problem $P4$ decreases rapidly and converges within a few iterations. 
+Meanwhile, the penalty terms for the sensing beamforming and offloading beamforming rapidly approach $0$. 
+This demonstrates that the proposed PC3P algorithm can efficiently obtain high-quality rank-one solutions that satisfy constraints \eqref{P2:Sen-Rank-1} and \eqref{P2:Off-Rank-1}.
+Also, Fig.\ref{chap:c5:fig:pc3p_performance} represents the convergence performance of the PC3P algorithm under $30$ random cases. 
+In each case, the number of UAVs and CUs, the maximum tolerable delay for sensing task, and the size of entertainment task are selected from the ranges $[2, 6]$, $[4, 12]$ , $[0.2 \, \text{s}, 0.4 \, \text{s}]$, and $[140 \, \text{kbits}, 200 \, \text{kbits}]$, respectively.
+As shown in Fig.\ref{chap:c5:fig:pc3p_performance}, the PC3P converges quickly within just a few iterations, further confirming its efficiency.
+
+Fig.\ref{chap:c5:fig:comparison_of_penalty_and_gaussian} compares the performance of PC3P and Gaussian-based concave-convex procedure (GC3P). 
+It should be noted that, we do not consider exhaustive search as a baseline method because the total dimensionality of the variables in the inner-level problem is $(2IN^{2} + 2I + J)$, and the complexity of exhaustive search grows exponentially with this dimensionality and the search precision. 
+Therefore, exhaustive search cannot search all solutions of the variables with a high precision within a finite amount of time.
+Specifically, the GC3P applies CCCP to solve problem P5 without the penalty term.
+The beam solution obtained by CCCP typically does not satisfy the rank-one constraint and needs to generate a set of candidate vectors from the beam solution. 
+Each candidate vector is normalized and multiplied by its conjugate transpose to form a rank-one beam direction matrix. 
+Then, substitute the convergence solution of CCCP and rank-one beam direction matrix into the inner-level problem to obtain feasible solutions. 
+Finally, the feasible solution that minimizes the weighted total energy consumption is selected as the optimal solution \cite{Related works:ISAC:JSAC:Robust-Covert-ISAC}.
+According to \cite{Simulation:Gaussian-Randomization-Candidate-Num}, the number of candidate vectors of GC3P is $50$.
+As shown in Fig.\ref{chap:c5:fig:comparison_of_penalty_and_gaussian}, the PC3P achieves similar performance to GC3P, while significantly reducing running time. 
+This is because GC3P requires solving the inner-level problem independently for each candidate vector to recover the rank-one solution and then selecting the best one, which introduces additional computational overhead \cite{Analysis: Bad-Gaussian-Randomization}.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=3in]{simulation_figure/penalty_gaussian_compare_uav4.pdf}
+    \caption{Performance comparison of PC3P and GC3P.}
+    \label{chap:c5:fig:comparison_of_penalty_and_gaussian}
+\end{figure}
+
+\subsection{Performance of MHBPPO-PC3P}
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=3in]{simulation_figure/dif_alg_cmp.pdf}
+    \caption{Convergence performance of MHBPPO-PC3P, MHGPPO-PC3P, MHSAC-PC3P, SHBPPO-PC3P and pure MHBPPO.}
+    \label{chap:c5:fig:dif_alg_cmp}
+\end{figure}
+Fig.\ref{chap:c5:fig:dif_alg_cmp} compares the performance of MHBPPO-PC3P, MHSAC-PC3P, MHGPPO-PC3P, SHBPPO-PC3P, and pure MHBPPO algorithms.
+Specifically, SHBPPO-PC3P continuously encodes the discrete actions, enabling a single head to output all actions defined in \eqref{c5:Action-Continuous-Sapce} and \eqref{c5:Action-Discrete-Sapce} in a unified manner.
+In pure MHBPPO, it not only outputs the action space defined in \eqref{c5:Action-Continuous-Sapce} and \eqref{c5:Action-Discrete-Sapce}, 
+but also generates all variables of problem $P1$.
+As shown in Fig.\ref{chap:c5:fig:dif_alg_cmp}, compared with MHGPPO-PC3P, MHBPPO-PC3P achieves a higher average reward.
+This is because using Beta distribution instead of Gaussian distribution avoids action clipping operation,
+and thus reduces the gradient bias introduced by clipping \cite{c4:Beta-distribution}.
+Meanwhile, MHBPPO-PC3P also achieves faster convergence and a higher average reward than MHSAC-PC3P.
+The main reasons can be categorized into two aspects.
+First, the clipping mechanism in MHBPPO restricts the update magnitude of the policy, thereby improving training stability. 
+Second, the introduced entropy regularization enhances the exploration capability of MHBPPO. 
+Moreover, MHBPPO-PC3P outperforms the pure MHBPPO.
+The reason is that the PC3P in MHBPPO-PC3P ensures the optimal solution of the inner-level problem.
+In contrast, the neural-network approximation errors let pure MHBPPO only obtain suboptimal solutions.
+Finally, MHBPPO-PC3P also outperforms SHBPPO-PC3P. This is because SHBPPO-PC3P adopts a quantization mapping operation that maps a segment of continuous values into the same index via a many-to-one mapping,
+causing the action used for computing the probability ratios to be inconsistent with the action used for computing the advantage function, which results in a biased policy estimation of SHBPPO-PC3P.
+
+Fig.\ref{chap:c5:fig:plot_diff_algo_box_fig} compares the success rates of the MHBPPO-PC3P, MHGPPO-PC3P, MHSAC-PC3P, SHBPPO-PC3P, and pure MHBPPO algorithms across 30 random cases.
+It should be noted that each random case contains 40 targets that must be detected within the given 40 timeslots.
+The success rate means the ratio of the number of successfully detected targets to the total number of targets in the current random case.
+As shown in Fig.\ref{chap:c5:fig:plot_diff_algo_box_fig},
+the MHBPPO-PC3P algorithm achieved the highest success rate in all random cases under $4$ UAVs configuration, and its variance was significantly smaller than that of the other compared algorithms, validating the superiority of the proposed MHBPPO-PC3P algorithm.
+Furthermore, when only $1$ UAV performs the sensing task, the success rate is significantly lower than when $4$ or $5$ UAVs are deployed,
+further illustrating the necessity of deploying multi-UAV in the systems.
+It should be noted that, by deploying $5$ UAVs, MHBPPO-PC3P can achieve $100 \%$ success rate in all random cases, demonstrating that the proposed algorithm can effectively coordinate multiple UAVs to complete the sensing tasks.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=3in]{simulation_figure/plot_diff_algo_box_fig.pdf}
+    \caption{Comparison of success rates for MHBPPO-PC3P, MHGPPO-PC3P, MHSAC-PC3P, SHBPPO-PC3P, and pure MHBPPO with $4$ UAVs configuration and MHBPPO-PC3P with $1$ and $5$ UAVs configuration under $30$ random cases.}
+    \label{chap:c5:fig:plot_diff_algo_box_fig}
+\end{figure}
+
+
+\section{Conclusion}\label{sec: Conclusion}
+In this paper, we investigated the dynamic energy-efficient resource allocation problem in the multi-antenna, multi-UAV-assisted ISCC systems with heterogeneous tasks, 
+where sensing and entertainment tasks coexist and compete for limited communication and computing resources. 
+The formulated energy-efficient problem was extremely challenging due to the tightly coupled time-dependent continuous and discrete optimization variables, as well as the existence of rank-one constraints. 
+To address such a complicated problem in real-time, the original problem was equivalently decomposed into an inner-outer framework. 
+In the inner-level problem, by introducing auxiliary variables, using variables and constraints transformation, applying penalty-based rank-one relaxation, and reformulating the problem into a DC form, we proposed the PC3P algorithm to efficiently obtain the optimal solution. 
+In the outer-level problem, we proposed the MHBPPO algorithm to handle the mixed continuous-discrete action space, which uses multiple output heads for continuous and discrete actions to obtain real-time solutions. 
+Simulation results demonstrated that compared with the MHGPPO-PC3P, MHSAC-PC3P, and pure MHBPPO, the proposed MHBPPO-PC3P achieved the highest success rate and the lowest average weighted total energy consumption, validating the effectiveness and superiority of the proposed framework.
+
+\begin{thebibliography}{00}
+\bibitem{Intro:6G supports IoT}
+W. Saad, M. Bennis, and M. Chen, ``A Vision of 6G Wireless Systems: Applications, Trends, Technologies, and Open Research Problems,'' IEEE Network, vol. 34, no. 3, pp. 134-142, May 2020.
+
+\bibitem{Intro:similarity of sensing and communication}
+F. Liu, Y. Cui, C. Masouros, J. Xu, T. X. Han, Y. C. Eldar, and S. Buzzi, ``Integrated Sensing and Communications: Toward Dual-Functional Wireless Networks for 6G and Beyond,'' IEEE Journal on Selected Areas in Communications, vol. 40, no. 6, pp. 1728-1767, Jun. 2022.
+
+\bibitem{Intro:ISAC becomes popular topic}
+Y. Cui, F. Liu, X. Jing, and J. Mu, ``Integrating sensing and communications for ubiquitous IoT: Applications, trends, and challenges,'' IEEE Network, vol. 35, no. 5, pp. 158-167, Sep. 2021.
+
+\bibitem{Related works:ISAC:IoTJ:Pinching-Antennas-Assisted}
+Y. Liu, J. Xiao, W. Xie, W. Zhou, H. Xu, K. Cao, and L. Yang,
+``Pinching Antennas Assisted Distributed Integrated Sensing and Communication Systems,''
+IEEE Internet of Things Journal, Early Access, DOI: 10.1109/JIOT.2025.3645770, Dec. 2025.
+
+\bibitem{Related works:ISAC:JSAC:Dual-Functional-UAV-Empowered}
+X. Zheng, Y. Wu, L. Fan, X. Lei, R. Q. Hu, and G. K. Karagiannidis,
+``Dual-Functional UAV-Empowered Space-Air-Ground Networks: Joint Communication and Sensing,''
+IEEE Journal on Selected Areas in Communications, vol. 42, no. 12, pp. 3412-3427, Dec. 2024.
+
+% \bibitem{Related works:ISAC:JSAC:Maximizing-The-Value} % 替换这个，正文没有相关引用
+% B. Li, X. Wang, and F. Fang,
+% ``Maximizing the Value of Service Provisioning in Multi-User ISAC Systems Through Fairness Guaranteed Collaborative Resource Allocation,''
+% IEEE Journal on Selected Areas in Communications, vol. 42, no. 9, pp. 2243-2258, Sep. 2024.
+
+\bibitem{Related works:ISAC:JSAC:Robust-Covert-ISAC}
+B. Yang, Y. Yu, X. Hao, Y. Lu, L. Guo, and Y. Li,
+``Robust Covert ISAC: A Collaborative Sensing and Communication Approach Against Mobile Warden,''
+IEEE Journal on Selected Areas in Communications, Early Access, DOI: 10.1109/JSAC.2025.3637011,  Nov. 2025.
+
+\bibitem{Related works:ISAC:TWC:Channel-Sharing-Aided}
+C. Dou, N. Huang, Y. Wu, L. Qian, and T. Q. S. Quek,
+``Channel Sharing Aided Integrated Sensing and Communication: An Energy-Efficient Sensing Scheduling Approach,''
+IEEE Transactions on Wireless Communications, vol. 23, no. 5, pp. 4802-4814, May 2024.
+
+\bibitem{Related works:ISAC:TWC:Efficient-UAV-Hovering}
+A. Khalili, A. Rezaei, D. Xu, F. Dressler, and R. Schober,
+``Efficient UAV Hovering, Resource Allocation, and Trajectory Design for ISAC With Limited Backhaul Capacity,''
+IEEE Transactions on Wireless Communications, vol. 23, no. 11, pp. 17635-17650, Nov. 2024.
+
+\bibitem{Related works:ISAC-PRO:IoTJ:Joint-Sensing-Communications}
+D. V. Huynh, S. R. Khosravirad, S. L. Cotton, T. X. Vu, O. A. Dobre, H. Shin, and T. Q. Duong,
+``Joint Sensing, Communications, and Computing Design for 6G URLLC Service-Oriented MEC Networks,''
+IEEE Internet of Things Journal, vol. 11, no. 20, pp. 32429-32439, Oct. 2024.
+
+\bibitem{Related works:ISAC-PRO:TVT:URLLC-Aware-Trajectory}
+P. Qin, Y. Fu, Z. Yu, J. Zhang, and X. Zhao,
+``URLLC-Aware Trajectory Plan and Beamforming Design for NOMA-Aided UAV Integrated Sensing, Communication, and Computation Networks,''
+IEEE Transactions on Vehicular Technology, vol. 74, no. 1, pp. 1610-1625, Jan. 2025.
+
+\bibitem{Related works:ISAC-PRO:WCL:Integrated-Sensing-And}
+N. Huang, T. Wang, Y. Wu, Q. Wu, and T. Q. S. Quek,
+``Integrated Sensing and Communication Assisted Mobile Edge Computing: An Energy-Efficient Design via Intelligent Reflecting Surface,''
+IEEE Wireless Communications Letters, vol. 11, no. 10, pp. 2085-2089, Oct. 2022.
+
+\bibitem{Related works:ISAC-PRO:JSAC:NOMA-Aided-Joint}
+Z. Wang, X. Mu, Y. Liu, X. Xu, and P. Zhang,
+``NOMA-Aided Joint Communication, Sensing, and Multi-Tier Computing Systems,''
+IEEE Journal on Selected Areas in Communications, vol. 41, no. 3, pp. 574-588, Mar. 2023.
+
+% \bibitem{Related works:ISCC:TCOM:Multi-Functional-Beamforming}
+% Y. Zhao, Q. Wu, W. Chen, Y. Zeng, R. Liu, W. Mei, F. Hou, and S. Ma,
+% ``Multi-Functional Beamforming Design for Integrated Sensing, Communication, and Computation,''
+% IEEE Transactions on Communications, vol. 73, no. 8, pp. 6322-6336, Aug. 2025.
+
+\bibitem{Related works:ISCC:IoTJ:Unmanned-Aerial-Vehicle}
+N. Huang, C. Dou, Y. Wu, L. Qian, B. Lin, and H. Zhou,
+``Unmanned-Aerial-Vehicle-Aided Integrated Sensing and Computation With Mobile-Edge Computing,''
+IEEE Internet of Things Journal, vol. 10, no. 19, pp. 16830-16844, Oct. 2023.
+
+\bibitem{Related works:ISCC:TCCN:Collaborative-Optimization-Of}
+K. Wang, H. Zhang, Z. Liu, X. Li, and D. Niyato,
+``Collaborative Optimization of Sensing, Communication, and Computation Functionalities in MEC-Assisted ISAC Systems,''
+IEEE Transactions on Cognitive Communications and Networking, Early Access, DOI:10.1109/TCCN.2025.3612684, Sep. 2025.
+
+\bibitem{Related works:ISCC:TCOM:Joint-Offloading-And}
+P. Liu, Z. Fei, X. Wang, J. Huang, J. Hu, and J. A. Zhang,
+``Joint Offloading and Beamforming Design in Integrating Sensing, Communication, and Computing Systems: A Distributed Approach,''
+IEEE Transactions on Communications, vol. 73, no. 7, pp. 4697-4712, Jul. 2025.
+
+\bibitem{Related works:ISCC:TGCN:Adaptive-Digital-Twin}
+B. Li, W. Liu, W. Xie, N. Zhang, and Y. Zhang,
+``Adaptive Digital Twin for UAV-Assisted Integrated Sensing, Communication, and Computation Networks,''
+IEEE Transactions on Green Communications and Networking, vol. 7, no. 4, pp. 1996-2009, Dec. 2023.
+
+\bibitem{Related works:ISCC:TWC:Toward-Intelligent-Edge}
+P. Liu, Z. Fei, X. Wang, X. Li, W. Yuan, Y. Li, C. Hu, and D. Niyato,
+``Toward Intelligent Edge Sensing for ISCC Network: Joint Multi-Tier DNN Partitioning and Beamforming Design,''	
+IEEE Transactions on Wireless Communications, Early Access, DOI: 10.1109/TWC.2025.3626555, Nov. 2025.
+
+\bibitem{Related works:ISCC:TMC:Joint-Trajectory-And}
+S. Xu, Z. Liu, L. Zhao, Z. Liu, X. Wang, Z. Fei, and A. Nallanathan,
+``Joint Trajectory and Beamforming Optimization for AAV-Relayed Integrated Sensing and Communication With Mobile Edge Computing,''
+IEEE Transactions on Mobile Computing, vol. 24, no. 10, pp. 11180-11192, Oct. 2025.
+
+\bibitem{Related works:ISCC-PRO:WCL:Energy-Efficient-Integrated}
+N. Huang, C. Dou, Y. Wu, L. Qian, and R. Lu,
+``Energy-Efficient Integrated Sensing and Communication: A Multi-Access Edge Computing Design,''
+IEEE Wireless Communications Letters, vol. 12, no. 12, pp. 2053-2057, Dec. 2023.
+
+\bibitem{Related works:ISCC-PRO:TWC:Joint-Sensing-And}
+Z. Liu, X. Liu, W. Yang, and X. Zhang,
+``Joint Sensing and Age of Information Optimization for Energy Constrained UAV-Assisted Integrated Sensing, Calculation, and Communication,''
+IEEE Transactions on Wireless Communications, vol. 24, no. 5, pp. 4440-4453,May 2025.
+
+\bibitem{System model: CUs-mobility}
+S. Batabyal and P. Bhaumik, ``Mobility models, traces and impact of mobility on opportunistic routing algorithms: A survey,'' IEEE Communications Surveys and Tutorials, vol. 17, no. 3, pp. 1679–1707, 3rd Quart., 2015.
+
+\bibitem{System model: Radar-estimation-rate}
+A. R. Chiriyath, B. Paul, G. M. Jacyna, and D. W. Bliss, ``Inner bounds on performance of radar and communications co-existence,'' IEEE Transactions on Signal Processing, vol. 64, no. 2, pp. 464–474, Jan. 2016.
+
+\bibitem{Solution: Rank-One-Penalty-1}
+Z. Qiu, Y. Mao, S. Ma, and B. Clerckx,
+``Robust Max-Min Fair Beamforming Design for Rate Splitting Multiple Access-Aided Visible Light Communications,''
+IEEE Internet of Things Journal, vol. 12, no. 8, pp. 10043-10057, Apr. 2025.
+
+\bibitem{Solution: Rank-One-Penalty-2}
+Y. Li, M. Jin, Q. Guo, J. Yao, T. Jiang, and J. Liu,
+``Secure Beamforming and Power Allocation for RIS-Assisted NOMA-ISAC Systems With Internal and External Eavesdroppers,''
+IEEE Transactions on Cognitive Communications and Networking, vol. 12, pp. 896-911, 2026.
+
+\bibitem{Solution: Convex-Optimization-Book}
+S. Boyd and L. Vandenberghe, “Convex optimization,” Cambridge University Press, 2004.
+
+% \bibitem{Solution: Linear-log2-det}
+% X. Peng, P. Wu, J. Zhao, and M. Xia, ``Secrecy Sum-Rate Maximization for Active IRS-Assisted MIMO-OFDM SWIPT System,'' IEEE Transactions on Wireless Communications, vol. 23, no. 12, pp. 19050-19064, Dec. 2024.
+
+\bibitem{Solution: Linear-log2-Tr-X}
+Y. Xi, Y. Xu, D. Yang, F. Wu, L. Xiao, and T. Zhang, 
+``Uplink-Downlink Resource Optimization for STAR-RIS-Assisted ISCC Networks with NOMA,'' 
+IEEE Internet of Things Journal, Early Access, DOI: 10.1109/JIOT.2026.3659901, Feb. 2026.
+
+\bibitem{c5:IoTJ:HPPO}
+T. Wang, Y. Deng, Z. Yang, Y. Wang, and H. Cai,
+``Parameterized Deep Reinforcement Learning With Hybrid Action Space for Edge Task Offloading,''
+IEEE Internet of Things Journal, vol. 11, no. 6, pp. 10754-10767, 2024.
+
+\bibitem{c5:HPPO}
+Z. Fan, R. Su, W. Zhang, and Y. Yu,
+``Hybrid Actor-Critic Reinforcement Learning in Parameterized Action Space,'' 
+arXiv:1903.01344, May 2019.
+
+\bibitem{c4:Beta-distribution}
+P. W. Chou, D. Maturana, and S. Scherer, 
+``Improving stochastic policy gradients in continuous control with deep reinforcement learning using the beta distribution,'' 
+International Conference on Machine Learning (ICML), pp. 834-843, Aug. 2017.
+
+\bibitem{Simulation: UAV-Flying}
+X. Qin, Z. Song, T. Hou, W. Yu, J. Wang, and X. Sun, 
+``Joint optimization of resource allocation, phase shift, and UAV trajectory for energy-efficient RIS-assisted UAV-enabled MEC systems,'' 
+IEEE Transactions on Green Communications and Networking, vol. 7, no. 4, pp. 1778-1792, Dec. 2023.
+
+\bibitem{Simulation: Gauss-Markov-Model}
+Z. Yang, S. Bi, and Y. J. A. Zhang, 
+``Online trajectory and resource optimization for stochastic UAV-enabled MEC systems,'' 
+IEEE Transactions on Wireless Communications, vol. 21, no. 7, pp. 5629-5643, Jul. 2022.
+
+\bibitem{Analysis: Bad-Gaussian-Randomization}
+W. Wang, C. Dong, N. Zhao, Q. Wu, and D. Niyato,
+``Constructive Interference Precoding Empowered NOMA-ISAC Design,''
+IEEE Transactions on Wireless Communications, vol. 24, no. 10, pp. 8298-8310, Oct. 2025.
+
+\bibitem{Simulation:Gaussian-Randomization-Candidate-Num}
+Z.-Q. Luo, W.-K. Ma, A. M.-C. So, Y. Ye, and S. Zhang,
+``Semidefinite Relaxation of Quadratic Optimization Problems,''
+IEEE Signal Processing Magazine,
+vol. 27, no. 3, pp. 20-34, May 2010.
+
+\end{thebibliography}
+
+\end{document}
