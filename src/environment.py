@@ -134,8 +134,10 @@ def build_outer_variables(params, rng):
     # D_{u_i}^{off}(t)：感知任务卸载时长，需满足 D̄^sen + D_{u_i}^{off} < D^sen_max
     D_uav_off = rng.uniform(0.01, params.D_max_sen - params.D_bar_sen - 0.01, params.I)
 
-    # q_{u_i}(t + 1)：下一时隙位置，速度方向随机、速率在 [V_min, V_max] 内
-    speed = rng.uniform(params.uav_min_speed, params.uav_max_speed, params.I)
+    # q_{u_i}(t + 1)：下一时隙位置，速度方向随机、速率在 [V_min, 2·V_min] 内
+    # 说明：内层 P5 只求解单个时隙，与 UAV 之后的飞行位置无关（E_{u_i}^{fly} 是常数不参与内层决策），因此这里把速度限制在较小范围（5~10 m/s），
+    # 避免飞行能耗在目标函数中占绝对主导、掩盖真正与决策相关的能耗项。
+    speed = rng.uniform(params.uav_min_speed, 5.0 * params.uav_min_speed, params.I)
     direction_xy = rng.standard_normal((params.I, 2))
     direction_xy /= np.linalg.norm(direction_xy, axis=1, keepdims=True)
     q_uav_pos_step = np.zeros((params.I, 3))
