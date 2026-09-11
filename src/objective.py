@@ -16,6 +16,8 @@
 import numpy as np
 import cvxpy as cp
 
+from cccp_params import real_trace
+
 LN2 = np.log(2.0)
 
 
@@ -24,7 +26,6 @@ def build_objective(ctx):
     omega_1, omega_2, omega_3 = ctx.omega_1, ctx.omega_2, ctx.omega_3
     kappa_cpu = ctx.kappa_cpu
     C_sen = ctx.C_sen
-    rho = ctx.rho_penalty
 
     obj = 0.0
 
@@ -55,27 +56,22 @@ def build_objective(ctx):
     obj = obj + omega_3 * cp.sum(cp.multiply(ctx.D_cu_off, ctx.p_cu_power))
 
     # ── ⑤ CCCP 线性化项（对 - C^sen (z_i)² / 2 - C^sen (f_{u_i})⁴ / 2 在 x^(n) 处线性化）──
-    for i in range(ctx.I):
-        obj = obj - omega_1 * kappa_cpu * (
-            C_sen * ctx.z_aux_rate_prev[i] ** 2 / 2.0                             # C^sen (z_i^{(n)})² / 2
-            + C_sen * ctx.f_uav_freq_prev[i] ** 4 / 2.0                           # + C^sen (f_{u_i}^{(n)})⁴ / 2
-            + C_sen * ctx.z_aux_rate_prev[i]                                      # + C^sen z_i^{(n)}
-            * (ctx.z_aux_rate[i] - ctx.z_aux_rate_prev[i])                        #   · ( z_i - z_i^{(n)} )
-            + 2.0 * C_sen * ctx.f_uav_freq_prev[i] ** 3                           # + 2 C^sen (f_{u_i}^{(n)})³
-            * (ctx.f_uav_freq[i] - ctx.f_uav_freq_prev[i])                        #   · ( f_{u_i} - f_{u_i}^{(n)} )
-        )
+    #    变量部分：- ω₁κC^sen Σ z_i^{(n)} z_i - 2 ω₁κC^sen Σ (f_{u_i}^{(n)})³ f_{u_i}
+    #    常数部分：+ ω₁κC^sen Σ [ (z^{(n)})²/2 + 3/2 (f^{(n)})⁴ ]（不影响 argmin，单独作常数项）
+    #    线性化系数由 cccp_params 提供为参数，使该问题只编译一次。
+    obj = obj - omega_1 * kappa_cpu * C_sen * cp.sum(
+        cp.multiply(ctx.ccp.z_prev, ctx.z_aux_rate))
+    obj = obj - 2.0 * omega_1 * kappa_cpu * C_sen * cp.sum(
+        cp.multiply(ctx.ccp.f_prev3, ctx.f_uav_freq))
+    obj = obj + ctx.ccp.obj_bias
 
     # ── ⑥ 秩一罚项（对 - ρ ‖W_i‖_2 - ρ ‖B_i‖_2 在 x^(n) 处线性化）──
+    #    ρ[Tr(W_i) - ‖W_i^{(n)}‖ - Tr(ν_max ν_max^H (W_i - W_i^{(n)}))] 合并为
+    #    Re Tr(M_i W_i) + bias_i，其中 M_i = ρ(I - ν_max ν_max^H)（由 cccp_params 预置）。
     for i in range(ctx.I):
-        obj = obj + rho * (
-            cp.real(cp.trace(ctx.W_sen_beam[i]))                                  # Tr(W_i)
-            - ctx.W_sen_beam_norm_prev[i]                                          # - ‖W_i^{(n)}‖_2
-            - cp.real(cp.trace(ctx.nu_max_sen[i]                                  # - Tr(ν_max(W^{(n)}) ν_max^H
-                               @ (ctx.W_sen_beam[i] - ctx.W_sen_beam_prev[i])))    #    · ( W_i - W_i^{(n)} ))
-            + cp.real(cp.trace(ctx.B_off_beam[i]))                                # + Tr(B_i)
-            - ctx.B_off_beam_norm_prev[i]                                          # - ‖B_i^{(n)}‖_2
-            - cp.real(cp.trace(ctx.nu_max_off[i]                                  # - Tr(ν_max(B^{(n)}) ν_max^H
-                               @ (ctx.B_off_beam[i] - ctx.B_off_beam_prev[i])))    #    · ( B_i - B_i^{(n)} ))
-        )
+        obj = obj + real_trace(ctx.ccp.M_sen_re[i], ctx.ccp.M_sen_im[i],
+                               ctx.W_sen_beam[i]) + ctx.ccp.bias_r1[i]
+        obj = obj + real_trace(ctx.ccp.M_off_re[i], ctx.ccp.M_off_im[i],
+                               ctx.B_off_beam[i]) + ctx.ccp.bias_r1_off[i]
 
     return obj

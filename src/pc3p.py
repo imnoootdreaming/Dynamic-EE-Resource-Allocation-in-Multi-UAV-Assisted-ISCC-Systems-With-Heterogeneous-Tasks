@@ -9,6 +9,7 @@
 import numpy as np
 import cvxpy as cp
 
+from cccp_params import sync as sync_ccp_params
 from constraints import collect_constraints
 from objective import build_objective
 
@@ -100,6 +101,9 @@ def update_linearization(ctx):
             ctx.Psi_cu_off[j] += ctx.eta_share[i, j] * np.real(
                 np.trace(ctx.H_uav_bs[i] @ ctx.B_off_beam_prev[i]))
 
+    # 把上述线性化量写入 cvxpy 参数，供已编译的 P5 直接复用（免去每轮重新 canonicalize）
+    sync_ccp_params(ctx.ccp, ctx)
+
 
 def compute_rank1_gap(W_sen_beam, B_off_beam):
     """Σ_{u_i} ( Tr(W_i) - ‖W_i‖_2 + Tr(B_i) - ‖B_i‖_2 )。"""
@@ -170,11 +174,19 @@ def run_pc3p(ctx):
         "D_cu_off": None,
     }
 
-    for n in range(1, ctx.max_iterations + 1):
-        update_linearization(ctx)
+    # 先按 x^(0) 计算线性化量并写入参数，随后 **只编译一次** P5；
+    # 由于全部随迭代变化的量都已做成 cp.Parameter，后续每轮 solve 复用编译缓存。
+    update_linearization(ctx)
+    problem = cp.Problem(cp.Minimize(build_objective(ctx)), collect_constraints(ctx))
 
-        problem = cp.Problem(cp.Minimize(build_objective(ctx)), collect_constraints(ctx))
-        problem.solve(solver=cp.MOSEK)
+    # 内点法可行性容差：默认 1e-8，放宽到 mosek_tol_feas 可显著减少内点迭代（仅影响收敛判据）
+    mosek_params = {
+        "MSK_DPAR_INTPNT_CO_TOL_PFEAS": ctx.mosek_tol_feas,
+        "MSK_DPAR_INTPNT_CO_TOL_DFEAS": ctx.mosek_tol_feas,
+    }
+
+    for n in range(1, ctx.max_iterations + 1):
+        problem.solve(solver=cp.MOSEK, mosek_params=mosek_params)
 
         result["status"] = problem.status
         result["iterations"] = n
@@ -205,6 +217,8 @@ def run_pc3p(ctx):
             X_prev = X_n
             break
         X_prev = X_n
+        # 用当前解刷新下一轮所需的线性化参数（写入已编译问题绑定的 cp.Parameter）
+        update_linearization(ctx)
 
     w_sen_beam, b_off_beam = recover_beamforming(ctx.W_sen_beam_prev, ctx.B_off_beam_prev)
     # f_{c_j}(t) = C_j(t) L_j(t) / ( D^max_j(t) - D_{c_j}^{off}(t) )

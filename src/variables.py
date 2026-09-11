@@ -19,6 +19,8 @@ from dataclasses import dataclass
 import cvxpy as cp
 import numpy as np
 
+from cccp_params import CccpParams
+
 
 @dataclass
 class InnerVariables:
@@ -88,6 +90,8 @@ class InnerContext:
         self.params = params
         self.environment = environment
         self.variables = variables
+        # CCCP 线性化量的 cvxpy Parameter 集合：使 P5 只编译一次，后续求解复用编译缓存
+        self.ccp = CccpParams.create(params)
 
     def __getattr__(self, name):
         for source in ("variables", "environment", "params"):
