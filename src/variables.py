@@ -6,7 +6,7 @@
     f_{u_i}(t)          —— BS 分配给感知任务的计算资源
     z_i(t)              —— 辅助变量（感知数据量上界）
     D_{c_j}^{off}(t)    —— CU 娱乐任务卸载时长
-    τ_i                 —— DCP 辅助变量：τ_i ≥ z_i + f_{u_i}^2
+    ũ_i                 —— SOC 辅助变量：ũ_i ≥ (f_{u_i}/freq_scale)²（用于乘积形式的感知能耗）
 
 线性化点 x^(n)（CCCP 第 n 轮迭代使用，numpy 常量，每轮原地更新）：
     W_sen_beam_prev / B_off_beam_prev / f_uav_freq_prev / z_aux_rate_prev
@@ -30,7 +30,7 @@ class InnerVariables:
     f_uav_freq: cp.Variable     # f_{u_i}(t)          (I,)
     z_aux_rate: cp.Variable     # z_i(t)              (I,)
     D_cu_off: cp.Variable       # D_{c_j}^{off}(t)    (J,)
-    tau_zf: cp.Variable         # τ_i，DCP 辅助变量，以 tau_scale 为度量单位  (I,)
+    u_freq_sq: cp.Variable      # ũ_i ≥ (f_{u_i}/freq_scale)²，感知能耗乘积形式的辅助变量  (I,)
 
     # ── CCCP 线性化点 x^(n) ───────────────────────────────────────────────
     W_sen_beam_prev: np.ndarray        # W_i^{(n)}(t)          (I, N, N)
@@ -50,20 +50,20 @@ class InnerVariables:
     def create(cls, params):
         """按 params 中的 I / J / N 创建全部优化变量与线性化点存储。
 
-        f_{u_i}(t) 与 τ_i 的内部变量带度量单位（f_uav_freq = freq_scale · f_uav_freq_norm，
-        tau_zf = tau_scale · tau_zf_norm），这是单纯的度量单位选择，用于改善 MOSEK 的数值条件
-        （f 约 10^6 Hz、τ 约 10^13），公式本身保持不变。
+        f_{u_i}(t) 的内部变量带度量单位（f_uav_freq = freq_scale · f_uav_freq_norm）；
+        u_freq_sq 是 (f_{u_i}/freq_scale)² 的上界变量（约束 c13 的 SOC 形式），
+        取这个归一化度量单位是为了让 ũ ≈ z 同量级，避免 (z + f²)² 形式带来的大数相消。
         """
         I, J, N = params.I, params.J, params.N
         f_uav_freq_norm = cp.Variable(I, nonneg=True)
-        tau_zf_norm = cp.Variable(I, nonneg=True)
+        u_freq_sq_norm = cp.Variable(I, nonneg=True)
         return cls(
             W_sen_beam=[cp.Variable((N, N), hermitian=True) for _ in range(I)],
             B_off_beam=[cp.Variable((N, N), hermitian=True) for _ in range(I)],
             f_uav_freq=params.freq_scale * f_uav_freq_norm,
             z_aux_rate=cp.Variable(I, nonneg=True),
             D_cu_off=cp.Variable(J, nonneg=True),
-            tau_zf=tau_zf_norm,
+            u_freq_sq=u_freq_sq_norm,
             W_sen_beam_prev=np.zeros((I, N, N), dtype=complex),
             B_off_beam_prev=np.zeros((I, N, N), dtype=complex),
             f_uav_freq_prev=np.zeros(I),

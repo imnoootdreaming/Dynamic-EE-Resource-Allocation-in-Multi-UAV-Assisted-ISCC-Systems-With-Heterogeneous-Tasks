@@ -110,13 +110,21 @@ def update_linearization(ctx):
     sync_ccp_params(ctx.ccp, ctx)
 
 
+def compute_rank1_gap_sen(W_sen_beam):
+    """感知波束的秩一间隙：Σ_{u_i} ( Tr(W_i) - ‖W_i‖_2 )。"""
+    return sum(np.real(np.trace(W_sen_beam[i])) - spectral_norm(W_sen_beam[i])
+               for i in range(len(W_sen_beam)))
+
+
+def compute_rank1_gap_off(B_off_beam):
+    """卸载波束的秩一间隙：Σ_{u_i} ( Tr(B_i) - ‖B_i‖_2 )。"""
+    return sum(np.real(np.trace(B_off_beam[i])) - spectral_norm(B_off_beam[i])
+               for i in range(len(B_off_beam)))
+
+
 def compute_rank1_gap(W_sen_beam, B_off_beam):
     """Σ_{u_i} ( Tr(W_i) - ‖W_i‖_2 + Tr(B_i) - ‖B_i‖_2 )。"""
-    gap = 0.0
-    for i in range(len(W_sen_beam)):
-        gap += (np.real(np.trace(W_sen_beam[i])) - spectral_norm(W_sen_beam[i])
-                + np.real(np.trace(B_off_beam[i])) - spectral_norm(B_off_beam[i]))
-    return gap
+    return compute_rank1_gap_sen(W_sen_beam) + compute_rank1_gap_off(B_off_beam)
 
 
 def compute_p4_objective(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
@@ -178,6 +186,10 @@ def run_pc3p(ctx):
         "z_aux_rate": None,
         "D_cu_off": None,
         "rho_final": ctx.rho_penalty,       # 收敛（或退出）时的罚因子
+        # 逐轮迭代历史（第 0 项为第 0 轮：初始点 x^(0) 处的取值，用于画收敛曲线）
+        "obj_history": [X_prev],
+        "w_gap_history": [compute_rank1_gap_sen(ctx.W_sen_beam_prev)],
+        "b_gap_history": [compute_rank1_gap_off(ctx.B_off_beam_prev)],
     }
 
     # 先按 x^(0) 计算线性化量并写入参数，随后 **只编译一次** P5；
@@ -216,6 +228,10 @@ def run_pc3p(ctx):
         gap_n = compute_rank1_gap(W_val, B_val)
         result["objective_p4"] = X_n
         result["rank1_gap"] = gap_n
+        # 记录第 n 轮的原始目标函数值、W 与 B 各自的秩一间隙
+        result["obj_history"].append(X_n)
+        result["w_gap_history"].append(compute_rank1_gap_sen(W_val))
+        result["b_gap_history"].append(compute_rank1_gap_off(B_val))
 
         # 收敛条件：|X^(n) - X^(n-1)| / |X^(n-1)| ≤ γ_1 且秩一间隙 ≤ γ_2
         if abs(X_n - X_prev) <= ctx.gamma_1 * abs(X_prev) and gap_n <= ctx.gamma_2:

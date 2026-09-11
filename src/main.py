@@ -5,6 +5,7 @@
 并写回 CSV，再逐组代入环境送入 PC3P 求解。
 """
 
+import csv
 import os
 import time
 
@@ -21,6 +22,25 @@ from outer_sampler import load_outer_samples, sample_random_feasible
 OUTER_SAMPLE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "feasible_outer_samples.csv")
 N_OUTER_SAMPLES = 1000000
+
+# 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史
+HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "first_sample_cccp_history.csv")
+
+
+def save_iteration_history(csv_path, obj_history, w_gap_history, b_gap_history):
+    """保存第一个样本的逐轮迭代历史。
+
+    每行对应一轮迭代（第 0 行是第 0 轮，即初始点 x^(0)，未做任何 CCCP 更新），
+    只记录三项：原始目标函数值、W 的秩一间隙（Σ_i[Tr(W_i)-‖W_i‖₂]）、
+    B 的秩一间隙（Σ_i[Tr(B_i)-‖B_i‖₂]）。
+    """
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["iteration", "objective_value", "w_rank1_gap", "b_rank1_gap"])
+        for n, (obj, w_gap, b_gap) in enumerate(zip(obj_history, w_gap_history,
+                                                    b_gap_history)):
+            writer.writerow([n, repr(float(obj)), repr(float(w_gap)), repr(float(b_gap))])
 
 
 def load_or_generate_outer_samples(params, csv_path=OUTER_SAMPLE_CSV,
@@ -53,6 +73,13 @@ def main():
 
         print("\n样本 {}/{}：求解状态：{}，求解耗时：{:.3f} s".format(
             index, len(outer_samples), result["status"], elapsed))
+
+        # 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史（含第 0 轮）
+        if index == 1:
+            save_iteration_history(HISTORY_CSV, result["obj_history"],
+                                   result["w_gap_history"], result["b_gap_history"])
+            print("逐轮迭代历史已保存到：{}".format(HISTORY_CSV))
+
         if result["W_sen_beam"] is None:
             print("问题 P5 在无可行解（或求解器未返回最优解）时终止，未得到可行解。")
             continue
