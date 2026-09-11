@@ -136,8 +136,13 @@ def compute_rank1_gap(W_sen_beam, B_off_beam):
     return compute_rank1_gap_sen(W_sen_beam) + compute_rank1_gap_off(B_off_beam)
 
 
-def compute_p4_objective(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
-    """P4 原目标函数（非线性化）在当前解处的取值，用于收敛判定中的 X^(n)。"""
+def compute_pure_energy(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
+    """P4 原目标函数中**不含秩一罚项**的能量部分（单位：J）。
+
+    即 ω_1(①+②) + ω_2·③ + ω_3·④，是 PC3P / GC3P 公平比较时使用的真实能量指标：
+        - PC3P 的目标里还叠加了 ρ 倍秩一间隙，只有收敛到秩一时两者才一致；
+        - GC3P 的松弛子问题 ρ ≡ 0，其迭代判据与秩一候选优选都直接使用本函数。
+    """
     # ω_1 κ [ Σ_{u_i} C^sen z_i (f_{u_i})² + Σ_{c_j} ( C_j L_j )³ / ( D^max_j - D_{c_j}^{off} )² ]
     # 其中 ( z_i + f_{u_i}² )² / 2 - z_i² / 2 - (f_{u_i})⁴ / 2 = z_i f_{u_i}²，取乘积形式避免大数相消
     bs_energy = ctx.omega_1 * ctx.kappa_cpu * (
@@ -156,10 +161,19 @@ def compute_p4_objective(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_
     # ω_3 Σ_{c_j} D_{c_j}^{off} p_j
     cu_energy = ctx.omega_3 * float(np.sum(D_cu_off * ctx.p_cu_power))
 
+    return float(bs_energy + uav_energy + cu_energy)
+
+
+def compute_p4_objective(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
+    """P4 原目标函数（非线性化）在当前解处的取值，用于收敛判定中的 X^(n)。
+
+    等于纯能量 compute_pure_energy 再加上 ρ 倍的秩一间隙（PC3P 的罚项）。
+    """
     # ρ Σ_{u_i} ( Tr(W_i) - ‖W_i‖_2 + Tr(B_i) - ‖B_i‖_2 )
     penalty = ctx.rho_penalty * compute_rank1_gap(W_sen_beam, B_off_beam)
 
-    return float(bs_energy + uav_energy + cu_energy + penalty)
+    return float(compute_pure_energy(ctx, W_sen_beam, B_off_beam, f_uav_freq,
+                                     z_aux_rate, D_cu_off) + penalty)
 
 
 def recover_beamforming(W_sen_beam, B_off_beam):

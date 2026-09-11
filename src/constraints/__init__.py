@@ -25,9 +25,18 @@ def constraint_names():
     return [module.NAME for module in _MODULE_LIST]
 
 
-def collect_constraints(ctx):
-    """按文件名顺序汇总所有约束模块生成的 cvxpy 约束。"""
+def collect_constraints(ctx, skip_names=None):
+    """按文件名顺序汇总所有约束模块生成的 cvxpy 约束。
+
+    skip_names：可选的论文约束标签集合，命中的模块不参与构建。
+        GC3P 的秩一恢复子问题把 W_i / B_i 写成 p_i V_i（V_i 为固定 PSD 方向），
+        此时 PSD 约束 P2:Sen-Semi-Positive / P2:Off-Semi-Positive 已由 p_i ≥ 0
+        隐含满足，跳过它们可去掉全部 SDP 块、显著加快逐个候选方向的求解。
+    """
+    skip = set(skip_names or ())
     constraints = []
     for module in _MODULE_LIST:
+        if module.NAME in skip:
+            continue
         constraints.extend(module.build(ctx))
     return constraints
