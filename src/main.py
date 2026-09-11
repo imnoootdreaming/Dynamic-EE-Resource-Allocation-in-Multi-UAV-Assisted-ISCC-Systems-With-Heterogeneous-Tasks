@@ -3,6 +3,9 @@
 外层变量（g_i、η_{i,j}、p_j、D_{u_i}^{off}、q 位移）优先从 CSV 读取；CSV 不存在时
 先用 outer_sampler.sample_random_feasible 采样（只保留代回 P1 后全约束通过的样本）
 并写回 CSV，再逐组代入环境送入 PC3P 求解。
+
+求解后端默认使用 MOSEK Fusion（fusion_pc3p.run_pc3p_fusion），
+可用环境变量 PC3P_BACKEND=cvxpy 切换回 cvxpy 后端（pc3p.run_pc3p）。
 """
 
 import csv
@@ -15,13 +18,32 @@ from parameters import Parameters
 from environment import build_environment
 from variables import InnerVariables, InnerContext
 from constraints import constraint_names
-from pc3p import run_pc3p
 from outer_sampler import load_outer_samples, sample_random_feasible
 
+
+# 默认使用 MOSEK Fusion 后端；如需切回 cvxpy，设置环境变量 PC3P_BACKEND=cvxpy
+DEFAULT_BACKEND = "fusion"
 
 OUTER_SAMPLE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "feasible_outer_samples.csv")
 N_OUTER_SAMPLES = 1000000
+
+
+def select_solver():
+    """选择求解后端，返回 (后端名, 求解函数)。
+
+    两个后端签名一致（均为 run(ctx) -> result，返回同结构 dict），可无缝替换：
+      - "fusion"：MOSEK Fusion 原生锥域后端（fusion_pc3p.run_pc3p_fusion，默认）
+      - "cvxpy" ：cvxpy + MOSEK 前端（pc3p.run_pc3p）
+    """
+    backend = os.environ.get("PC3P_BACKEND", DEFAULT_BACKEND).strip().lower()
+    if backend == "fusion":
+        from fusion_pc3p import run_pc3p_fusion
+        return "fusion", run_pc3p_fusion
+    if backend == "cvxpy":
+        from pc3p import run_pc3p
+        return "cvxpy", run_pc3p
+    raise ValueError("未知后端 PC3P_BACKEND={!r}（可选 fusion / cvxpy）".format(backend))
 
 # 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史
 HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -54,7 +76,9 @@ def load_or_generate_outer_samples(params, csv_path=OUTER_SAMPLE_CSV,
 
 def main():
     params = Parameters()
+    backend_name, solve = select_solver()
 
+    print("求解后端：{}".format(backend_name))
     print("已注册约束：{}".format(", ".join(constraint_names())))
 
     outer_samples = load_or_generate_outer_samples(params)
@@ -68,7 +92,7 @@ def main():
         ctx = InnerContext(params, environment, variables)
 
         start = time.perf_counter()
-        result = run_pc3p(ctx)
+        result = solve(ctx)
         elapsed = time.perf_counter() - start
 
         print("\n样本 {}/{}：求解状态：{}，求解耗时：{:.3f} s".format(

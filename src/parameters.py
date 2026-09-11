@@ -80,24 +80,28 @@ class Parameters:
     omega_3: float = 0.4                 # ω_3，CU 能耗权重
     gamma_1: float = 1e-6                # γ_1，PC3P 目标函数收敛阈值
     gamma_2: float = 1e-6                # γ_2，PC3P 秩一约束收敛阈值
-    rho_penalty: float = 0.1             # ρ，秩一罚因子
+    rho_penalty: float = 1            # ρ，秩一罚因子
     max_iterations: int = 30             # PC3P 最大迭代次数
 
     # ── 罚因子递增（P1：秩一间隙未达标时把 ρ 逐步放大）─────────────────────
-    # ρ 的初值 0.1 相对目标量级（~1e4）过小，罚项在求解器相对容差下不可见，
-    # 导致秩一间隙停在 1e-2~1e-4（远高于 γ₂）。按倍率递增可把间隙压到 1e-6 以下。
     rho_penalty_scale: float = 2.0       # 递增倍率 ρ ← rho_penalty_scale · ρ
-    rho_penalty_max: float = 1e5         # ρ 上限
+    rho_penalty_max: float = 1         # ρ 上限（ρ = 1 在这个场景下足够）
 
     # ── MOSEK 内点法容差（只改求解器收敛判据，不改动模型，用于缩短单次求解时间）──
     # 实测：把可行性容差由默认 1e-8 放宽到 1e-7，内点迭代数从 34~148 稳定到 ~31，
     # 单次求解耗时约减半，而解与秩一间隙几乎不变（相对误差 ~1e-5）。
     mosek_tol_feas: float = 1e-7
 
-    # ── 随机种子（外层变量尚未由 MHBPPO 给出，当前随机生成） ─────────────
+    # ── 随机种子  ─────────────
     seed: int = 42
 
     def __post_init__(self):
+        # ρ 的初值快照：PC3P 迭代中会把 rho_penalty 逐步放大（P1）并原地写回 params，
+        # 而同一个 Parameters 实例会被 main 循环复用给每个外层样本，若不复位，
+        # ρ 会跨样本累积到 1e2~1e5，使罚项量级远超目标（~1e-6），导致 P5 病态
+        # （IllPosed / PrimalInfeasible）。故每组样本求解前用该快照复位。
+        self.rho_penalty_init = self.rho_penalty
+
         # ── dB -> 线性换算 ────────────────────────────────────────────────
         self.rho_ref = db_2_linear(self.ref_path_loss_db)          # ρ
         self.kappa_rician = db_2_linear(self.rician_factor_db)     # κ（Rician 因子）

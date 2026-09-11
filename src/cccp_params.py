@@ -115,8 +115,13 @@ def cu_row_constants(ctx):
     return w1, w2, dw, const, S_tot
 
 
-def sync(cp_params, ctx):
-    """由 ctx 中当前的线性化点（numpy）刷新全部 Parameter 取值。"""
+def compute_values(ctx):
+    """由当前线性化点计算全部 CCCP 参数取值（纯 numpy，cvxpy / Fusion 双后端共享）。
+
+    返回 dict，键为 "d_prev_z_u / cst_prev / bias_r1 / bias_r1_off / psi_sen_bias /
+    M_sen_re|im / M_off_re|im / M_psi_re|im / cu_r1|r2|inv1|inv2|k1|k2|p1|p2 / w1 / w2"，
+    矩阵类为长度 I 的 list，向量类为 (I,) 或 (J,) 的 ndarray。
+    """
     rho = ctx.rho_penalty
     I, J, N = ctx.I, ctx.J, ctx.N
 
@@ -125,73 +130,82 @@ def sync(cp_params, ctx):
     # 目标 ⑤：d = z⁽ⁿ⁾ - ũ⁽ⁿ⁾，其中 ũ⁽ⁿ⁾ = (f⁽ⁿ⁾/freq_scale)²
     # （在最优处 ũ 恒取下界，故由 f⁽ⁿ⁾ 直接还原即可，无需额外存变量值）
     d_prev = z_prev - (f_prev / ctx.freq_scale) ** 2
-    cp_params.d_prev_z_u.value = d_prev
-    cp_params.cst_prev.value = d_prev ** 2 / 2.0
-    bias_r1 = np.zeros(I)
-    bias_r1_off = np.zeros(I)
-    psi_bias = np.zeros(I)
+
+    v = {"d_prev_z_u": d_prev, "cst_prev": d_prev ** 2 / 2.0}
+    v["bias_r1"] = np.zeros(I)
+    v["bias_r1_off"] = np.zeros(I)
+    v["psi_sen_bias"] = np.zeros(I)
+    v["M_sen_re"] = [None] * I
+    v["M_sen_im"] = [None] * I
+    v["M_off_re"] = [None] * I
+    v["M_off_im"] = [None] * I
+    v["M_psi_re"] = [None] * I
+    v["M_psi_im"] = [None] * I
 
     for i in range(I):
         # ── 目标 ⑥：ρ[Tr(W) - ‖W⁽ⁿ⁾‖ - Tr(ννᴴ(W - W⁽ⁿ⁾))] 合并后 ──
         #    系数矩阵 M = ρ(I - ννᴴ)，常数项 bias = ρ(-‖W⁽ⁿ⁾‖ + Tr(ννᴴ W⁽ⁿ⁾))
         m_sen = rho * (np.eye(N) - ctx.nu_max_sen[i])
         m_off = rho * (np.eye(N) - ctx.nu_max_off[i])
-        cp_params.M_sen_re[i].value = m_sen.real
-        cp_params.M_sen_im[i].value = m_sen.imag
-        cp_params.M_off_re[i].value = m_off.real
-        cp_params.M_off_im[i].value = m_off.imag
-        bias_r1[i] = rho * (-ctx.W_sen_beam_norm_prev[i]
-                            + np.real(np.trace(ctx.nu_max_sen[i] @ ctx.W_sen_beam_prev[i])))
-        bias_r1_off[i] = rho * (-ctx.B_off_beam_norm_prev[i]
-                                + np.real(np.trace(ctx.nu_max_off[i] @ ctx.B_off_beam_prev[i])))
+        v["M_sen_re"][i] = m_sen.real
+        v["M_sen_im"][i] = m_sen.imag
+        v["M_off_re"][i] = m_off.real
+        v["M_off_im"][i] = m_off.imag
+        v["bias_r1"][i] = rho * (-ctx.W_sen_beam_norm_prev[i]
+                                 + np.real(np.trace(ctx.nu_max_sen[i] @ ctx.W_sen_beam_prev[i])))
+        v["bias_r1_off"][i] = rho * (
+            -ctx.B_off_beam_norm_prev[i]
+            + np.real(np.trace(ctx.nu_max_off[i] @ ctx.B_off_beam_prev[i])))
 
         # ── 约束 c11：系数折进矩阵 M_psi = ξ₁ξ₂/(ln2·Ψ) · G，常数折进 psi_sen_bias ──
         coef = ctx.xi_1 * ctx.xi_2 / (LN2 * ctx.Psi_sen[i])
         m_psi = coef * ctx.G_sen_corr[i]
-        cp_params.M_psi_re[i].value = m_psi.real
-        cp_params.M_psi_im[i].value = m_psi.imag
-        psi_bias[i] = (-ctx.xi_1 * np.log2(ctx.Gamma_sinr[i])
-                       + ctx.xi_1 * np.log2(ctx.Psi_sen[i])
-                       - coef * np.real(np.trace(ctx.G_sen_corr[i] @ ctx.W_sen_beam_prev[i])))
-
-    cp_params.bias_r1.value = bias_r1
-    cp_params.bias_r1_off.value = bias_r1_off
-    cp_params.psi_sen_bias.value = psi_bias
+        v["M_psi_re"][i] = m_psi.real
+        v["M_psi_im"][i] = m_psi.imag
+        v["psi_sen_bias"][i] = (-ctx.xi_1 * np.log2(ctx.Gamma_sinr[i])
+                                + ctx.xi_1 * np.log2(ctx.Psi_sen[i])
+                                - coef * np.real(np.trace(ctx.G_sen_corr[i]
+                                                          @ ctx.W_sen_beam_prev[i])))
 
     # ── 约束 c12：逐行无量纲归一化（数学恒等，仅改善条件数） ──────────────
     #     行 j 除以 nrm_j = B·S_tot_j，并把 log 自变量写成 (arg_base+P)/Ψ 的形式，
     #     使 log2(Ψ) 与精确 log 项中的大常数精确抵消（见 cu_row_constants 说明）。
     w1, w2, _, _, _ = cu_row_constants(ctx)
-    cu_r1 = np.zeros(J)
-    cu_r2 = np.zeros(J)
-    cu_inv1 = np.zeros(J)
-    cu_inv2 = np.zeros(J)
-    cu_k1 = np.zeros(J)
-    cu_k2 = np.zeros(J)
-    cu_p1 = np.zeros(J)
-    cu_p2 = np.zeros(J)
+    for key in ("cu_r1", "cu_r2", "cu_inv1", "cu_inv2", "cu_k1", "cu_k2", "cu_p1", "cu_p2"):
+        v[key] = np.zeros(J)
     for j in range(J):
         psi1 = ctx.Psi_cu_sen[j]      # Ψ_{j,1} = σ² + Σᵢ η Tr(H W⁽ⁿ⁾)
         psi2 = ctx.Psi_cu_off[j]      # Ψ_{j,2} = σ² + Σᵢ η Tr(H B⁽ⁿ⁾)
         arg_base = ctx.p_cu_power[j] * abs(ctx.h_cu_2_bs[j]) ** 2 + ctx.sigma_2
         inv1 = 1.0 / psi1
         inv2 = 1.0 / psi2
-        sw_prev = psi1 - ctx.sigma_2
-        sb_prev = psi2 - ctx.sigma_2
-        cu_r1[j] = arg_base * inv1    # arg_base / Ψ_{j,1}
-        cu_r2[j] = arg_base * inv2    # arg_base / Ψ_{j,2}
-        cu_inv1[j] = inv1
-        cu_inv2[j] = inv2
-        cu_k1[j] = w1[j] / LN2 * inv1
-        cu_k2[j] = w2[j] / LN2 * inv2
-        cu_p1[j] = cu_k1[j] * sw_prev
-        cu_p2[j] = cu_k2[j] * sb_prev
+        v["cu_r1"][j] = arg_base * inv1    # arg_base / Ψ_{j,1}
+        v["cu_r2"][j] = arg_base * inv2    # arg_base / Ψ_{j,2}
+        v["cu_inv1"][j] = inv1
+        v["cu_inv2"][j] = inv2
+        v["cu_k1"][j] = w1[j] / LN2 * inv1
+        v["cu_k2"][j] = w2[j] / LN2 * inv2
+        v["cu_p1"][j] = v["cu_k1"][j] * (psi1 - ctx.sigma_2)
+        v["cu_p2"][j] = v["cu_k2"][j] * (psi2 - ctx.sigma_2)
+    v["w1"] = w1
+    v["w2"] = w2
+    return v
 
-    cp_params.cu_r1.value = cu_r1
-    cp_params.cu_r2.value = cu_r2
-    cp_params.cu_inv1.value = cu_inv1
-    cp_params.cu_inv2.value = cu_inv2
-    cp_params.cu_k1.value = cu_k1
-    cp_params.cu_k2.value = cu_k2
-    cp_params.cu_p1.value = cu_p1
-    cp_params.cu_p2.value = cu_p2
+
+def sync(cp_params, ctx):
+    """由 ctx 中当前的线性化点（numpy）刷新全部 cvxpy Parameter 取值。"""
+    v = compute_values(ctx)
+    cp_params.d_prev_z_u.value = v["d_prev_z_u"]
+    cp_params.cst_prev.value = v["cst_prev"]
+    cp_params.bias_r1.value = v["bias_r1"]
+    cp_params.bias_r1_off.value = v["bias_r1_off"]
+    cp_params.psi_sen_bias.value = v["psi_sen_bias"]
+    for i in range(ctx.I):
+        cp_params.M_sen_re[i].value = v["M_sen_re"][i]
+        cp_params.M_sen_im[i].value = v["M_sen_im"][i]
+        cp_params.M_off_re[i].value = v["M_off_re"][i]
+        cp_params.M_off_im[i].value = v["M_off_im"][i]
+        cp_params.M_psi_re[i].value = v["M_psi_re"][i]
+        cp_params.M_psi_im[i].value = v["M_psi_im"][i]
+    for name in ("cu_r1", "cu_r2", "cu_inv1", "cu_inv2", "cu_k1", "cu_k2", "cu_p1", "cu_p2"):
+        getattr(cp_params, name).value = v[name]

@@ -75,8 +75,13 @@ def build_initial_point(ctx):
         ctx.D_cu_off_prev[j] = min(D_0, ctx.D_max_cu[j] - 1e-3)
 
 
-def update_linearization(ctx):
-    """由 x^(n) 更新下一轮迭代所需的全部线性化参数。"""
+def update_linearization_points(ctx):
+    """由 x^(n) 更新全部线性化点（纯 numpy，不含任何后端相关的参数写回）。
+
+    cvxpy 后端在 update_linearization 中随后写回 cp.Parameter；
+    MOSEK Fusion 后端（fusion_pc3p.py）在写回 Fusion Parameter 前复用本函数，
+    从而保证两个后端使用的是完全相同的线性化点（单一数据来源）。
+    """
     for i in range(ctx.I):
         # Ψ_i^{(n)}(t) = ξ_2 Tr( G_i(t) W_i^{(n)}(t) ) + Γ_i(t)
         ctx.Psi_sen[i] = (ctx.xi_2
@@ -106,6 +111,10 @@ def update_linearization(ctx):
             ctx.Psi_cu_off[j] += ctx.eta_share[i, j] * np.real(
                 np.trace(ctx.H_uav_bs[i] @ ctx.B_off_beam_prev[i]))
 
+
+def update_linearization(ctx):
+    """由 x^(n) 更新线性化点，并写回 cvxpy Parameter（P5 只编译一次、复用缓存）。"""
+    update_linearization_points(ctx)
     # 把上述线性化量写入 cvxpy 参数，供已编译的 P5 直接复用（免去每轮重新 canonicalize）
     sync_ccp_params(ctx.ccp, ctx)
 
@@ -167,6 +176,8 @@ def recover_beamforming(W_sen_beam, B_off_beam):
 
 def run_pc3p(ctx):
     """执行 PC3P 迭代，返回求解结果与最优解。"""
+    # ρ 复位：ctx.params 可能被 main 的循环复用，必须回到初值，否则会跨样本累积
+    ctx.params.rho_penalty = ctx.rho_penalty_init
     build_initial_point(ctx)
     X_prev = compute_p4_objective(ctx, ctx.W_sen_beam_prev, ctx.B_off_beam_prev,
                                   ctx.f_uav_freq_prev, ctx.z_aux_rate_prev, ctx.D_cu_off_prev)
