@@ -57,7 +57,8 @@ def main():
             print("问题 P5 在无可行解（或求解器未返回最优解）时终止，未得到可行解。")
             continue
 
-        print("迭代次数：{}，是否收敛：{}".format(result["iterations"], result["converged"]))
+        print("迭代次数：{}，是否收敛：{}，罚因子 ρ：{:.4g}".format(
+            result["iterations"], result["converged"], result["rho_final"]))
         print("P4 目标值 E^sum：{:.6f} J".format(result["objective_p4"]))
         print("秩一间隙：{:.3e}".format(result["rank1_gap"]))
 

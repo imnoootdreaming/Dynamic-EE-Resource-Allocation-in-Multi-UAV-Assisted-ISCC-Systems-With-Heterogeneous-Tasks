@@ -3,7 +3,12 @@
 每轮迭代：
     1) 由上一轮解 x^(n-1) 更新线性化参数 Ψ_i^{(n)}、Ψ_{j,1}^{(n)}、Ψ_{j,2}^{(n)}、ν_max(·)；
     2) 用 cvxpy + MOSEK 求解凸问题 P5，得到 x^⋆；
-    3) 令 x^(n) ← x^⋆，按 γ_1、γ_2 判断是否收敛。
+    3) 令 x^(n) ← x^⋆，按 γ_1、γ_2 判断是否收敛；
+    4) 若秩一间隙仍大于 γ_2，则把罚因子放大 rho_penalty_scale 倍（P1），继续迭代。
+
+关于单次求解耗时：P5 的全部线性化量都做成了 cvxpy Parameter（见 cccp_params.py），
+因此 problem 只编译一次，后续迭代直接复用编译缓存；MOSEK 内点法的可行性容差由
+Parameters.mosek_tol_feas 控制。
 """
 
 import numpy as np
@@ -172,6 +177,7 @@ def run_pc3p(ctx):
         "f_cu_freq": None,
         "z_aux_rate": None,
         "D_cu_off": None,
+        "rho_final": ctx.rho_penalty,       # 收敛（或退出）时的罚因子
     }
 
     # 先按 x^(0) 计算线性化量并写入参数，随后 **只编译一次** P5；
@@ -217,6 +223,14 @@ def run_pc3p(ctx):
             X_prev = X_n
             break
         X_prev = X_n
+
+        # P1：秩一间隙未达标则把罚因子放大（ρ ← scale·ρ），提升罚项权重使其在目标中可见
+        if gap_n > ctx.gamma_2 and ctx.rho_penalty < ctx.rho_penalty_max:
+            new_rho = min(ctx.rho_penalty * ctx.rho_penalty_scale, ctx.rho_penalty_max)
+            if new_rho > ctx.rho_penalty:
+                ctx.params.rho_penalty = new_rho
+                result["rho_final"] = new_rho
+
         # 用当前解刷新下一轮所需的线性化参数（写入已编译问题绑定的 cp.Parameter）
         update_linearization(ctx)
 
