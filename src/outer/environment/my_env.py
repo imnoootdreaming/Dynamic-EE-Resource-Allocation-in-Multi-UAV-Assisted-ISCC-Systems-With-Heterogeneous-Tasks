@@ -60,6 +60,9 @@ class MyEnv(gym.Env):
             "uav_distances": self.base_args.uavs_num,
             "uav_off_durations": self.base_args.uavs_num,
             "cu_off_powers": self.base_args.cus_num,
+            # 20260912 - g 接收波束: 外层动作产出（每 UAV 2N 维实/虚部，L2 归一化后 ‖g_i‖²=1）
+            "uav_rec_beam_dir_real": self.base_args.uavs_num * self.base_args.antenna_nums,
+            "uav_rec_beam_dir_imag": self.base_args.uavs_num * self.base_args.antenna_nums,
         }
         # NOTE - UAV 个离散头: 每个 UAV 选择一个 CU 索引进行匹配
         self.bs_discrete_action_dims = np.full(self.base_args.uavs_num, self.base_args.cus_num, dtype=np.int64)
@@ -73,6 +76,16 @@ class MyEnv(gym.Env):
             ), # UAV 飞行距离
             np.full(self.base_args.uavs_num, self.epsilon, dtype=np.float32),  # UAV 卸载时长
             np.full(self.base_args.cus_num, self.epsilon, dtype=np.float32),  # CU 卸载功率
+            np.full(
+                self.base_args.uavs_num * self.base_args.antenna_nums,
+                -1.0,
+                dtype=np.float32
+            ),  # UAV 接收波束方向实部
+            np.full(
+                self.base_args.uavs_num * self.base_args.antenna_nums,
+                -1.0,
+                dtype=np.float32
+            ),  # UAV 接收波束方向虚部
         ])
         bs_continuous_high = np.concatenate([
             np.full(self.base_args.uavs_num, 2 * np.pi, dtype=np.float32),   # UAV 飞行角度
@@ -87,6 +100,16 @@ class MyEnv(gym.Env):
                 dtype=np.float32
             ),  # UAV 卸载时长
             np.full(self.base_args.cus_num, dbm_2_watt(self.base_args.cu_max_power_dbm), dtype=np.float32),  # CU 卸载功率
+            np.full(
+                self.base_args.uavs_num * self.base_args.antenna_nums,
+                1.0,
+                dtype=np.float32
+            ),  # UAV 接收波束方向实部
+            np.full(
+                self.base_args.uavs_num * self.base_args.antenna_nums,
+                1.0,
+                dtype=np.float32
+            ),  # UAV 接收波束方向虚部
         ])
 
         self.action_space = {
@@ -235,6 +258,26 @@ class MyEnv(gym.Env):
             uavs_cus_matched_matrix[uav_idx, int(cu_idx)] = 1.0
         return uavs_cus_matched_matrix
 
+    @staticmethod
+    def _build_unit_norm_rec_beam(dir_real_flat, dir_imag_flat, uavs_num, antenna_nums):
+        """由实/虚部方向构造单位范数接收波束 g_i（自动满足 ‖g_i‖²=1）。
+
+        :param dir_real_flat: (I*N,) 接收波束方向实部（raw，将被逐 UAV L2 归一化）
+        :param dir_imag_flat: (I*N,) 接收波束方向虚部
+        :return: (I, N) complex ndarray，逐 UAV 单位范数
+        """
+        beams = np.zeros((uavs_num, antenna_nums), dtype=complex)
+        for i in range(uavs_num):
+            start, end = i * antenna_nums, (i + 1) * antenna_nums
+            direction = dir_real_flat[start:end] + 1j * dir_imag_flat[start:end]
+            norm = float(np.linalg.norm(direction))
+            if norm < 1e-12:  # 退化保护：方向近零时回退基向量 e_1
+                direction = np.zeros(antenna_nums, dtype=complex)
+                direction[0] = 1.0 + 0j
+                norm = 1.0
+            beams[i] = direction / norm
+        return beams
+
     def step(self, actions, i_episode=None):
         bs_actions = actions["bs"] if isinstance(actions, dict) and "bs" in actions else actions
 
@@ -254,6 +297,20 @@ class MyEnv(gym.Env):
         off_duration = continuous_actions[offset:offset + self.base_args.uavs_num]
         offset += self.base_args.uavs_num
         cus_off_power = continuous_actions[offset:offset + self.base_args.cus_num]
+        offset += self.base_args.cus_num
+
+        # 20260912 - g 接收波束: 第 5/6 个动作头 -> 单位范数接收波束（外层给定量）
+        rec_beam_dim = self.base_args.uavs_num * self.base_args.antenna_nums
+        rec_beam_dir_real_flat = continuous_actions[offset:offset + rec_beam_dim]
+        offset += rec_beam_dim
+        rec_beam_dir_imag_flat = continuous_actions[offset:offset + rec_beam_dim]
+        offset += rec_beam_dim
+        uavs_rec_beam_vectors = self._build_unit_norm_rec_beam(
+            rec_beam_dir_real_flat,
+            rec_beam_dir_imag_flat,
+            self.base_args.uavs_num,
+            self.base_args.antenna_nums,
+        )
 
         # NOTE - 将离散 CU 索引动作转换为 UAV-CU 匹配矩阵输入 CCCP，以适配 reward 计算接口
         uavs_cus_matched_matrix = self._build_uavs_cus_matched_matrix(discrete_actions)
@@ -280,6 +337,7 @@ class MyEnv(gym.Env):
                 f"angle={diff_theta[i]:.4f} rad, "
                 f"dist={diff_distance[i]:.4f} m, "
                 f"off_duration={off_duration[i]:.4f} s, "
+                f"‖g‖={np.linalg.norm(uavs_rec_beam_vectors[i]):.4f}, "
                 f"{color_energy}→ CU-{int(discrete_actions[i])}{color_reset}"
             )
         for i in range(self.base_args.cus_num):
@@ -299,7 +357,8 @@ class MyEnv(gym.Env):
             uavs_pos_cur=next_uavs_pos,
             uavs_off_duration=off_duration,
             cus_off_power=cus_off_power,
-            cus_entertaining_task_size=self.cus_entertaining_task_size
+            cus_entertaining_task_size=self.cus_entertaining_task_size,
+            uavs_rec_beam_vectors=uavs_rec_beam_vectors,
         )
         print(
             f"{color_title}Episode {i_episode}, Time Slot {self.t}:{color_reset} "

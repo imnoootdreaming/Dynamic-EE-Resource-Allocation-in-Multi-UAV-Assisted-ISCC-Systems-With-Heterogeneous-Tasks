@@ -18,10 +18,13 @@
     cus_off_power                   -> p_cu_power            (J,)
     uavs_off_duration               -> D_uav_off             (I,)
     uavs_pos / uavs_pos_cur         -> q_uav_pos / q_uav_pos_next
-    --                              -> g_rec_beam            (I,N)
+    uavs_rec_beam_vectors           -> g_rec_beam            (I,N)
 
-g_rec_beam（UAV 接收波束，‖g_i‖²=1）外层动作空间暂不产出，取**指定感知目标信道 A_i 的
-主特征向量**（A_i 秩一分解后的匹配接收波束 a_i/‖a_i‖），使接收增益 |a_i^H g_i| 最大。
+g_rec_beam（UAV 接收波束，‖g_i‖²=1）由**外层动作空间产出**（my_env 追加的
+uav_rec_beam_dir_real / uav_rec_beam_dir_imag 动作头，逐 UAV L2 归一化），与其他外层给定
+量（eta_share / p_cu_power / D_uav_off）并列注入内层参与能耗计算。调用方未传
+``uavs_rec_beam_vectors`` 时，回退取**指定感知目标信道 A_i 的主特征向量**（A_i 秩一分解后的
+匹配接收波束 a_i/‖a_i‖），使接收增益 |a_i^H g_i| 最大。
 """
 
 import importlib.util
@@ -179,9 +182,11 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
                        uavs_2_targets_channels, uavs_targets_matched_matrix,
                        uavs_cus_matched_matrix, uavs_pos_pre, uavs_pos_cur,
                        uavs_off_duration, cus_off_power, cus_entertaining_task_size,
-                       return_solution=True):
+                       uavs_rec_beam_vectors=None, return_solution=True):
     """外层场景 -> 内层 PC3P 求解 -> 返回与旧 penalty_based_cccp 一致的 12 元组。
 
+    :param uavs_rec_beam_vectors: 可选，(I, N) 复数，外层智能体产出的接收波束 g_i
+        （‖g_i‖²=1）。为 None 时回退到指定感知目标信道 A_i 的匹配接收波束。
     返回 (energy_opt, _, _, _, _, _, _, per_uav_sen_power_list, per_uav_off_power_list,
           per_uav_bs_freq_list, cur_cus_off_duration, solution_payload)；
     无可行解时 energy_opt = inf，各明细为空。
@@ -204,10 +209,14 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     A_all = np.asarray(uavs_2_targets_channels, dtype=complex)                # (I, K, N, N)
     A_theta = np.stack([A_all[i, target_idx[i]] for i in range(I)], axis=0)
 
-    # ── g_i：指定目标信道的匹配接收波束（A_i 主特征向量） ────────────────────
-    g_rec_beam = np.stack([_matched_receive_beam(A_theta[i]) for i in range(I)], axis=0)
-
     # ── 外层给定量 ───────────────────────────────────────────────────────────
+    # g_i：UAV 接收波束（由外层动作空间产出，‖g_i‖²=1）；未提供时回退匹配接收波束
+    if uavs_rec_beam_vectors is None:
+        g_rec_beam = np.stack([_matched_receive_beam(A_theta[i]) for i in range(I)], axis=0)
+    else:
+        g_rec_beam = np.asarray(uavs_rec_beam_vectors, dtype=complex).reshape(I, N)
+        g_norm = np.linalg.norm(g_rec_beam, axis=1, keepdims=True)
+        g_rec_beam = g_rec_beam / np.where(g_norm > 0, g_norm, 1.0)
     eta_share = np.asarray(uavs_cus_matched_matrix, dtype=float).reshape(I, J)
     p_cu_power = np.asarray(cus_off_power, dtype=float).reshape(-1)
     D_uav_off = np.asarray(uavs_off_duration, dtype=float).reshape(-1)

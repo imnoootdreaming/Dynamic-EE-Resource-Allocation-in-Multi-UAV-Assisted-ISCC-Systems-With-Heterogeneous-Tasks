@@ -19,7 +19,8 @@ class MyReward:
 
     def reward_compute(self, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels, uavs_2_targets_channels,
                        uavs_targets_matched_matrix, uavs_cus_matched_matrix,
-                       uavs_pos, uavs_pos_cur, uavs_off_duration, cus_off_power, cus_entertaining_task_size):
+                       uavs_pos, uavs_pos_cur, uavs_off_duration, cus_off_power, cus_entertaining_task_size,
+                       uavs_rec_beam_vectors=None):
         uav_collision_penalty = np.zeros(self.base_args.uavs_num)
         uav_exceed_boundary_penalty = np.zeros(self.base_args.uavs_num)
 
@@ -53,6 +54,7 @@ class MyReward:
             uavs_off_duration=uavs_off_duration,
             cus_off_power=cus_off_power,
             cus_entertaining_task_size=cus_entertaining_task_size,
+            uavs_rec_beam_vectors=uavs_rec_beam_vectors,
             return_solution=True
         )
 
