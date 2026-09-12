@@ -17,7 +17,7 @@ GC3P 的候选解个数由 --candidates 控制（默认 50）：
 （共 51 个候选），传 --candidates 51。
 
 用法：
-    cd src
+    cd src/inner
     python compare_pc3p_gc3p.py --cases 30 --candidates 50
 """
 

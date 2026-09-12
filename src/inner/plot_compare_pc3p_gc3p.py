@@ -4,7 +4,7 @@
 每个随机 case 并排画出两条真实能量柱（不含秩一罚项，口径一致）。
 
 用法：
-    cd src
+    cd src/inner
     python plot_compare_pc3p_gc3p.py --csv compare_pc3p_gc3p_results.csv
     python plot_compare_pc3p_gc3p.py --csv _tmp_compare_out.csv --save fig.png
 """

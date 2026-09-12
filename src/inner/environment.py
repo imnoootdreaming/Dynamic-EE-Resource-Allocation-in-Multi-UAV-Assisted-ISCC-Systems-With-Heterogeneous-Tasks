@@ -181,7 +181,7 @@ class Environment:
 
 
 def build_environment(params, rng, outer_variables=None):
-    """生成系统状态与派生常数。
+    """生成系统状态与派生常数（内层自带场景采样）。
 
     :param outer_variables: 可选，外层给定量的元组
         (g_rec_beam, eta_share, p_cu_power, D_uav_off, q_uav_pos_step)。
@@ -231,6 +231,43 @@ def build_environment(params, rng, outer_variables=None):
         (g_rec_beam, eta_share, p_cu_power,
          D_uav_off, q_uav_pos_step) = outer_variables
     q_uav_pos_next = q_uav_pos + q_uav_pos_step
+
+    return assemble_environment(
+        params,
+        q_uav_pos=q_uav_pos,
+        q_uav_pos_next=q_uav_pos_next,
+        q_cu_pos=q_cu_pos,
+        q_target_pos=q_target_pos,
+        q_target_designated=q_target_designated,
+        h_cu_2_uav=h_cu_2_uav,
+        h_uav_2_bs=h_uav_2_bs,
+        h_cu_2_bs=h_cu_2_bs,
+        A_theta=A_theta,
+        g_rec_beam=g_rec_beam,
+        eta_share=eta_share,
+        p_cu_power=p_cu_power,
+        D_uav_off=D_uav_off,
+        d_uav_target=d_uav_target,
+    )
+
+
+def assemble_environment(params, *, q_uav_pos, q_uav_pos_next, q_cu_pos, q_target_pos,
+                         q_target_designated, h_cu_2_uav, h_uav_2_bs, h_cu_2_bs,
+                         A_theta, g_rec_beam, eta_share, p_cu_power, D_uav_off,
+                         d_uav_target=None):
+    """由给定的位置 / 信道 / 外层给定量装配系统状态，并计算全部派生常数。
+
+    与 :func:`build_environment` 的唯一区别：本函数**不做任何随机采样**，位置、信道
+    A(θ) 与外层给定量全部由调用方提供。因此它既服务内层自带采样
+    （``build_environment`` 生成后调用本函数），也服务外层桥接
+    （``outer/reward/cccp_bridge.py`` 直接注入**外层实时算得的信道**，使内层 P5 求解
+    与外层 env 处于同一场景）。
+
+    派生常数（论文 P1 中的简记）计算公式与本函数外的 build_environment 完全一致。
+    """
+    if d_uav_target is None:
+        # d_i(t)：UAV 到指定感知目标的距离
+        d_uav_target = np.linalg.norm(q_uav_pos - q_target_designated, axis=1)
 
     # ── 派生常数 ─────────────────────────────────────────────────────────
     # Γ_i(t) = Σ_j η_{i,j} p_j |g_i^H h_{c_j,u_i}^H|^2 + σ^2
