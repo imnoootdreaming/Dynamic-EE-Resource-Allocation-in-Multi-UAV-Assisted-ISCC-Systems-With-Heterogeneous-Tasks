@@ -45,6 +45,51 @@ def select_solver():
         return "cvxpy", run_pc3p
     raise ValueError("未知后端 PC3P_BACKEND={!r}（可选 fusion / cvxpy）".format(backend))
 
+
+# 求解状态语义分类。两个后端的状态字符串不同（fusion: ProblemStatus.*；cvxpy: optimal/
+# infeasible/solver_error 等），统一归为四类，避免把「数值失败」误报成「无可行解」：
+#   optimal    —— 已返回最优/可行解（fusion: PrimalAndDualFeasible；cvxpy: optimal[_inaccurate]）
+#   infeasible —— 模型确实不可行（fusion: *Infeasible；cvxpy: infeasible[_inaccurate]/unbounded）
+#   unknown    —— 求解器未能判定，属数值失败（fusion: Unknown/IllPosed；cvxpy: solver_error）
+#   error      —— 求解器内部异常（fusion 后端在 solve() 抛异常时写成 "error: ..."）
+STATUS_LABELS = {
+    "optimal": "已返回最优/可行解",
+    "infeasible": "模型判定为不可行",
+    "unknown": "求解器未能判定（数值失败，并非真的不可行）",
+    "error": "求解器内部异常",
+    "other": "其他状态",
+}
+
+
+def classify_status(status):
+    """把后端状态字符串归为 (类别, 中文说明)，类别 ∈ {optimal, infeasible, unknown, error, other}。"""
+    if status is None:
+        return "other", STATUS_LABELS["other"]
+    low = str(status).lower()
+    if low.startswith("error"):
+        return "error", STATUS_LABELS["error"]
+    # 注意 "Infeasible" 中含有子串 "feasible"，必须先判不可行再判可行
+    if "infeasible" in low or low.startswith("unbounded"):
+        return "infeasible", STATUS_LABELS["infeasible"]
+    if "unknown" in low or "illposed" in low or "ill_posed" in low or "solver_error" in low:
+        return "unknown", STATUS_LABELS["unknown"]
+    if "optimal" in low or "feasible" in low:
+        return "optimal", STATUS_LABELS["optimal"]
+    return "other", STATUS_LABELS["other"]
+
+
+def explain_no_solution(status_kind, status):
+    """对「未拿到最优解」的情况给出准确原因：不可行 / 数值失败 / 求解器异常，三者不可混为一谈。"""
+    if status_kind == "infeasible":
+        return "问题 P5 判定为不可行：该外层样本在内层模型下确实无可行解（{}）。".format(status)
+    if status_kind == "unknown":
+        return ("求解器未能判定可行 / 不可行（{}），属数值失败而非真的无可行解；"
+                "可收紧 mosek_tol_feas 或重试该样本。".format(status))
+    if status_kind == "error":
+        return "求解器内部异常，未得到可行解：{}".format(status)
+    return "求解器未返回最优解，未得到可行解：{}".format(status)
+
+
 # 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史
 HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "first_sample_cccp_history.csv")
@@ -84,6 +129,8 @@ def main():
     outer_samples = load_or_generate_outer_samples(params)
     print("外层变量样本数：{}".format(len(outer_samples)))
 
+    status_counts = {kind: 0 for kind in STATUS_LABELS}
+
     total_start = time.perf_counter()
     for index, outer_variables in enumerate(outer_samples, start=1):
         environment = build_environment(
@@ -95,8 +142,11 @@ def main():
         result = solve(ctx)
         elapsed = time.perf_counter() - start
 
-        print("\n样本 {}/{}：求解状态：{}，求解耗时：{:.3f} s".format(
-            index, len(outer_samples), result["status"], elapsed))
+        status_kind, status_label = classify_status(result["status"])
+        status_counts[status_kind] += 1
+
+        print("\n样本 {}/{}：求解状态：{}（{}），求解耗时：{:.3f} s".format(
+            index, len(outer_samples), result["status"], status_label, elapsed))
 
         # 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史（含第 0 轮）
         if index == 1:
@@ -105,7 +155,7 @@ def main():
             print("逐轮迭代历史已保存到：{}".format(HISTORY_CSV))
 
         if result["W_sen_beam"] is None:
-            print("问题 P5 在无可行解（或求解器未返回最优解）时终止，未得到可行解。")
+            print(explain_no_solution(status_kind, result["status"]))
             continue
 
         print("迭代次数：{}，是否收敛：{}，罚因子 ρ：{:.4g}".format(
@@ -128,6 +178,10 @@ def main():
 
     print("\n全部 {} 组样本求解总耗时：{:.3f} s".format(
         len(outer_samples), time.perf_counter() - total_start))
+    print("状态汇总（共 {} 组）：".format(len(outer_samples)))
+    for kind in ("optimal", "infeasible", "unknown", "error", "other"):
+        print("  {:<12s} {:>4d} 组    （{}）".format(
+            kind, status_counts[kind], STATUS_LABELS[kind]))
 
 
 if __name__ == "__main__":

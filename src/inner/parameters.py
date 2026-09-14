@@ -30,7 +30,7 @@ class Parameters:
     K: int = 40                         # target 数量
 
     # ── UAV 飞行参数 ──────────────────────────────────────────────────────
-    uav_height: float = 50.0            # H，UAV 固定飞行高度 (m)
+    uav_height: float = 50.0            # H，UAV 固定飞行高度 (m) (修改前:100)
     uav_max_speed: float = 40.0         # V_max (m/s)
     uav_min_speed: float = 5.0          # V_min (m/s)
     varrho_1: float = 0.00614           # ϱ_1，飞行能耗参数
@@ -45,12 +45,12 @@ class Parameters:
     alpha_1: float = 2.0                # CU -> UAV 链路路径损耗因子
     alpha_2: float = 2.0                # UAV -> BS 链路路径损耗因子
     alpha_3: float = 2.5                # CU -> BS 链路路径损耗因子
-    N: int = 10                          # UAV 天线数
+    N: int = 10                          # UAV 天线数 (修改前:6)
     d_over_lambda: float = 0.5          # 𝔡/λ，天线间距与波长之比
 
     # ── 感知参数 ──────────────────────────────────────────────────────────
-    xi_0: float = 0.1                  # ξ_0，目标雷达截面积 RCS (m^2)
-    eps_sinr_db: float = 5.0           # ε，感知 SINR 门限 (dB)
+    xi_0: float = 0.1                  # ξ_0，目标雷达截面积 RCS (m^2) (修改前:10)
+    eps_sinr_db: float = 5.0           # ε，感知 SINR 门限 (dB) (修改前:20)
     delta_radar: float = 1e-2           # δ，雷达占空比
     sigma_pre_sq: float = 1e-14         # σ_pre^2，距离起伏过程方差
     nu_pulse: float = 2e-5              # ν，雷达脉冲持续时间 (s)
@@ -87,10 +87,16 @@ class Parameters:
     rho_penalty_scale: float = 2.0       # 递增倍率 ρ ← rho_penalty_scale · ρ
     rho_penalty_max: float = 1         # ρ 上限（ρ = 1 在这个场景下足够）
 
-    # ── MOSEK 内点法容差（只改求解器收敛判据，不改动模型，用于缩短单次求解时间）──
-    # 实测：把可行性容差由默认 1e-8 放宽到 1e-7，内点迭代数从 34~148 稳定到 ~31，
-    # 单次求解耗时约减半，而解与秩一间隙几乎不变（相对误差 ~1e-5）。
-    mosek_tol_feas: float = 1e-7
+    # ── MOSEK 内点法容差（只改求解器收敛判据，不改动模型）─────────────────────
+    # 注意这是**相对**容差：判据为 Viol ≤ tol·max(1, ‖x‖)。本问题的感知约束 c06
+    # 量级仅 ~1e-10（εΓ_i 与 P_max·λmax(G_i) 都落在 1e-10~1e-9），而逐 UAV 的可行
+    # 余量最低只有 ~1.19，可行域极薄。若把 tol 放宽到 1e-7，归一化后 ‖x‖≈O(10)
+    # 对应的绝对容差 ~1e-6 比 c06 的整个量级还大 1e4 倍，内点法无法可靠判停，
+    # 状态会在 PrimalAndDualFeasible / Unknown 之间抖动，个别 MOSEK/Python 构建下
+    # 底层甚至直接异常退出（表现为 SystemError: _PyEval_EvalFrameDefault ...）。
+    # 故保持 MOSEK 默认的 1e-8，不再放宽（实测收紧到 1e-9 亦可消除 Unknown，但
+    # 单次求解更慢，1e-8 是精度与耗时的平衡点）。
+    mosek_tol_feas: float = 1e-8
 
     # ── 随机种子  ─────────────
     seed: int = 42
