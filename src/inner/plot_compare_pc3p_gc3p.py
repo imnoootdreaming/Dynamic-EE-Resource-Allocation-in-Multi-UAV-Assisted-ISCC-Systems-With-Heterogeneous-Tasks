@@ -22,7 +22,7 @@ PC3P_COLOR = "#FF6B6B"
 GC3P_COLOR = "#4169E1"
 GRID_COLOR = "#E0E0E0"
 
-REQUIRED_COLUMNS = {"case", "pc3p_energy", "gc3p_energy"}
+REQUIRED_COLUMNS = {"case_id", "penalty_based_obj", "gaussian_based_obj"}
 
 
 def load_compare_data(csv_path):
@@ -32,13 +32,13 @@ def load_compare_data(csv_path):
         reader = csv.DictReader(csv_file)
         if reader.fieldnames is None or not REQUIRED_COLUMNS.issubset(reader.fieldnames):
             raise ValueError(
-                "CSV 需要包含列: case, pc3p_energy, gc3p_energy。实际列: {}".format(
+                "CSV 需要包含列: case_id, penalty_based_obj, gaussian_based_obj。实际列: {}".format(
                     reader.fieldnames)
             )
         for row in reader:
-            case_ids.append(int(row["case"]))
-            pc3p_values.append(float(row["pc3p_energy"]))
-            gc3p_values.append(float(row["gc3p_energy"]))
+            case_ids.append(int(row["case_id"]))
+            pc3p_values.append(float(row["penalty_based_obj"]))
+            gc3p_values.append(float(row["gaussian_based_obj"]))
     return np.array(case_ids), np.array(pc3p_values), np.array(gc3p_values)
 
 

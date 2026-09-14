@@ -110,22 +110,68 @@ def save_iteration_history(csv_path, obj_history, w_gap_history, b_gap_history):
             writer.writerow([n, repr(float(obj)), repr(float(w_gap)), repr(float(b_gap))])
 
 
-# 每个外层样本（case）的收敛迭代次数统计（读取 feasible_outer_samples.csv 后逐组求解得到）
+# 每个外层样本（case）的收敛迭代次数统计（读取 feasible_outer_samples.csv 后逐组求解得到）。
+# 绘图用文件只保留「迭代次数最多的那一次」求解的统计（见 select_max_iteration_rows），
+# 若多个 case 并列最多则取按求解顺序的第一条。
 CONVERGENCE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "convergence_iterations.csv")
 
+# 完整诊断信息（sample_id / converged / status_kind / elapsed_s）。
+# 目前无需保存 details 文件，main() 中的写出调用已注释掉，此处仅保留路径与写出函数备用。
+CONVERGENCE_DETAIL_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                      "convergence_iterations_details.csv")
+
+
+def select_max_iteration_rows(rows):
+    """从逐 case 统计中挑出「迭代次数最多」的那一次求解。
+
+    若有多个 case 并列最多，则只取按求解顺序出现的**第一条**记录。
+
+    :param rows: 每项为 [case_index, sample_id, iterations, converged,
+                        status_kind, elapsed_s]，与 save_iteration_counts 入参一致。
+    :return: 只含 0 条或 1 条记录的列表；rows 为空时返回空列表。
+    """
+    if not rows:
+        return []
+    max_iterations = max(row[2] for row in rows)
+    for row in rows:
+        if row[2] == max_iterations:
+            return [row]
+    return []
+
 
 def save_iteration_counts(csv_path, rows):
-    """保存每组外层样本（case）收敛所需的迭代次数统计。
+    """保存外层样本（case）收敛所需的迭代次数统计（rows 由调用方预先筛选）。
+
+    输出列与论文绘图脚本所需的格式对齐
+    （src/fig/inner/Fig1/plot_energy_rank1_and_convergence_from_csv.py）：
+        case_id, convergence_iterations
+
+    绘图用文件只写「迭代次数最多的那一次」求解的记录，
+    因此调用时传入的是 select_max_iteration_rows(iteration_rows)。
 
     :param rows: 每项为 [case_index, sample_id, iterations, converged,
                         status_kind, elapsed_s]
-        case_index —— 控制台打印的 1 起始序号；
+        case_index —— 控制台打印的 1 起始序号，写入为 case_id；
         sample_id  —— 与 feasible_outer_samples.csv 一致的 0 起始编号；
-        iterations —— PC3P 实际迭代次数（未收敛时为 max_iterations）；
+        iterations —— PC3P 实际迭代次数（未收敛时为 max_iterations），
+                      写入为 convergence_iterations；
         converged  —— 是否满足收敛判据；
         status_kind—— 求解状态类别（optimal/infeasible/unknown/error/other）；
         elapsed_s  —— 该 case 的求解耗时（s）。
+    """
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["case_id", "convergence_iterations"])
+        for row in rows:
+            writer.writerow([row[0], row[2]])
+
+
+def save_iteration_counts_detail(csv_path, rows):
+    """写出完整逐 case 求解统计（含 sample_id、是否收敛、状态类别、耗时）。
+
+    :param rows: 每项为 [case_index, sample_id, iterations, converged,
+                        status_kind, elapsed_s]，与 save_iteration_counts 入参一致。
     """
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -155,7 +201,7 @@ def main():
     print("外层变量样本数：{}".format(len(outer_samples)))
 
     status_counts = {kind: 0 for kind in STATUS_LABELS}
-    iteration_rows = []          # 每个 case 的迭代次数统计（最终写入 CONVERGENCE_CSV）
+    iteration_rows = []          # 每个 case 的迭代次数统计（CONVERGENCE_CSV 只写入其中迭代次数最多的记录）
 
     total_start = time.perf_counter()
     for index, outer_variables in enumerate(outer_samples, start=1):
@@ -212,8 +258,16 @@ def main():
         print("  {:<12s} {:>4d} 组    （{}）".format(
             kind, status_counts[kind], STATUS_LABELS[kind]))
 
-    save_iteration_counts(CONVERGENCE_CSV, iteration_rows)
-    print("各 case 的迭代次数统计已保存到：{}".format(CONVERGENCE_CSV))
+    # 绘图用 CSV 只保留「迭代次数最多的那一次」求解的统计
+    # details 文件无需保存，此处直接注释掉
+    max_iteration_rows = select_max_iteration_rows(iteration_rows)
+    save_iteration_counts(CONVERGENCE_CSV, max_iteration_rows)
+    # save_iteration_counts_detail(CONVERGENCE_DETAIL_CSV, iteration_rows)
+    print("迭代次数最多的记录（共 {} 条）已保存到：{}".format(
+        len(max_iteration_rows), CONVERGENCE_CSV))
+    for row in max_iteration_rows:
+        print("  case_id = {}，迭代次数 = {}".format(row[0], row[2]))
+    # print("各 case 的完整求解统计已保存到：{}".format(CONVERGENCE_DETAIL_CSV))
 
 
 if __name__ == "__main__":

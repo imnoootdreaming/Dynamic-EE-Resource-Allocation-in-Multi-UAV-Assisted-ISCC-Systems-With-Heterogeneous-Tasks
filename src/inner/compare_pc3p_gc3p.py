@@ -2,7 +2,7 @@
 
 在同一环境、同一 MOSEK 求解器下，对每个外层样本分别运行两个算法：
 
-    PC3P（pc3p.run_pc3p）：  秩一罚项 + 自适应 ρ 的 Penalty-CCCP
+    PC3P（fusion_pc3p.run_pc3p_fusion）：MOSEK Fusion 后端的 Penalty-CCCP（秩一罚项 + 自适应 ρ）
     GC3P（gc3p.run_gc3p）：  ρ ≡ 0 的 SDR 松弛 CCCP + 高斯随机化秩一恢复
 
 两者物理模型、CCCP 线性化与约束集合完全一致，唯一差别是秩一处理方式，
@@ -15,6 +15,11 @@ GC3P 的候选解个数由 --candidates 控制（默认 50）：
 每个候选都固定波束方向后重新优化功率，取真实能量最低的可行候选。
 --candidates 50 表示「共 50 个候选可行解」；若要「50 个高斯方向 + 主特征方向」
 （共 51 个候选），传 --candidates 51。
+
+输出：
+    --output        绘图格式 CSV（列：case_id、PC3P 能量、PC3P 耗时、GC3P 能量、GC3P 耗时），
+                    可直接喂给 inner_problem/plot_compare_penalty_gaussian_obj_from_csv.py
+    --detail-output 完整指标 CSV（迭代次数、秩一间隙、约束违反量等诊断信息）
 
 用法：
     cd src/inner
@@ -29,13 +34,24 @@ from types import SimpleNamespace
 import numpy as np
 
 from environment import build_environment
+from fusion_pc3p import run_pc3p_fusion
 from gc3p import GC3P_NUM_CANDIDATES, run_gc3p
 from outer_sampler import _p1_constraint_violations, load_outer_samples
 from parameters import Parameters
-from pc3p import compute_pure_energy, run_pc3p
+from pc3p import compute_pure_energy
 from variables import InnerContext, InnerVariables
 
+# 输出 CSV 的列名与顺序对齐论文绘图脚本所需的格式
+# （simulation_result/inner_problem/plot_compare_penalty_gaussian_obj_from_csv.py）：
+#   case_id + PC3P 真实能量 + PC3P 耗时 + GC3P 真实能量 + GC3P 耗时
 CSV_FIELDS = [
+    "case_id",
+    "penalty_based_obj", "penalty_based_time",
+    "gaussian_based_obj", "gaussian_based_time",
+]
+
+# 可选的「完整指标」输出列：保留迭代次数、秩一间隙、约束违反量等诊断信息
+DETAIL_CSV_FIELDS = [
     "case",
     "pc3p_energy", "gc3p_energy", "gc3p_energy_gain_pct",
     "pc3p_time", "gc3p_time", "gc3p_time_speedup",
@@ -74,7 +90,7 @@ def _run_case(params, environment, case_index, num_candidates, seed):
     # --- PC3P ---
     pc3p_ctx = InnerContext(params, environment, InnerVariables.create(params))
     start = time.perf_counter()
-    pc3p_result = run_pc3p(pc3p_ctx)
+    pc3p_result = run_pc3p_fusion(pc3p_ctx)
     pc3p_time = time.perf_counter() - start
 
     # --- GC3P ---
@@ -217,11 +233,31 @@ def print_summary(summary):
 
 
 def save_csv(rows, csv_path):
+    """按论文绘图脚本所需格式写出逐 case 对比结果。
+
+    列：case_id、PC3P 真实能量、PC3P 耗时、GC3P 真实能量、GC3P 耗时。
+    """
     with open(csv_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        writer.writerows(rows)
+        for row in rows:
+            writer.writerow({
+                "case_id": row["case"],
+                "penalty_based_obj": row["pc3p_energy"],
+                "penalty_based_time": row["pc3p_time"],
+                "gaussian_based_obj": row["gc3p_energy"],
+                "gaussian_based_time": row["gc3p_time"],
+            })
     print("逐 case 结果已写入:", csv_path)
+
+
+def save_detail_csv(rows, csv_path):
+    """写出包含全部诊断指标的逐 case 明细（迭代次数、秩一间隙、约束违反量等）。"""
+    with open(csv_path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=DETAIL_CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print("完整逐 case 指标已写入:", csv_path)
 
 
 def parse_args():
@@ -233,7 +269,10 @@ def parse_args():
     parser.add_argument("--csv", type=str, default="feasible_outer_samples.csv",
                         help="外层样本 CSV 路径")
     parser.add_argument("--output", type=str, default="compare_pc3p_gc3p_results.csv",
-                        help="逐 case 结果输出路径")
+                        help="逐 case 结果输出路径（绘图格式：case_id + 能量 + 耗时）")
+    parser.add_argument("--detail-output", type=str,
+                        default="compare_pc3p_gc3p_details.csv",
+                        help="完整逐 case 指标输出路径（留空则不写）")
     parser.add_argument("--seed", type=int, default=None,
                         help="GC3P 高斯采样随机种子（默认取 params.seed）")
     return parser.parse_args()
@@ -251,6 +290,9 @@ def main():
     print("开始对比：%d 个 case，GC3P 候选解个数 = %d" % (len(samples), args.candidates))
     rows = run_comparison(params, samples, num_candidates=args.candidates, seed=args.seed)
     save_csv(rows, args.output)
+    # details 文件无需保存，此处直接注释掉（save_detail_csv 与 --detail-output 保留备用）
+    # if args.detail_output:
+    #     save_detail_csv(rows, args.detail_output)
     print_summary(_summary(rows))
 
 
