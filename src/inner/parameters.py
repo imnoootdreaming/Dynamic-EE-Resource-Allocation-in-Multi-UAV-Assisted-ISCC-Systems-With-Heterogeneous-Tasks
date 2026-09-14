@@ -45,12 +45,12 @@ class Parameters:
     alpha_1: float = 2.0                # CU -> UAV 链路路径损耗因子
     alpha_2: float = 2.0                # UAV -> BS 链路路径损耗因子
     alpha_3: float = 2.5                # CU -> BS 链路路径损耗因子
-    N: int = 6                          # UAV 天线数
+    N: int = 10                          # UAV 天线数
     d_over_lambda: float = 0.5          # 𝔡/λ，天线间距与波长之比
 
     # ── 感知参数 ──────────────────────────────────────────────────────────
-    xi_0: float = 10.0                  # ξ_0，目标雷达截面积 RCS (m^2)
-    eps_sinr_db: float = 20.0           # ε，感知 SINR 门限 (dB)
+    xi_0: float = 0.1                  # ξ_0，目标雷达截面积 RCS (m^2)
+    eps_sinr_db: float = 5.0           # ε，感知 SINR 门限 (dB)
     delta_radar: float = 1e-2           # δ，雷达占空比
     sigma_pre_sq: float = 1e-14         # σ_pre^2，距离起伏过程方差
     nu_pulse: float = 2e-5              # ν，雷达脉冲持续时间 (s)
