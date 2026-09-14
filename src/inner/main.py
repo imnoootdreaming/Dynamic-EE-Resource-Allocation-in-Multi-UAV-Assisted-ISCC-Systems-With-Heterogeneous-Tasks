@@ -90,29 +90,50 @@ def explain_no_solution(status_kind, status):
     return "求解器未返回最优解，未得到可行解：{}".format(status)
 
 
-# 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史
+def iterations_of_result(result):
+    """取求解结果的迭代次数，统一转成 int（缺失或非数值时返回 0）。"""
+    try:
+        return int(result.get("iterations"))
+    except (TypeError, ValueError):
+        return 0
+
+
+# 保存「迭代次数落在 HISTORY_ITERATION_MIN ~ HISTORY_ITERATION_MAX 区间内、最早出现的那次求解」
+# 的逐轮迭代历史，对应其能量项 / 秩一罚项的收敛变化曲线。
+# 若没有任何样本落在该区间，则退化为保存迭代次数最多的那一次，并在控制台给出提示。
+# 文件名沿用 first_sample_cccp_history.csv（Fig1 绘图脚本按此文件名读取内容，不改名）。
+HISTORY_ITERATION_MIN = 5
+HISTORY_ITERATION_MAX = 7
+
 HISTORY_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "first_sample_cccp_history.csv")
 
 
 def save_iteration_history(csv_path, obj_history, w_gap_history, b_gap_history):
-    """保存第一个样本的逐轮迭代历史。
+    """保存选定样本（迭代次数落在 HISTORY_ITERATION_MIN ~ MAX 区间内、最早出现的那次）的
+    逐轮迭代历史。
 
     每行对应一轮迭代（第 0 行是第 0 轮，即初始点 x^(0)，未做任何 CCCP 更新），
-    只记录三项：原始目标函数值、W 的秩一间隙（Σ_i[Tr(W_i)-‖W_i‖₂]）、
-    B 的秩一间隙（Σ_i[Tr(B_i)-‖B_i‖₂]）。
+    只记录三项：原始目标函数值、W（感知波束）的秩一间隙（Σ_i[Tr(W_i)-‖W_i‖₂]）、
+    B（卸载波束）的秩一间隙（Σ_i[Tr(B_i)-‖B_i‖₂]）。
+
+    关于负值：秩一间隙理论上恒非负（W ⪰ 0 时 Σλ_i - λ_max ≥ 0），但求解器返回的 W / B
+    允许带 ~1e-8 量级的负特征值，因此实测值会出现 -1e-8 这类负数。写入时统一按
+    max(·, 0) 截断——只是把数值噪声归零，不影响任何优化过程。
+    这里刻意**不用 abs()**：负值源于数值误差，取绝对值反而会把它伪造成一个真实的"正向间隙"。
     """
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["iteration", "objective_value", "w_rank1_gap", "b_rank1_gap"])
         for n, (obj, w_gap, b_gap) in enumerate(zip(obj_history, w_gap_history,
                                                     b_gap_history)):
-            writer.writerow([n, repr(float(obj)), repr(float(w_gap)), repr(float(b_gap))])
+            writer.writerow([n, repr(float(obj)),
+                             repr(max(float(w_gap), 0.0)),
+                             repr(max(float(b_gap), 0.0))])
 
 
-# 每个外层样本（case）的收敛迭代次数统计（读取 feasible_outer_samples.csv 后逐组求解得到）。
-# 绘图用文件只保留「迭代次数最多的那一次」求解的统计（见 select_max_iteration_rows），
-# 若多个 case 并列最多则取按求解顺序的第一条。
+# 每个外层样本（case）的收敛迭代次数统计（读取 feasible_outer_samples.csv 后逐组求解得到），
+# 全部 case（30 个）都会写入该文件，绘图横轴为随机 case 序号。
 CONVERGENCE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "convergence_iterations.csv")
 
@@ -122,33 +143,12 @@ CONVERGENCE_DETAIL_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__))
                                       "convergence_iterations_details.csv")
 
 
-def select_max_iteration_rows(rows):
-    """从逐 case 统计中挑出「迭代次数最多」的那一次求解。
-
-    若有多个 case 并列最多，则只取按求解顺序出现的**第一条**记录。
-
-    :param rows: 每项为 [case_index, sample_id, iterations, converged,
-                        status_kind, elapsed_s]，与 save_iteration_counts 入参一致。
-    :return: 只含 0 条或 1 条记录的列表；rows 为空时返回空列表。
-    """
-    if not rows:
-        return []
-    max_iterations = max(row[2] for row in rows)
-    for row in rows:
-        if row[2] == max_iterations:
-            return [row]
-    return []
-
-
 def save_iteration_counts(csv_path, rows):
-    """保存外层样本（case）收敛所需的迭代次数统计（rows 由调用方预先筛选）。
+    """保存每组外层样本（case）收敛所需的迭代次数统计（全部 case 都会写入）。
 
     输出列与论文绘图脚本所需的格式对齐
     （src/fig/inner/Fig1/plot_energy_rank1_and_convergence_from_csv.py）：
         case_id, convergence_iterations
-
-    绘图用文件只写「迭代次数最多的那一次」求解的记录，
-    因此调用时传入的是 select_max_iteration_rows(iteration_rows)。
 
     :param rows: 每项为 [case_index, sample_id, iterations, converged,
                         status_kind, elapsed_s]
@@ -201,7 +201,11 @@ def main():
     print("外层变量样本数：{}".format(len(outer_samples)))
 
     status_counts = {kind: 0 for kind in STATUS_LABELS}
-    iteration_rows = []          # 每个 case 的迭代次数统计（CONVERGENCE_CSV 只写入其中迭代次数最多的记录）
+    iteration_rows = []          # 每个 case 的迭代次数统计（全部写入 CONVERGENCE_CSV）
+    # 写 HISTORY_CSV 用的两份候选：区间内最早的一次 / 迭代次数最多的一次（兜底）
+    target_history = None        # 迭代次数 ∈ [HISTORY_ITERATION_MIN, HISTORY_ITERATION_MAX] 的最早样本
+    max_iterations = -1
+    max_iteration_history = None
 
     total_start = time.perf_counter()
     for index, outer_variables in enumerate(outer_samples, start=1):
@@ -220,14 +224,23 @@ def main():
                                result["converged"], status_kind,
                                "{:.6f}".format(elapsed)])
 
+        # 逐轮历史（含第 0 轮）的两份候选记录
+        current_iterations = iterations_of_result(result)
+        candidate_history = (index, current_iterations,
+                             result["obj_history"],
+                             result["w_gap_history"],
+                             result["b_gap_history"])
+        # 目标区间 [5, 7] 内第一次出现的样本（后面的同区间样本不再覆盖）
+        if (target_history is None
+                and HISTORY_ITERATION_MIN <= current_iterations <= HISTORY_ITERATION_MAX):
+            target_history = candidate_history
+        # 迭代次数最多的那一次（并列时保留先出现的），用作区间内无样本时的兜底
+        if current_iterations > max_iterations:
+            max_iterations = current_iterations
+            max_iteration_history = candidate_history
+
         print("\n样本 {}/{}：求解状态：{}（{}），求解耗时：{:.3f} s".format(
             index, len(outer_samples), result["status"], status_label, elapsed))
-
-        # 只对「CSV 读入的第一个外层样本」保存逐轮迭代历史（含第 0 轮）
-        if index == 1:
-            save_iteration_history(HISTORY_CSV, result["obj_history"],
-                                   result["w_gap_history"], result["b_gap_history"])
-            print("逐轮迭代历史已保存到：{}".format(HISTORY_CSV))
 
         if result["W_sen_beam"] is None:
             print(explain_no_solution(status_kind, result["status"]))
@@ -258,15 +271,25 @@ def main():
         print("  {:<12s} {:>4d} 组    （{}）".format(
             kind, status_counts[kind], STATUS_LABELS[kind]))
 
-    # 绘图用 CSV 只保留「迭代次数最多的那一次」求解的统计
-    # details 文件无需保存，此处直接注释掉
-    max_iteration_rows = select_max_iteration_rows(iteration_rows)
-    save_iteration_counts(CONVERGENCE_CSV, max_iteration_rows)
+    # 各 case（全部 30 组）的迭代次数统计；details 文件无需保存，此处直接注释掉
+    save_iteration_counts(CONVERGENCE_CSV, iteration_rows)
     # save_iteration_counts_detail(CONVERGENCE_DETAIL_CSV, iteration_rows)
-    print("迭代次数最多的记录（共 {} 条）已保存到：{}".format(
-        len(max_iteration_rows), CONVERGENCE_CSV))
-    for row in max_iteration_rows:
-        print("  case_id = {}，迭代次数 = {}".format(row[0], row[2]))
+    print("各 case 的迭代次数统计已保存到：{}".format(CONVERGENCE_CSV))
+
+    # 逐轮迭代历史（能量项与两条秩一罚项的变化曲线）：
+    # 优先取迭代次数落在 [5, 7] 区间内最早出现的样本；区间内没有样本时退化为迭代次数最多的那一次
+    history_to_save = target_history
+    if history_to_save is None:
+        history_to_save = max_iteration_history
+        if max_iteration_history is not None:
+            print("提示：没有任何样本的迭代次数落在 {}-{} 次区间内，"
+                  "改用迭代次数最多的那次求解。".format(HISTORY_ITERATION_MIN,
+                                                        HISTORY_ITERATION_MAX))
+    if history_to_save is not None:
+        case_index, iterations, obj_history, w_gap_history, b_gap_history = history_to_save
+        save_iteration_history(HISTORY_CSV, obj_history, w_gap_history, b_gap_history)
+        print("迭代 {} 次的求解（case_id = {}）的逐轮迭代历史已保存到：{}".format(
+            iterations, case_index, HISTORY_CSV))
     # print("各 case 的完整求解统计已保存到：{}".format(CONVERGENCE_DETAIL_CSV))
 
 

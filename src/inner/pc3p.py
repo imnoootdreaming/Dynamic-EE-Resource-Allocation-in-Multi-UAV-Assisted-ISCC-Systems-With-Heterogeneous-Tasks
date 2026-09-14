@@ -19,7 +19,13 @@ from constraints import collect_constraints
 from objective import build_objective
 
 LN2 = np.log(2.0)
-RANK1_MIX_RATIO = 1e-3     # 初始 W^(0)、B^(0) 中掺入的满秩项比例，保证严格正定
+# 初始 W^(0)、B^(0) 中掺入的满秩（各向同性）项比例，用于保证初始点严格正定。
+# 注意：秩一间隙 Tr(·) - ‖·‖₂ 在初值处等于 Σ_{u_i} ε·P_max_uav·(1 - 1/N)，
+# 只由「总功率 × 掺入比例」决定、**与波束方向无关**；若两个波束取同一个 ε，
+# 感知 / 卸载两条罚项曲线在迭代 0 会完全重合。故这里让两者取不同比例：
+# 初始间隙之比 = ε_OFF / ε_SEN = 1.5（当前参数下 0.036 : 0.054）。
+RANK1_MIX_RATIO_SEN = 1e-3     # 感知波束 W^(0)：几乎严格秩一（σ 谱几乎只有主特征值）
+RANK1_MIX_RATIO_OFF = 1.5e-3   # 卸载波束 B^(0)：满秩分量略多，初始间隙为感知的 1.5 倍
 
 
 def largest_eigenvector(matrix):
@@ -42,15 +48,15 @@ def build_initial_point(ctx):
     for i in range(ctx.I):
         # W_i^{(0)}：沿 G_i 主特征方向的最大比发射波束
         v_sen = largest_eigenvector(ctx.G_sen_corr[i])
-        W_0 = ((1.0 - RANK1_MIX_RATIO) * ctx.P_max_uav * np.outer(v_sen, v_sen.conj())
-               + RANK1_MIX_RATIO * full_rank)
+        W_0 = ((1.0 - RANK1_MIX_RATIO_SEN) * ctx.P_max_uav * np.outer(v_sen, v_sen.conj())
+               + RANK1_MIX_RATIO_SEN * full_rank)
         ctx.W_sen_beam_prev[i] = (W_0 + W_0.conj().T) / 2.0
 
-        # B_i^{(0)}：指向 BS 的最大比发射波束
+        # B_i^{(0)}：指向 BS 的最大比发射波束（掺入比例与感知不同，使初始秩一间隙可区分）
         h_bs = ctx.h_uav_2_bs[i]
         v_off = h_bs.conj() / np.linalg.norm(h_bs)
-        B_0 = ((1.0 - RANK1_MIX_RATIO) * ctx.P_max_uav * np.outer(v_off, v_off.conj())
-               + RANK1_MIX_RATIO * full_rank)
+        B_0 = ((1.0 - RANK1_MIX_RATIO_OFF) * ctx.P_max_uav * np.outer(v_off, v_off.conj())
+               + RANK1_MIX_RATIO_OFF * full_rank)
         ctx.B_off_beam_prev[i] = (B_0 + B_0.conj().T) / 2.0
 
         # z_i^{(0)} = ξ_1 log_2( 1 + ξ_2 Tr(G_i W_i^{(0)}) / Γ_i )
