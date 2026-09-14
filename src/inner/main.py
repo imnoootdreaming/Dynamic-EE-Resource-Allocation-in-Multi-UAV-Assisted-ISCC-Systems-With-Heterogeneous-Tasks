@@ -110,6 +110,31 @@ def save_iteration_history(csv_path, obj_history, w_gap_history, b_gap_history):
             writer.writerow([n, repr(float(obj)), repr(float(w_gap)), repr(float(b_gap))])
 
 
+# 每个外层样本（case）的收敛迭代次数统计（读取 feasible_outer_samples.csv 后逐组求解得到）
+CONVERGENCE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "convergence_iterations.csv")
+
+
+def save_iteration_counts(csv_path, rows):
+    """保存每组外层样本（case）收敛所需的迭代次数统计。
+
+    :param rows: 每项为 [case_index, sample_id, iterations, converged,
+                        status_kind, elapsed_s]
+        case_index —— 控制台打印的 1 起始序号；
+        sample_id  —— 与 feasible_outer_samples.csv 一致的 0 起始编号；
+        iterations —— PC3P 实际迭代次数（未收敛时为 max_iterations）；
+        converged  —— 是否满足收敛判据；
+        status_kind—— 求解状态类别（optimal/infeasible/unknown/error/other）；
+        elapsed_s  —— 该 case 的求解耗时（s）。
+    """
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["case_index", "sample_id", "iterations", "converged",
+                         "status_kind", "elapsed_s"])
+        for row in rows:
+            writer.writerow(row)
+
+
 def load_or_generate_outer_samples(params, csv_path=OUTER_SAMPLE_CSV,
                                    n_samples=N_OUTER_SAMPLES):
     """外层变量样本：优先从 CSV 读取；不存在则随机生成 n_samples 组并写回 CSV。"""
@@ -130,6 +155,7 @@ def main():
     print("外层变量样本数：{}".format(len(outer_samples)))
 
     status_counts = {kind: 0 for kind in STATUS_LABELS}
+    iteration_rows = []          # 每个 case 的迭代次数统计（最终写入 CONVERGENCE_CSV）
 
     total_start = time.perf_counter()
     for index, outer_variables in enumerate(outer_samples, start=1):
@@ -144,6 +170,9 @@ def main():
 
         status_kind, status_label = classify_status(result["status"])
         status_counts[status_kind] += 1
+        iteration_rows.append([index, index - 1, result["iterations"],
+                               result["converged"], status_kind,
+                               "{:.6f}".format(elapsed)])
 
         print("\n样本 {}/{}：求解状态：{}（{}），求解耗时：{:.3f} s".format(
             index, len(outer_samples), result["status"], status_label, elapsed))
@@ -182,6 +211,9 @@ def main():
     for kind in ("optimal", "infeasible", "unknown", "error", "other"):
         print("  {:<12s} {:>4d} 组    （{}）".format(
             kind, status_counts[kind], STATUS_LABELS[kind]))
+
+    save_iteration_counts(CONVERGENCE_CSV, iteration_rows)
+    print("各 case 的迭代次数统计已保存到：{}".format(CONVERGENCE_CSV))
 
 
 if __name__ == "__main__":

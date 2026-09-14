@@ -78,10 +78,10 @@ class Parameters:
     omega_1: float = 0.2                 # ω_1，BS 能耗权重
     omega_2: float = 0.4                 # ω_2，UAV 能耗权重
     omega_3: float = 0.4                 # ω_3，CU 能耗权重
-    gamma_1: float = 1e-6                # γ_1，PC3P 目标函数收敛阈值
-    gamma_2: float = 1e-6                # γ_2，PC3P 秩一约束收敛阈值
+    gamma_1: float = 1e-5                # γ_1，PC3P 目标函数收敛阈值
+    gamma_2: float = 1e-5                # γ_2，PC3P 秩一约束收敛阈值
     rho_penalty: float = 1            # ρ，秩一罚因子
-    max_iterations: int = 30             # PC3P 最大迭代次数
+    max_iterations: int = 10             # PC3P 最大迭代次数
 
     # ── 罚因子递增（P1：秩一间隙未达标时把 ρ 逐步放大）─────────────────────
     rho_penalty_scale: float = 2.0       # 递增倍率 ρ ← rho_penalty_scale · ρ
