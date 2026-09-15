@@ -34,3 +34,5 @@ env/
 Thumbs.db
 
 /simulation_result
+
+/src/outer_old

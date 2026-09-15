@@ -79,7 +79,7 @@ def main():
     ax_time.set_xticklabels(case_ids)
     ax_time.tick_params(axis="x", which="major", labelsize=18)
     ax_time.tick_params(axis="y", which="major", labelsize=18)
-    ax_time.set_ylim(-5, 300)
+    ax_time.set_ylim(0, 20)
     ax_time.grid(
         True,
         linestyle=(0, (3, 5)),
