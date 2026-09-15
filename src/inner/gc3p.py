@@ -35,7 +35,7 @@ import mosek.fusion as mf
 
 from cccp_params import compute_values
 from constraints import collect_constraints
-from fusion_pc3p import _hermitian_from, build_fusion_model, sync_fusion
+from fusion_pc3p import _hermitian_from, get_fusion_model, sync_fusion
 from objective import build_objective
 from pc3p import (
     build_initial_point,
@@ -390,7 +390,9 @@ def _relaxation_cccp_fusion(ctx, result):
     就地更新 ctx 的线性化点与 result 的历史记录；返回 True 表示拿到最优解、可继续
     秩一恢复，False 表示求解失败/非最优（调用方应直接返回）。
     """
-    model, fp, fv = build_fusion_model(ctx)
+    # 按 (I, J, N) 复用进程内单模型（见 fusion_pc3p 模块 docstring）：结构恒定、
+    # 每轮只刷新 Parameter，故不重建，避免原生 MOSEK 内存随时隙累积。
+    model, fp, fv = get_fusion_model(ctx)
     update_linearization_points(ctx)
     sync_fusion(model, fp, ctx)
     # Fusion 的求解器参数名采用 camelCase，与 cvxpy 侧 mosek_params 的
