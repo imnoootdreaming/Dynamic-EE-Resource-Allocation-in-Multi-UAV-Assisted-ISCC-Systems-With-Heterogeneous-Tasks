@@ -214,8 +214,8 @@ def plot_energy_rank1(ax):
     )
     axins2.set_xlim(iters_rank1_off[start_idx], iters_rank1_off[-1])
     axins2.set_ylim(
-        min(rank1_off_values[start_idx:].min() - 0.000001, rank1_sen_values[start_idx:].min() - 0.000001),
-        max(rank1_off_values[start_idx:].max() + 0.000001, rank1_sen_values[start_idx:].max() + 0.000001),
+        min(rank1_off_values[start_idx:].min() - 0.00001, rank1_sen_values[start_idx:].min() - 0.00001),
+        max(rank1_off_values[start_idx:].max() + 0.00001, rank1_sen_values[start_idx:].max() + 0.00001),
     )
     axins2.grid(
         True,

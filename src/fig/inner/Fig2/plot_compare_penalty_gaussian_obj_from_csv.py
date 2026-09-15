@@ -129,6 +129,12 @@ def main():
     )
     ax_obj.legend(fontsize=18, loc="upper right")
 
+    # 收紧左右两侧空白：x 轴范围仅比最外侧柱边缘多留少量余量；
+    # 同时让上下两个子图共用同一 x 轴范围，保证柱子与折线在横向上对齐。
+    side_pad = bar_width / 2 + 0.6
+    ax_time.set_xlim(x[0] - side_pad, x[-1] + side_pad)
+    ax_obj.set_xlim(x[0] - side_pad, x[-1] + side_pad)
+
     plt.tight_layout()
 
     plt.show()

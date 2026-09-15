@@ -78,8 +78,8 @@ class Parameters:
     omega_1: float = 0.2                 # ω_1，BS 能耗权重
     omega_2: float = 0.4                 # ω_2，UAV 能耗权重
     omega_3: float = 0.4                 # ω_3，CU 能耗权重
-    gamma_1: float = 1e-6                # γ_1，PC3P 目标函数收敛阈值
-    gamma_2: float = 1e-6                # γ_2，PC3P 秩一约束收敛阈值
+    gamma_1: float = 1e-5                # γ_1，PC3P 目标函数收敛阈值
+    gamma_2: float = 1e-5                # γ_2，PC3P 秩一约束收敛阈值
     rho_penalty: float = 1            # ρ，秩一罚因子
     max_iterations: int = 10             # PC3P 最大迭代次数
 
@@ -99,7 +99,7 @@ class Parameters:
     mosek_tol_feas: float = 1e-8
 
     # ── 随机种子  ─────────────
-    seed: int = 42
+    seed: int = 1208
 
     def __post_init__(self):
         # ρ 的初值快照：PC3P 迭代中会把 rho_penalty 逐步放大（P1）并原地写回 params，
