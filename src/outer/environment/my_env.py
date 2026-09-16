@@ -16,7 +16,15 @@ from environment.mapping import (
     build_unit_norm_rec_beam,
     build_uav_targets_matched_matrix,
     build_uavs_cus_matched_matrix,
-    flatten_complex,
+)
+from environment.observation import (
+    ObsContext,
+    REFERENCE_OBS_DIM,
+    build_bs_observation,
+    compute_bs_obs_dim,
+    format_bs_observation_layout,
+    is_reference_scene,
+    validate_bs_observation_layout,
 )
 from environment.topology import (
     generate_cu_trajectory,
@@ -32,10 +40,11 @@ class MyEnv(gym.Env):
     """外层 ISCC 场景环境（MHBPPO 单智能体 BS 视角）。
 
     职责边界：本类只保留环境状态机（时隙 `t`、位置状态）、动作/观测空间、`reset` /
-    `step` 与观测拼接。与状态机无关的通用计算已抽离：
+    `step`，以及把当前状态组装成只读快照后的 delegate。与状态机无关的通用计算已抽离：
     - 信道与单位换算 → `environment.channel_models`
     - 位置/轨迹/目标调度 → `environment.topology`
     - 匹配矩阵/接收波束/扁平化 → `environment.mapping`
+    - 观测分段清单与相对几何量编码 → `environment.observation`
     """
 
     def __init__(self, base_args, madrl_args):
@@ -160,30 +169,25 @@ class MyEnv(gym.Env):
         }
 
         # BS 观测空间
-        # 1. 时隙 t UAV-BS 信道
-        # 2. 时隙 t UAV-CU 信道
-        # 3. 时隙 t CU-BS 信道
-        # 4. 时隙 t UAV感知目标位置
-        # 5. 时隙 t UAV 位置
-        # 6. 窗口倒计时
-        # 7. 当前窗口每个 UAV 对应 target 的坐标
-        # 8. 下一窗口每个 UAV 对应 target 的坐标
-        obs_dim_bs = (
-            self.base_args.uavs_num * self.base_args.antenna_nums * 2
-            + self.base_args.uavs_num * self.base_args.cus_num * self.base_args.antenna_nums * 2
-            + self.base_args.cus_num * 2
-            + self.base_args.targets_num * 3
-            + self.base_args.uavs_num * 3
-            #20260408 - 观测空间修改 : 加入下一个窗口感知目标和切换倒计时
-            + 1
-            + self.base_args.uavs_num * 3
-            + self.base_args.uavs_num * 3
-        )
+        # 20260916 - 观测相对化(L2): 布局收敛到 environment.observation 的具名分段清单，
+        # 维度与拼接顺序共用同一定义源（原本此处手算累加式 + `_build_bs_observation`
+        # 独立拼接两处手工同步）。默认场景 (I=4, J=10, K=40, N=10) 为 987 维：
+        #   1. h_uav_bs              UAV→BS 信道实虚部                I·N·2   = 80
+        #   2. h_uav_cu              UAV→CU 信道实虚部                I·J·N·2 = 800
+        #   3. h_cu_bs               CU→BS 信道实虚部                 J·2     = 20
+        #   4. d_uav_cu              UAV→CU 距离 / R                  I·J     = 40
+        #   5. d_cu_bs               CU→BS 距离 / R                   J       = 10
+        #   6. rel_uav_cur_target    UAV→当前窗口目标 (d/R, sinθ, cosθ) I·3     = 12
+        #   7. rel_uav_next_target   UAV→下一窗口目标 (d/R, sinθ, cosθ) I·3     = 12
+        #   8. rel_uav_bs            UAV→BS (d/R, sinθ, cosθ)          I·3     = 12
+        #   9. slots_until_switch    窗口切换倒计时                     1       = 1
+        obs_dim_bs = compute_bs_obs_dim(self.base_args)
         self.observation_space = {
             "bs": spaces.Box(low=-np.inf, high=np.inf, shape=(obs_dim_bs,), dtype=np.float32)
         }
 
         self.reward_calculator = MyReward(self.base_args)
+        self._validate_bs_observation_layout()
 
     def _precompute_nlos_components(self):
         # 20260404 - NLoS 分量: 以固定 seed 按时隙预生成通信链路的 NLoS 高斯样本
@@ -231,33 +235,22 @@ class MyEnv(gym.Env):
             ref_path_loss=db_2_watt(self.base_args.ref_path_loss_db)
         )
 
-    def _get_all_target_coords(self):
-        return self.init_targets_pos.astype(np.float32).flatten()
-
     def _get_slots_until_switch(self):
         #20260408 - 观测空间修改 : 加入下一个窗口感知目标和切换倒计时
         effective_t = min(self.t, max(self.madrl_args.total_time_slots - 1, 0))
         slots_until_switch = self.target_hold_slots - 1 - (effective_t % self.target_hold_slots)
         return np.array([slots_until_switch], dtype=np.float32)
 
-    def _get_target_coords_by_indices(self, target_indices):
-        clipped_target_indices = np.clip(
-            np.asarray(target_indices, dtype=np.int64),
-            0,
-            self.base_args.targets_num - 1
-        )
-        return self.init_targets_pos[clipped_target_indices].astype(np.float32).flatten()
-
-    def _get_current_uav_target_coords(self):
+    def _get_current_uav_target_indices(self):
+        # 20260916 - 观测相对化(L2): 只返回目标索引，坐标编码交给 environment.observation
         effective_t = min(self.t, self.madrl_args.total_time_slots)
-        return self._get_target_coords_by_indices(
-            self.precomputed_uav_target_schedule[effective_t]
-        )
+        return self.precomputed_uav_target_schedule[effective_t]
 
-    def _get_next_uav_target_coords(self):
+    def _get_next_uav_target_indices(self):
         #20260408 - 观测空间修改 : 加入下一个窗口感知目标和切换倒计时
+        # 20260916 - 观测相对化(L2): 越界保护保留，返回值由「目标坐标」改为「目标索引」
         if self.madrl_args.total_time_slots <= 0:
-            return self._get_current_uav_target_coords()
+            return self._get_current_uav_target_indices()
         # 防止最后一个窗口的越界保护
         effective_t = min(self.t, self.madrl_args.total_time_slots - 1)
         # 计算总共有多少个目标分配窗口
@@ -271,22 +264,61 @@ class MyEnv(gym.Env):
         next_window_idx = min(current_window_idx + 1, num_windows - 1)
         # 计算下一个窗口从哪个时隙开始
         next_window_start_slot = min(next_window_idx * self.target_hold_slots, self.madrl_args.total_time_slots)
-        return self._get_target_coords_by_indices(
-            self.precomputed_uav_target_schedule[next_window_start_slot]
+        return self.precomputed_uav_target_schedule[next_window_start_slot]
+
+    def _build_obs_context(self):
+        """汇总当前时刻的只读快照，供 `environment.observation` 的纯函数消费。"""
+        return ObsContext(
+            uavs_2_bs_channels=self.uavs_2_bs_channels,
+            uavs_2_cus_channels=self.uavs_2_cus_channels,
+            cus_2_bs_channels=self.cus_2_bs_channels,
+            uavs_pos=self.cur_uavs_pos,
+            cus_pos=self.cur_cus_pos,
+            targets_pos=self.init_targets_pos,
+            cur_target_indices=self._get_current_uav_target_indices(),
+            next_target_indices=self._get_next_uav_target_indices(),
+            slots_until_switch=self._get_slots_until_switch(),
+            # radius 由 BaseArgsAdapter 透传内层 deploy_radius，不在此处写死默认值
+            radius=float(self.base_args.radius),
         )
 
     def _build_bs_observation(self):
-        return np.concatenate([
-            flatten_complex(self.uavs_2_bs_channels),
-            flatten_complex(self.uavs_2_cus_channels),
-            flatten_complex(self.cus_2_bs_channels),
-            self._get_all_target_coords(),
-            self.cur_uavs_pos.astype(np.float32).flatten(),
-            #20260408 - 观测空间修改 : 加入下一个窗口感知目标和切换倒计时
-            self._get_slots_until_switch(),
-            self._get_current_uav_target_coords(),
-            self._get_next_uav_target_coords(),
-        ]).astype(np.float32)
+        return build_bs_observation(self._build_obs_context())
+
+    def _validate_bs_observation_layout(self):
+        """启动自检：分段维度 == 实际拼接长度，且总维度与 `observation_space` 一致。
+
+        20260916 - 观测相对化(L2): 清单式单一数据源已消除顺序错位，此处再兜住
+        「单段声明维度与产出长度不一致」这类手误，避免错误维度被静默喂给策略网络。
+        """
+        print(format_bs_observation_layout(self.base_args))
+        ctx = self._build_obs_context()
+        mismatched = [
+            (name, declared, built)
+            for name, declared, built in validate_bs_observation_layout(self.base_args, ctx)
+            if declared != built
+        ]
+        assert not mismatched, "BS 观测分段维度与拼接长度不一致: {}".format(mismatched)
+
+        obs = build_bs_observation(ctx)
+        declared_total = int(self.observation_space["bs"].shape[0])
+        assert obs.shape[0] == declared_total, (
+            "BS 观测维度错位: observation_space={} vs 实际拼接={}".format(
+                declared_total, obs.shape[0]
+            )
+        )
+        assert np.all(np.isfinite(obs)), "BS 观测包含 NaN/Inf（检查信道与距离计算）"
+        if is_reference_scene(self.base_args):
+            assert obs.shape[0] == REFERENCE_OBS_DIM, (
+                "默认场景 (I=4, J=10, K=40, N=10) 的 BS 观测应为 {} 维，实测 {} 维".format(
+                    REFERENCE_OBS_DIM, obs.shape[0]
+                )
+            )
+        print(
+            "[BS Observation Layout] 自检通过: dim={}, 取值范围=[{:.4f}, {:.4f}]".format(
+                obs.shape[0], float(obs.min()), float(obs.max())
+            )
+        )
 
     def step(self, actions, i_episode=None):
         bs_actions = actions["bs"] if isinstance(actions, dict) and "bs" in actions else actions
@@ -385,7 +417,6 @@ class MyEnv(gym.Env):
         print(f"  {color_metric}BS Reward{color_reset}: {reward.get('bs', 0.0):.4f}")
         print(f"  {color_energy}total_reward_4_energy{color_reset}: {reward_components.get('total_reward_4_energy', 0.0):.4f}")
         print(f"  {color_penalty}bs_alloc_spectrum_penalty{color_reset}: {reward_components.get('bs_alloc_spectrum_penalty', 0.0):.4f}")
-        print(f"  {color_penalty}uav_exceed_boundary_penalty_sum{color_reset}: {reward_components.get('uav_exceed_boundary_penalty_sum', 0.0):.4f}")
         print(f"  {color_penalty}uav_collision_penalty_sum{color_reset}: {reward_components.get('uav_collision_penalty_sum', 0.0):.4f}")
         print(f"  {color_penalty}no_solution_penalty{color_reset}: {reward_components.get('no_solution_penalty', 0.0):.4f}")
         print(
@@ -395,7 +426,6 @@ class MyEnv(gym.Env):
         success = int(
             reward_components.get("no_solution_penalty", 0) == 0 and
             reward_components.get("uav_collision_penalty_sum", 0) == 0 and
-            reward_components.get("uav_exceed_boundary_penalty_sum", 0) == 0 and
             reward_components.get("bs_alloc_spectrum_penalty", 0) == 0
         )
         self.t += 1

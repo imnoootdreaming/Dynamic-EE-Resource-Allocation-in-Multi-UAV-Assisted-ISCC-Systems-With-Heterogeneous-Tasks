@@ -14,23 +14,14 @@ import numpy as np
 class MyReward:
     def __init__(self, base_args):
         self.base_args = base_args
-        self.x_max = float(getattr(base_args, "radius", 600))
-        self.y_max = float(getattr(base_args, "radius", 600))
 
     def reward_compute(self, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels, uavs_2_targets_channels,
                        uavs_targets_matched_matrix, uavs_cus_matched_matrix,
                        uavs_pos, uavs_pos_cur, uavs_off_duration, cus_off_power, cus_entertaining_task_size,
                        uavs_rec_beam_vectors=None):
         uav_collision_penalty = np.zeros(self.base_args.uavs_num)
-        uav_exceed_boundary_penalty = np.zeros(self.base_args.uavs_num)
 
         for i in range(self.base_args.uavs_num):
-            x, y, _ = uavs_pos_cur[i]
-            if x < -self.x_max or x > self.x_max or y < -self.y_max or y > self.y_max:
-                uav_exceed_boundary_penalty[i] = 1
-                uavs_pos_cur[i][0] = np.clip(x, -self.x_max, self.x_max)
-                uavs_pos_cur[i][1] = np.clip(y, -self.y_max, self.y_max)
-
             for j in range(i + 1, self.base_args.uavs_num):
                 dist = np.linalg.norm(uavs_pos_cur[i] - uavs_pos_cur[j])
                 if dist < self.base_args.uav_safe_distance:
@@ -99,7 +90,6 @@ class MyReward:
         total_reward = (
             total_reward_4_energy
             - bs_alloc_spectrum_penalty
-            - np.sum(uav_exceed_boundary_penalty)
             - np.sum(uav_collision_penalty)
             - no_solution_penalty
         )
@@ -109,7 +99,6 @@ class MyReward:
             "components": {
                 "total_reward_4_energy": float(total_reward_4_energy),
                 "bs_alloc_spectrum_penalty": float(bs_alloc_spectrum_penalty),
-                "uav_exceed_boundary_penalty_sum": float(np.sum(uav_exceed_boundary_penalty)),
                 "uav_collision_penalty_sum": float(np.sum(uav_collision_penalty)),
                 "no_solution_penalty":float(no_solution_penalty),
                 "flight_energy": float(flight_energy),
