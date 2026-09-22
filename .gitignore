@@ -36,3 +36,9 @@ Thumbs.db
 /simulation_result
 
 /src/outer_old
+
+/src/outer/algorithms/MHBPPO/runs
+
+/ref
+
+/.codebuddy

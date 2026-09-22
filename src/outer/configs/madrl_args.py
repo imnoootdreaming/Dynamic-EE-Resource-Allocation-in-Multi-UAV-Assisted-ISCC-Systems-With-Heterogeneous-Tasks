@@ -17,5 +17,5 @@ def get_madrl_args():
     madrl_parser.add_argument("--epochs", type=int, default=5, help="每次更新迭代次数")
     madrl_parser.add_argument("--total_time_slots", type=int, default=40, help="总时隙数量")
     madrl_parser.add_argument("--hidden_dim", type=int, default=128, help="隐藏层维度")
-    madrl_parser.add_argument("--episodes", type=int, default=8000, help="迭代轮次")
+    madrl_parser.add_argument("--episodes", type=int, default=10000, help="迭代轮次")
     return madrl_parser.parse_args()

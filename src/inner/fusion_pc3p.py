@@ -185,8 +185,21 @@ class FusionParams:
         self.freq_scale = model.parameter("freq_scale")
         # c05 / c07：Tr(·) ≤ P^max_UAV（旧实现两处用同一常数，这里共用一个参数）
         self.p_max_uav = model.parameter("p_max_uav")
-        # c06：ε·Γ_i - Re Tr(G_i W_i) ≤ 0
+        # c06（Sensing-SINR）：原始形式为
+        #         ε·Γ_i - Re Tr(G_i W_i) ≤ 0
+        #     这里建的是**行归一化**形式（整行除以正数 ε·Γ_i，等价变换）：
+        #         c06_rhs - (1/(εΓ_i))·Re Tr(G_i W_i) ≤ 0，  c06_rhs ≡ 1
+        #
+        # 为什么必须归一化：c06 的原始量级只有 ~2e-9（εΓ 与 Tr(GW) 都落在
+        # 1e-10~1e-9），而 MOSEK 的可行性判据是**相对量**
+        #         Viol.con ≤ tol · max(1, ‖x‖)
+        # 本问题归一化后 ‖x‖ ≈ O(100)，tol=1e-8 ⇒ 有效绝对容差 ≈ 1e-6，比这一行的
+        # 整个量级还大约 500 倍。未归一化时 c06 **对求解器完全不可见**：返回的解
+        # 可以公然违反它（实测：所谓"成功"时隙的感知余量中位数仅 1.0e-4，
+        # 即实际差了 4 个数量级）。除以 εΓ_i 后常数项变成 1、行量级抬到 O(1)，
+        # 容差恢复有效，感知 SINR 约束才会被真正强制执行。
         self.c06_rhs = model.parameter("c06_rhs", i_count)
+        self.c06_inv_eps_gamma = model.parameter("c06_inv_eps_gamma", i_count)
         self.G_re = [model.parameter("G_re_%d" % i, [n, n]) for i in range(i_count)]
         self.G_im = [model.parameter("G_im_%d" % i, [n, n]) for i in range(i_count)]
         # c08：1 + (1/Φ_i)·Re Tr(H_i B_i)、以及 z_ref/(D_i^off·B/ln2)·z̃_i - ℓ_sen ≤ 0
@@ -314,8 +327,12 @@ def sync_fusion(model, fp, ctx):
     # c05 / c07
     fp.p_max_uav.setValue(ctx.P_max_uav)
 
-    # c06
-    fp.c06_rhs.setValue(_array(ctx.eps_sinr * np.asarray(ctx.Gamma_sinr, dtype=float)))
+    # c06（行归一化，见 FusionParams 中该参数的注释）
+    #   建的是  c06_rhs - c06_inv_eps_gamma · ReTr(G_i W_i) ≤ 0
+    #   其中 c06_rhs ≡ 1、c06_inv_eps_gamma = 1/(ε·Γ_i)
+    eps_gamma = ctx.eps_sinr * np.asarray(ctx.Gamma_sinr, dtype=float)
+    fp.c06_rhs.setValue(np.ones(I))
+    fp.c06_inv_eps_gamma.setValue(_array(1.0 / np.maximum(eps_gamma, 1e-300)))
 
     # c08 / c12 共用的 H_i(t) 与 G_i(t)
     G_sen_corr = np.asarray(ctx.G_sen_corr, dtype=complex)
@@ -503,7 +520,9 @@ def build_constraints_fusion(ctx, model, fp, fv):
     # ── c06 Sensing-SINR：εΓ_i - Re Tr(G_i W_i) ≤ 0 ─────────────────────────
     for i in range(I):
         expr = mf.Expr.sub(fp.c06_rhs.index(i),
-                           _real_trace(fp.G_re[i], fp.G_im[i], fv.X[i], fv.Y[i]))
+                           mf.Expr.mul(fp.c06_inv_eps_gamma.index(i),
+                                       _real_trace(fp.G_re[i], fp.G_im[i],
+                                                   fv.X[i], fv.Y[i])))
         model.constraint("c06_sensing_sinr_%d" % i, expr, mf.Domain.lessThan(0.0))
 
     # ── c07 UAV-Off-Max-Power：Tr(B_i) ≤ P_max ──────────────────────────────
@@ -747,6 +766,15 @@ def run_pc3p_fusion(ctx):
             f_val = ctx.freq_scale * np.asarray(fv.f_norm.level(), dtype=float).reshape(ctx.I)
             z_val = fp.z_ref_now * np.asarray(fv.zn.level(), dtype=float).reshape(ctx.I)
             D_val = np.asarray(fv.D.level(), dtype=float).reshape(ctx.J)
+
+            # NaN/Inf 防护：一旦解里出现非有限值就立即止损。否则它会经
+            # update_linearization_points 写进 Ψ，再被 sync_fusion 塞进系数矩阵，
+            # 直接把进程内复用的 Model 弄成 err_invalid_aij 且无法恢复。
+            if not (np.all(np.isfinite(W_val)) and np.all(np.isfinite(B_val))
+                    and np.all(np.isfinite(f_val)) and np.all(np.isfinite(z_val))
+                    and np.all(np.isfinite(D_val))):
+                result["status"] = "error: non-finite solution"
+                return result
 
             ctx.W_sen_beam_prev[:] = W_val
             ctx.B_off_beam_prev[:] = B_val
