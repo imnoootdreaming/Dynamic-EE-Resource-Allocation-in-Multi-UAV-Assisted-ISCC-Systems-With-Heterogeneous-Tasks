@@ -176,6 +176,25 @@ class BaseArgsAdapter:
     def __repr__(self):
         return "BaseArgsAdapter(params={!r})".format(self._extra.get("_params_name", "Parameters"))
 
+    # -- pickle（spawn 子进程传输） ------------------------------------------
+    # 内层 `Parameters` 以自定义别名模块 `_iscc_inner_parameters` 按路径加载，磁盘上不
+    # 存在同名可导入模块，默认按引用 pickle 在 spawn 子进程 unpickle 时必然失败。
+    # 因此按值序列化：子进程端重新加载 inner `Parameters` 类后逐字段恢复实例状态。
+    def __getstate__(self):
+        params = object.__getattribute__(self, "_params")
+        return {
+            "params_state": dict(params.__dict__),
+            "extra": dict(object.__getattribute__(self, "_extra")),
+        }
+
+    def __setstate__(self, state):
+        params_cls = _load_inner_parameters_class()
+        params = params_cls()
+        for key, value in state["params_state"].items():
+            setattr(params, key, value)
+        adapter = BaseArgsAdapter(params, state["extra"])
+        self.__dict__.update(adapter.__dict__)
+
 
 def get_base_args(**overrides):
     """构建以 inner `Parameters` 为数据源的外层参数对象。

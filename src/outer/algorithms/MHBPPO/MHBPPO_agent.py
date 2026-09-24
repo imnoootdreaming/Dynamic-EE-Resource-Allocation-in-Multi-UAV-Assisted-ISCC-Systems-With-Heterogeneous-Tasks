@@ -217,7 +217,7 @@ class HPPO:
     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
-                 continuous_entropy_coef=0.05, continuous_dist_type="beta"):
+                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
         self.actor = MultiHeadActor(
@@ -244,6 +244,9 @@ class HPPO:
         # NOTE - Actor Loss 中的离散和连续动作的权重
         self.discrete_entropy_coef = discrete_entropy_coef
         self.continuous_entropy_coef = continuous_entropy_coef
+        # NOTE - 学习率下限比例：线性衰减到 lr_min_ratio * 初始 lr 后保持不变，
+        # 保证长时间训练后期仍有持续学习的能力（学习率不为 0）。
+        self.lr_min_ratio = float(lr_min_ratio)
 
     def choose_action(self, s):
         s = torch.tensor(s, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -375,8 +378,14 @@ class HPPO:
 
 
     def lr_decay(self, total_steps):
-        lr_a_now = self.actor_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
-        lr_c_now = self.critic_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
+        # NOTE - 线性衰减到下限后保持（无终止训练下 lr 不衰减到 0）：
+        # 前 num_episodes 次 iteration 内 lr 从初始值线性衰减到 lr_min_ratio * 初始 lr，
+        # 之后恒定保持该下限，兼顾前期收敛速度与后期持续学习能力。
+        decay = max(0.0, 1.0 - total_steps / self.num_episodes)
+        lr_a_now = max(self.actor_optimizer.defaults["lr"] * decay,
+                       self.actor_optimizer.defaults["lr"] * self.lr_min_ratio)
+        lr_c_now = max(self.critic_optimizer.defaults["lr"] * decay,
+                       self.critic_optimizer.defaults["lr"] * self.lr_min_ratio)
 
         for param_group in self.actor_optimizer.param_groups:
             param_group["lr"] = lr_a_now
