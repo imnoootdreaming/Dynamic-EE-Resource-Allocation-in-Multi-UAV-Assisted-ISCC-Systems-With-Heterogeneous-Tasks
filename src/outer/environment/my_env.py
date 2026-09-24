@@ -26,6 +26,7 @@ from environment.observation import (
     is_reference_scene,
     validate_bs_observation_layout,
 )
+from configs.seed_manager import scenario_rng
 from environment.topology import (
     generate_cu_trajectory,
     generate_pos,
@@ -47,62 +48,31 @@ class MyEnv(gym.Env):
     - 观测分段清单与相对几何量编码 → `environment.observation`
     """
 
-    def __init__(self, base_args, madrl_args):
+    def __init__(self, base_args, madrl_args, seed_offset=0):
         super(MyEnv, self).__init__()
         self.base_args = base_args
         self.madrl_args = madrl_args
         self.epsilon = 1e-4
         self.t = 0
         self.target_hold_slots = 4  # 每 4 个时隙分配一次目标
+        # ── 场景随机化配置（并行 rollout 状态多样性） ─────────────────────────
+        # seed_offset：采样进程的种子偏移（worker_id + 1）；0 表示基线 seed
+        #（学习进程 / 仅取维度的主进程场景）。逐 episode 种子经
+        # configs.seed_manager.scenario_rng 确定性派生，保证跨 worker / 跨 episode
+        # 互异且同参数可复现。
+        self.seed_offset = int(seed_offset)
+        self.randomize_layout_per_episode = bool(
+            getattr(madrl_args, "randomize_layout_per_episode", False))
+        self.randomize_cu_traj_per_episode = bool(
+            getattr(madrl_args, "randomize_cu_traj_per_episode", False))
+        self.randomize_nlos_per_episode = bool(
+            getattr(madrl_args, "randomize_nlos_per_episode", False))
+        self.debug_topology = bool(getattr(madrl_args, "debug_topology", False))
+        self._episode_idx = 0  # 当前场景对应的 episode 序号（reset 时推进）
         # 固定 CU 的任务量
         self.cus_entertaining_task_size = np.ones(self.base_args.cus_num) * 170e3
         # 生成初始 UAV / CU / 目标位置，并预计算 CU 轨迹和 UAV-目标分配调度
-        self.init_uavs_pos, self.init_cus_pos, self.init_targets_pos = generate_pos(
-            self.base_args.uavs_num,
-            self.base_args.cus_num,
-            self.base_args.targets_num,
-            self.base_args.center,
-            self.base_args.radius,
-            self.base_args.uav_height
-        )
-        self.cur_uavs_pos = self.init_uavs_pos.copy()
-        self.precomputed_cus_traj = generate_cu_trajectory(
-            init_cus_pos=self.init_cus_pos,
-            cus_num=self.base_args.cus_num,
-            total_time_slots=self.madrl_args.total_time_slots,
-            markov_velocity=self.base_args.markov_velocity,
-            markov_memory_level=self.base_args.markov_memory_level,
-            markov_asymptotic_mean_of_velocity=self.base_args.markov_asymptotic_mean_of_velocity,
-            markov_standard_deviation_of_velocity=self.base_args.markov_standard_deviation_of_velocity,
-            time_slot_duration=self.base_args.time_slot_duration,
-            seed=self.base_args.seed,
-        )
-        self.cur_cus_pos = self.precomputed_cus_traj[self.t].copy()
-        # 20260404 - NLoS 分量: 预生成每个时隙的高斯散射分量，保证不同 episode 的相同时隙复用同一 realization
-        self.precomputed_nlos_components = self._precompute_nlos_components()
-
-        self.precomputed_uav_target_schedule, self.precomputed_uav_target_schedule_distances = generate_uav_target_schedule(
-            uavs_num=self.base_args.uavs_num,
-            targets_num=self.base_args.targets_num,
-            init_uavs_pos=self.init_uavs_pos,
-            init_targets_pos=self.init_targets_pos,
-            total_time_slots=self.madrl_args.total_time_slots,
-            hold_slots=self.target_hold_slots,
-        )
-        print_precomputed_target_schedule(
-            uavs_num=self.base_args.uavs_num,
-            schedule=self.precomputed_uav_target_schedule,
-            schedule_distances=self.precomputed_uav_target_schedule_distances,
-            hold_slots=self.target_hold_slots,
-            total_time_slots=self.madrl_args.total_time_slots
-        )
-        self.uavs_targets_matched_matrix = build_uav_targets_matched_matrix(
-            self.precomputed_uav_target_schedule[self.t],
-            uavs_num=self.base_args.uavs_num,
-            targets_num=self.base_args.targets_num,
-        )
-
-        self._refresh_channels()
+        self._generate_scenario(scenario_rng(self.base_args.seed, self.seed_offset, 0))
 
         self.bs_continuous_action_splits = {
             "uav_angles": self.base_args.uavs_num,
@@ -189,10 +159,78 @@ class MyEnv(gym.Env):
         self.reward_calculator = MyReward(self.base_args)
         self._validate_bs_observation_layout()
 
-    def _precompute_nlos_components(self):
-        # 20260404 - NLoS 分量: 以固定 seed 按时隙预生成通信链路的 NLoS 高斯样本
+    def _generate_scenario(self, rng):
+        """按给定随机源生成整套场景：布点、CU 轨迹、NLoS 分量、扇区目标调度。
+
+        `__init__` 以 `scenario_rng(seed, seed_offset, 0)` 调用一次生成初始场景；
+        `reset(episode_idx)` 在开启对应随机化开关时以新派生的 episode rng 重跑本方法，
+        实现「跨 worker 互异 + 跨 episode 互异 + 同参数可复现」的状态多样性。
+        """
+        # 场景重生成从 t=0 开始（内部多处按 self.t 取预生成量）
+        self.t = 0
+        # ── 布点（扇区分区部署，显式 rng） ─────────────────────────────────
+        (self.init_uavs_pos, self.init_cus_pos, self.init_targets_pos,
+         self.target_sector) = generate_pos(
+            self.base_args.uavs_num,
+            self.base_args.cus_num,
+            self.base_args.targets_num,
+            self.base_args.center,
+            self.base_args.radius,
+            self.base_args.uav_height,
+            rng=rng,
+        )
+        self.cur_uavs_pos = self.init_uavs_pos.copy()
+
+        # ── CU 马尔可夫轨迹（同一 rng 流，与本 episode 布点同源） ───────────
+        self.precomputed_cus_traj = generate_cu_trajectory(
+            init_cus_pos=self.init_cus_pos,
+            cus_num=self.base_args.cus_num,
+            total_time_slots=self.madrl_args.total_time_slots,
+            markov_velocity=self.base_args.markov_velocity,
+            markov_memory_level=self.base_args.markov_memory_level,
+            markov_asymptotic_mean_of_velocity=self.base_args.markov_asymptotic_mean_of_velocity,
+            markov_standard_deviation_of_velocity=self.base_args.markov_standard_deviation_of_velocity,
+            time_slot_duration=self.base_args.time_slot_duration,
+            seed=rng,
+        )
+        self.cur_cus_pos = self.precomputed_cus_traj[self.t].copy()
+
+        # ── NLoS 分量：按时隙预生成通信链路的高斯散射样本 ────────────────────
+        self.precomputed_nlos_components = self._precompute_nlos_components(rng)
+
+        # ── 扇区内链式目标调度（确定性，依赖布点） ─────────────────────────
+        self.precomputed_uav_target_schedule, self.precomputed_uav_target_schedule_distances = generate_uav_target_schedule(
+            uavs_num=self.base_args.uavs_num,
+            targets_num=self.base_args.targets_num,
+            init_uavs_pos=self.init_uavs_pos,
+            init_targets_pos=self.init_targets_pos,
+            total_time_slots=self.madrl_args.total_time_slots,
+            hold_slots=self.target_hold_slots,
+            center=self.base_args.center,
+            target_sector=self.target_sector,
+        )
+        # 调度表仅在 debug 模式打印（正常训练逐 episode 重生成场景，打印会刷屏）
+        if self.debug_topology:
+            print_precomputed_target_schedule(
+                uavs_num=self.base_args.uavs_num,
+                schedule=self.precomputed_uav_target_schedule,
+                schedule_distances=self.precomputed_uav_target_schedule_distances,
+                hold_slots=self.target_hold_slots,
+                total_time_slots=self.madrl_args.total_time_slots
+            )
+        self.uavs_targets_matched_matrix = build_uav_targets_matched_matrix(
+            self.precomputed_uav_target_schedule[self.t],
+            uavs_num=self.base_args.uavs_num,
+            targets_num=self.base_args.targets_num,
+        )
+        self._refresh_channels()
+
+    def _precompute_nlos_components(self, rng=None):
+        # NLoS 分量: 按时隙预生成通信链路的 NLoS 高斯样本。
+        # rng 为 None 时回退基线 seed（兼容旧调用）；逐 episode 重生成时传入
+        # 已派生的独立 Generator，保证跨 worker / 跨 episode 互异。
         total_slots = self.madrl_args.total_time_slots + 1
-        rng = np.random.default_rng(self.base_args.seed)
+        rng = np.random.default_rng(self.base_args.seed) if rng is None else rng
         return {
             "uavs_2_cus": (
                 rng.standard_normal((total_slots, self.base_args.uavs_num, self.base_args.cus_num, self.base_args.antenna_nums))
@@ -442,16 +480,35 @@ class MyEnv(gym.Env):
         done = int(self.t >= self.madrl_args.total_time_slots)
         return next_state_dict, float(total_reward), reward, done, energy_opt, success
 
-    def reset(self):
-        self.t = 0
-        self.cur_uavs_pos = self.init_uavs_pos.copy()
-        self.cur_cus_pos = self.precomputed_cus_traj[self.t].copy()
-        self.uavs_targets_matched_matrix = build_uav_targets_matched_matrix(
-            self.precomputed_uav_target_schedule[self.t],
-            uavs_num=self.base_args.uavs_num,
-            targets_num=self.base_args.targets_num,
-        )
-        self._refresh_channels()
+    def reset(self, episode_idx=None):
+        """复位环境；开启随机化开关时按 episode_idx 重生成整套场景。
+
+        :param episode_idx: episode 序号（0 起）。None 时使用内部计数器自增，
+            保证即使调用方不传也能逐 episode 变化。种子经
+            `scenario_rng(base_seed, seed_offset, episode_idx)` 确定性派生：
+            同 (seed, seed_offset, episode_idx) 场景严格可复现，不同
+            worker / 不同 episode 互异。
+        """
+        if episode_idx is None:
+            episode_idx = self._episode_idx + 1
+        self._episode_idx = int(episode_idx)
+        regenerate = (self.randomize_layout_per_episode
+                      or self.randomize_cu_traj_per_episode
+                      or self.randomize_nlos_per_episode)
+        if regenerate:
+            # 逐 episode 场景重生成：布点 / CU 轨迹 / NLoS / 调度全部换新
+            self._generate_scenario(
+                scenario_rng(self.base_args.seed, self.seed_offset, episode_idx))
+        else:
+            self.t = 0
+            self.cur_uavs_pos = self.init_uavs_pos.copy()
+            self.cur_cus_pos = self.precomputed_cus_traj[self.t].copy()
+            self.uavs_targets_matched_matrix = build_uav_targets_matched_matrix(
+                self.precomputed_uav_target_schedule[self.t],
+                uavs_num=self.base_args.uavs_num,
+                targets_num=self.base_args.targets_num,
+            )
+            self._refresh_channels()
         return {"bs": self._build_bs_observation()}
 
     def getPosUAV(self):

@@ -394,7 +394,6 @@ if __name__ == "__main__":
                 f"| wv={used_version} stale={stale} ck={'ok' if checksum_ok else 'MISMATCH'}"
                 f"| reward={item['avg_total_reward']:.3f} obj={item['avg_obj_fun']:.3f} "
                 f"completion={item['completion_rate']:.2f}%"
-                + (" | BEST" if item.get("is_best") else "")
             )
             # ── 2. 队列个数日志：样本队列水位 / 有多少条权重队列积压待取（-1 表示平台不支持 qsize） ──
             pending_weights = sum(1 for q in weight_queues if safe_qsize(q) > 0)

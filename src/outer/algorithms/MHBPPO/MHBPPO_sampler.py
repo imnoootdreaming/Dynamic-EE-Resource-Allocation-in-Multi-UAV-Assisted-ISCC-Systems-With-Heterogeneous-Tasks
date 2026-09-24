@@ -1,10 +1,13 @@
 """MHBPPO 异步采样进程（生产者）。
 
 IMPALA 式 actor-learner 架构中的采样端：
-- 本进程持有 MyEnv、CPU 版 actor 副本、Normalization / RewardScaling、最优轨迹记录，
+- 本进程持有 MyEnv、CPU 版 actor 副本、Normalization / RewardScaling，
   持续 rollout 完整 episode 并将结果放入有界 sample_queue（满则阻塞 => 限制样本 staleness）。
 - 每个 episode 开始前从 weight_queue 取最新 actor 权重并加载（单 episode 内参数版本一致），
   old_log_probs 随采样时的参数记录，PPO ratio 语义保持正确。
+- 逐 episode 场景重生成：reset(episode_idx) 以 SeedManager 派生的独立种子重建
+  布点 / CU 轨迹 / NLoS / 调度，不同 worker、不同 episode 的场景互异（可复现），
+  为并行 rollout 提供状态多样性；跨场景比较 reward 无意义，故不再记录最优轨迹。
 - 本进程不打印任何常规日志（避免与主进程 tqdm 输出交错），异常通过 error sentinel 上报。
 
 与学习进程（MHBPPO_main.py）的数据契约：
@@ -15,7 +18,6 @@ IMPALA 式 actor-learner 架构中的采样端：
         "avg_obj_fun": float,
         "avg_bs_reward": float,
         "completion_rate": float,
-        "is_best": bool,             # 是否刷新历史最优平均奖励
         "weights_version": int,      # 本 episode 采样时使用的参数版本（-1 = 从未收到权重）
         "weights_checksum": float,   # 本进程 actor 加载后的参数指纹（供学习端比对验证）
     }
@@ -142,7 +144,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
         # 也避免与学习进程争用 GPU 以及 spawn 下子进程使用 CUDA 的潜在问题。
         device = torch.device("cpu")
 
-        env = MyEnv(base_args=base_args, madrl_args=madrl_args)
+        env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=seed_offset)
 
         state_dim_bs = env.observation_space["bs"].shape[0]
         bs_continuous_action_space = env.action_space["bs"]["continuous"]
@@ -160,11 +162,6 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
 
         running_norm_bs = Normalization(state_dim_bs)
         reward_scaler_bs = RewardScaling(shape=1, gamma=madrl_args.gamma)
-
-        max_avg_reward = -np.inf
-        best_uav_trajectory = None
-        best_cu_trajectory = None
-        best_target_trajectory = None
 
         episode_idx = 0
         # 探针：本进程当前使用的参数版本号与指纹（随每个样本回传，供学习端验证权重同步）
@@ -197,19 +194,12 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "real_dones": [],
             }
 
-            s = env.reset()
+            s = env.reset(episode_idx)
             state_bs_norm = running_norm_bs(np.array(s["bs"], dtype=np.float32))
             terminal = False
-            uav_positions_episode = []
-            cu_positions_episode = []
-            target_positions_episode = []
             reward_scaler_bs.reset()
 
             while not terminal:
-                uav_positions_episode.append(env.getPosUAV())
-                cu_positions_episode.append(env.getPosCU())
-                target_positions_episode.append(env.getPosTarget())
-
                 action_bs, old_con_log_probs_bs, old_dis_log_probs_bs = _choose_action(actor, state_bs_norm)
 
                 next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
@@ -238,16 +228,6 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 terminal = done
 
             avg_total_reward = float(np.mean(episode_rewards_total))
-            is_best = False
-            if avg_total_reward > max_avg_reward:
-                max_avg_reward = avg_total_reward
-                is_best = True
-                if len(uav_positions_episode) > 0:
-                    best_uav_trajectory = np.array(uav_positions_episode, copy=True)
-                if len(cu_positions_episode) > 0:
-                    best_cu_trajectory = np.array(cu_positions_episode, copy=True)
-                if len(target_positions_episode) > 0:
-                    best_target_trajectory = np.array(target_positions_episode, copy=True)
 
             sample_result = {
                 "transition_dict": transition_dict_bs,
@@ -255,7 +235,6 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "avg_obj_fun": float(np.mean(obj_fun_total)),
                 "avg_bs_reward": episode_reward_bs / len(episode_rewards_total),
                 "completion_rate": (success_slots / madrl_args.total_time_slots) * 100.0,
-                "is_best": is_best,
                 # ── 探针字段：本 episode 实际使用的参数版本 / 指纹 ──
                 "weights_version": current_weights_version,
                 "weights_checksum": current_weights_checksum,
