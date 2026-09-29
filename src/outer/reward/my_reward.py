@@ -113,6 +113,10 @@ class MyReward:
                 )),
                 "avg_cu_off_power": avg_cu_off_power,
                 "avg_bs_cu_freq": avg_bs_cu_freq,
+                "solver_status": str((solution_payload or {}).get("solver_status", "unknown")),
+                "solver_status_kind": str((solution_payload or {}).get("solver_status_kind", "other")),
+                "solver_converged": bool((solution_payload or {}).get("solver_converged", False)),
+                "solver_iterations": int((solution_payload or {}).get("solver_iterations", 0) or 0),
             }
         }
         return float(total_reward), reward, energy_opt

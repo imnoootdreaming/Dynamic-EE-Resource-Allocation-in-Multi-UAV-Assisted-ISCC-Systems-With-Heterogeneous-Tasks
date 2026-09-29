@@ -135,7 +135,34 @@ def actor_checksum(actor):
     return round(total, 6)
 
 
-def broadcast_weights(weight_queues, agent, version=-1):
+class StateNormStats:
+    """Learner-side global Welford statistics for sampler state normalization."""
+    def __init__(self, state_dim):
+        self.mean = np.zeros(state_dim, dtype=np.float64)
+        self.m2 = np.zeros(state_dim, dtype=np.float64)
+        self.count = 1e-8
+
+    def update(self, values):
+        values = np.asarray(values, dtype=np.float64).reshape(-1, self.mean.size)
+        if values.size == 0:
+            return
+        batch_count = float(values.shape[0])
+        batch_mean = values.mean(axis=0)
+        batch_m2 = ((values - batch_mean) ** 2).sum(axis=0)
+        delta = batch_mean - self.mean
+        total = self.count + batch_count
+        self.m2 += batch_m2 + delta * delta * self.count * batch_count / total
+        self.mean += delta * batch_count / total
+        self.count = total
+
+    @property
+    def std(self):
+        if self.count <= 1e-6:
+            return np.ones_like(self.mean)
+        return np.maximum(np.sqrt(self.m2 / max(self.count, 1e-8)), 1e-4)
+
+
+def broadcast_weights(weight_queues, agent, version=-1, state_norm_stats=None):
     """drain-then-put：清空每条权重队列后放入最新 actor 权重（已转 CPU）。
 
     多采样进程架构下必须**每个 sampler 一条独立的 weight_queue**（各自 maxsize=1）：
@@ -155,6 +182,8 @@ def broadcast_weights(weight_queues, agent, version=-1):
         "actor_state_dict": {k: v.detach().cpu().clone() for k, v in agent.actor.state_dict().items()},
         "weights_version": int(version),
         "weights_checksum": checksum,
+        "state_norm_mean": None if state_norm_stats is None else state_norm_stats.mean.copy(),
+        "state_norm_std": None if state_norm_stats is None else state_norm_stats.std.copy(),
     }
     for weight_queue in weight_queues:
         while True:
@@ -263,7 +292,11 @@ if __name__ == "__main__":
     # 关键契约：启动采样进程前先下发初始 actor 权重，
     # 保证各采样端与学习端从同一份初始参数出发（PPO ratio 语义要求）。
     checksum_by_version = {}  # version -> 该版本广播时的 actor 指纹，用于与采样端回传值比对
-    checksum_by_version[0] = broadcast_weights(weight_queues, agent_bs, version=0)
+    state_norm_stats = StateNormStats(state_dim_bs)
+    reward_norm_stats = StateNormStats(1)
+    checksum_by_version[0] = broadcast_weights(
+        weight_queues, agent_bs, version=0, state_norm_stats=state_norm_stats
+    )
     logger.info(f"[learner] 初始 actor 权重已下发 {num_samplers} 条 weight_queue"
                 f"（采样端与学习端同源初始化, version=0, ck={checksum_by_version[0]}）")
 
@@ -350,13 +383,33 @@ if __name__ == "__main__":
             # 消费前校验该 episode 的 9 个字段等长自洽，避免错位数据参与 PPO 更新
             n_transitions = validate_sample(item)
 
+            transition_dict = item["transition_dict"]
+            raw_rewards = np.asarray(transition_dict["rewards"], dtype=np.float64).reshape(-1, 1)
+            # reward 也在 learner 统一归一化，避免不同 sampler 各自维护 RewardScaling。
+            transition_dict["rewards"] = (
+                (raw_rewards - reward_norm_stats.mean) /
+                (reward_norm_stats.std + 1e-8)
+            ).reshape(-1).tolist()
+
             update_start = time.time()
-            agent_bs.update(item["transition_dict"], iteration, writer, agent_name="BS")
+            agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
             update_cost = time.time() - update_start
             iteration += 1
 
-            # 更新后立即向所有采样进程广播最新 actor 权重，各自下一个 episode 即使用新参数
-            checksum_by_version[iteration] = broadcast_weights(weight_queues, agent_bs, version=iteration)
+            # 采样端使用的是本 episode 开始时的归一化快照；新统计量从下一个 episode 生效。
+            raw_states = item["transition_dict"].get("raw_states", [])
+            raw_next_states = item["transition_dict"].get("raw_next_states", [])
+            if raw_states:
+                state_norm_stats.update(np.asarray(raw_states, dtype=np.float64))
+            if raw_next_states:
+                state_norm_stats.update(np.asarray(raw_next_states, dtype=np.float64))
+            reward_norm_stats.update(raw_rewards)
+
+            # 更新后立即向所有采样进程广播 actor 和统一状态归一化统计量。
+            checksum_by_version[iteration] = broadcast_weights(
+                weight_queues, agent_bs, version=iteration,
+                state_norm_stats=state_norm_stats,
+            )
             # 只保留最近若干版本的指纹，避免长时训练下字典无限增长
             if len(checksum_by_version) > 512:
                 for stale_version in sorted(checksum_by_version)[:-512]:
@@ -388,12 +441,25 @@ if __name__ == "__main__":
             # ── 1. 网络参数更新日志： iteration / transition 数 / lr / 更新耗时 / 该 episode 指标 ──
             lr_actor = agent_bs.actor_optimizer.param_groups[0]["lr"]
             lr_critic = agent_bs.critic_optimizer.param_groups[0]["lr"]
+            solver_counts = item.get("solver_status_counts", {})
+            solver_total = max(1, sum(int(v) for v in solver_counts.values()))
+            solver_status_rate = ",".join(
+                f"{k}:{100.0 * int(solver_counts.get(k, 0)) / solver_total:.1f}%"
+                for k in ("optimal", "infeasible", "unknown", "error", "other")
+            )
             logger.info(
                 f"iter={iteration} | 参数更新 | transitions={n_transitions} | cost={update_cost:.3f}s "
                 f"| lr_actor={lr_actor:.3e} lr_critic={lr_critic:.3e} "
                 f"| wv={used_version} stale={stale} ck={'ok' if checksum_ok else 'MISMATCH'}"
                 f"| reward={item['avg_total_reward']:.3f} obj={item['avg_obj_fun']:.3f} "
-                f"completion={item['completion_rate']:.2f}%"
+                f"completion={item['completion_rate']:.2f}% "
+                f"finite_obj={item.get('finite_obj_rate', float('nan')):.1f}% "
+                f"no_solution={item.get('no_solution_rate', float('nan')):.1f}% "
+                f"collision={item.get('collision_rate', float('nan')):.1f}% "
+                f"spectrum={item.get('spectrum_penalty_rate', float('nan')):.1f}% "
+                f"action_range=[{item.get('action_min', float('nan')):.3f},{item.get('action_max', float('nan')):.3f}] "
+                f"solver_status={solver_status_rate} "
+                f"norm_count={state_norm_stats.count:.0f}"
             )
             # ── 2. 队列个数日志：样本队列水位 / 有多少条权重队列积压待取（-1 表示平台不支持 qsize） ──
             pending_weights = sum(1 for q in weight_queues if safe_qsize(q) > 0)

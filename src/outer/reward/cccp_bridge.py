@@ -91,6 +91,22 @@ def _watt_2_dbm(watt):
     return 10.0 * log10(watt) + 30.0
 
 
+def _classify_solver_status(status):
+    """将 Fusion/CVXPY 状态压缩为可写入外层日志的稳定类别。"""
+    if status is None:
+        return "other"
+    low = str(status).lower()
+    if low.startswith("error"):
+        return "error"
+    if "infeasible" in low or low.startswith("unbounded"):
+        return "infeasible"
+    if "unknown" in low or "illposed" in low or "ill_posed" in low or "solver_error" in low:
+        return "unknown"
+    if "optimal" in low or "feasible" in low:
+        return "optimal"
+    return "other"
+
+
 def _matched_receive_beam(A):
     """A 的主特征向量（A = c·a a^H 时即 a/‖a‖），作为指定目标的匹配接收波束。"""
     hermitian = (A + A.conj().T) / 2.0
@@ -248,10 +264,18 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     variables = InnerVariables.create(params)
     ctx = InnerContext(params, environment, variables)
     result = run_pc3p(ctx)
+    solver_status = result.get("status")
+    solver_status_kind = _classify_solver_status(solver_status)
+    solver_diagnostic = {
+        "solver_status": str(solver_status),
+        "solver_status_kind": solver_status_kind,
+        "solver_converged": bool(result.get("converged", False)),
+        "solver_iterations": int(result.get("iterations", 0) or 0),
+    }
 
     if result["W_sen_beam"] is None:
         return (float("inf"), None, None, None, None, None, None,
-                [], [], [], np.array([]), None)
+                [], [], [], np.array([]), solver_diagnostic)
 
     W_sen = np.asarray(result["W_sen_beam"])
     B_off = np.asarray(result["B_off_beam"])
@@ -271,6 +295,7 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     solution_payload = {
         "auxiliary_variable_z": z_aux_rate / z_scale,
         "z_aux_rate_bits": z_aux_rate,
+        **solver_diagnostic,
     }
 
     return (energy_opt, None, None, None, None, None, None,

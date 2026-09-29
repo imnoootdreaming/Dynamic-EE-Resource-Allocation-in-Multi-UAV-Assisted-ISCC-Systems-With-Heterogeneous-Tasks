@@ -1,7 +1,7 @@
 """MHBPPO 异步采样进程（生产者）。
 
 IMPALA 式 actor-learner 架构中的采样端：
-- 本进程持有 MyEnv、CPU 版 actor 副本、Normalization / RewardScaling，
+- 本进程持有 MyEnv、CPU 版 actor 副本；状态和奖励归一化统计量由 learner 统一维护，
   持续 rollout 完整 episode 并将结果放入有界 sample_queue（满则阻塞 => 限制样本 staleness）。
 - 每个 episode 开始前从 weight_queue 取最新 actor 权重并加载（单 episode 内参数版本一致），
   old_log_probs 随采样时的参数记录，PPO ratio 语义保持正确。
@@ -52,7 +52,6 @@ if _OUTER_ROOT not in sys.path:
 
 from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
 from environment.my_env import MyEnv
-from utils.normalization import Normalization, RewardScaling
 
 
 def _set_seed(seed):
@@ -89,10 +88,12 @@ def _load_latest_weights(weight_queue, actor):
     """清空 weight_queue 并加载最新一份 actor 权重（仅在本函数末尾 load，保证取到的是最新版本）。
 
     Returns:
-        (version, None)：本次加载到的参数版本号；从未收到任何权重时返回 (None, None)。
+        (version, mean, std)：本次加载到的参数版本号和 learner 统一维护的状态统计量。
     """
     latest_state_dict = None
     latest_version = None
+    latest_mean = None
+    latest_std = None
     while True:
         try:
             payload = weight_queue.get_nowait()
@@ -101,9 +102,11 @@ def _load_latest_weights(weight_queue, actor):
         if payload is not None:
             latest_state_dict = payload["actor_state_dict"]
             latest_version = payload.get("weights_version")
+            latest_mean = payload.get("state_norm_mean")
+            latest_std = payload.get("state_norm_std")
     if latest_state_dict is not None:
         actor.load_state_dict(latest_state_dict)
-    return latest_version
+    return latest_version, latest_mean, latest_std
 
 
 def _put_with_stop(sample_queue, item, stop_event, timeout=1.0):
@@ -160,8 +163,9 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             continuous_dist_type="beta",
         ).to(device)
 
-        running_norm_bs = Normalization(state_dim_bs)
-        reward_scaler_bs = RewardScaling(shape=1, gamma=madrl_args.gamma)
+        # 状态归一化统计量由 learner 统一维护；sampler 在一个 episode 内固定快照。
+        state_norm_mean = np.zeros(state_dim_bs, dtype=np.float64)
+        state_norm_std = np.ones(state_dim_bs, dtype=np.float64)
 
         episode_idx = 0
         # 探针：本进程当前使用的参数版本号与指纹（随每个样本回传，供学习端验证权重同步）
@@ -171,16 +175,26 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
 
         while not stop_event.is_set():
             # episode 边界：加载学习端最新下发的 actor 权重，本 episode 全程使用该版本
-            loaded_version = _load_latest_weights(weight_queue, actor)
+            loaded_version, loaded_mean, loaded_std = _load_latest_weights(weight_queue, actor)
             if loaded_version is not None:
                 current_weights_version = loaded_version
                 # 用**本进程 actor 加载后**的参数计算指纹，证明权重确实落到了网络上
                 current_weights_checksum = _actor_checksum(actor)
+                if loaded_mean is not None and loaded_std is not None:
+                    state_norm_mean = np.asarray(loaded_mean, dtype=np.float64).copy()
+                    state_norm_std = np.maximum(np.asarray(loaded_std, dtype=np.float64), 1e-8)
 
             episode_rewards_total = []
             obj_fun_total = []
             success_slots = 0
             episode_reward_bs = 0.0
+            finite_obj_slots = 0
+            no_solution_slots = 0
+            collision_slots = 0
+            spectrum_penalty_slots = 0
+            solver_status_counts = {k: 0 for k in ("optimal", "infeasible", "unknown", "error", "other")}
+            action_min = float("inf")
+            action_max = float("-inf")
 
             transition_dict_bs = {
                 "states": [],
@@ -192,39 +206,52 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "old_disc_log_probs": [],
                 "dones": [],
                 "real_dones": [],
+                "raw_states": [],
+                "raw_next_states": [],
             }
 
             s = env.reset(episode_idx)
-            state_bs_norm = running_norm_bs(np.array(s["bs"], dtype=np.float32))
+            raw_state_bs = np.asarray(s["bs"], dtype=np.float32)
+            state_bs_norm = (raw_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
             terminal = False
-            reward_scaler_bs.reset()
 
             while not terminal:
                 action_bs, old_con_log_probs_bs, old_dis_log_probs_bs = _choose_action(actor, state_bs_norm)
 
                 next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
                 success_slots += success_flag
+                finite_obj_slots += int(np.isfinite(obj_fun))
+                no_solution_slots += int(r_dict.get("components", {}).get("no_solution_penalty", 0) > 0)
+                collision_slots += int(r_dict.get("components", {}).get("uav_collision_penalty_sum", 0) > 0)
+                spectrum_penalty_slots += int(r_dict.get("components", {}).get("bs_alloc_spectrum_penalty", 0) > 0)
+                solver_kind = str(r_dict.get("components", {}).get("solver_status_kind", "other"))
+                solver_status_counts[solver_kind] = solver_status_counts.get(solver_kind, 0) + 1
+                action_min = min(action_min, float(np.min(action_bs["continuous"])))
+                action_max = max(action_max, float(np.max(action_bs["continuous"])))
 
                 r_bs = float(r_dict["bs"])
-                r_bs_norm = float(np.asarray(reward_scaler_bs(r_bs)).item())
-
                 episode_rewards_total.append(float(total_reward))
                 obj_fun_total.append(float(obj_fun))
                 episode_reward_bs += r_bs
 
-                next_state_bs_norm = running_norm_bs(np.array(next_s["bs"], dtype=np.float32))
+                raw_next_state_bs = np.asarray(next_s["bs"], dtype=np.float32)
+                next_state_bs_norm = (raw_next_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
                 transition_dict_bs["states"].append(state_bs_norm)
                 transition_dict_bs["continuous_actions"].append(action_bs["continuous"])
                 transition_dict_bs["discrete_actions"].append(action_bs["discrete"])
                 transition_dict_bs["next_states"].append(next_state_bs_norm)
-                transition_dict_bs["rewards"].append(r_bs_norm)
+                # 发送原始即时奖励；由 learner 使用统一的全局统计量归一化。
+                transition_dict_bs["rewards"].append(r_bs)
                 transition_dict_bs["old_cont_log_probs"].append(old_con_log_probs_bs)
                 transition_dict_bs["old_disc_log_probs"].append(old_dis_log_probs_bs)
                 transition_dict_bs["dones"].append(bool(done))
                 # NOTE - 调整了 real_dones，因为这是一个三十个时隙的感知任务
                 transition_dict_bs["real_dones"].append(bool(done))
+                transition_dict_bs["raw_states"].append(raw_state_bs.copy())
+                transition_dict_bs["raw_next_states"].append(raw_next_state_bs.copy())
 
                 state_bs_norm = next_state_bs_norm
+                raw_state_bs = raw_next_state_bs
                 terminal = done
 
             avg_total_reward = float(np.mean(episode_rewards_total))
@@ -235,6 +262,16 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "avg_obj_fun": float(np.mean(obj_fun_total)),
                 "avg_bs_reward": episode_reward_bs / len(episode_rewards_total),
                 "completion_rate": (success_slots / madrl_args.total_time_slots) * 100.0,
+                "finite_obj_rate": (finite_obj_slots / len(episode_rewards_total)) * 100.0,
+                "no_solution_rate": (no_solution_slots / len(episode_rewards_total)) * 100.0,
+                "collision_rate": (collision_slots / len(episode_rewards_total)) * 100.0,
+                "spectrum_penalty_rate": (spectrum_penalty_slots / len(episode_rewards_total)) * 100.0,
+                "solver_status_counts": solver_status_counts,
+                "action_min": action_min,
+                "action_max": action_max,
+                "state_norm_count": int(len(episode_rewards_total)),
+                "state_norm_mean": state_norm_mean.copy(),
+                "state_norm_std": state_norm_std.copy(),
                 # ── 探针字段：本 episode 实际使用的参数版本 / 指纹 ──
                 "weights_version": current_weights_version,
                 "weights_checksum": current_weights_checksum,
