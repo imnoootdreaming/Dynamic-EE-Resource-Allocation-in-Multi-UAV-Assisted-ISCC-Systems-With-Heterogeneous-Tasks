@@ -132,6 +132,8 @@ def _put_error_sentinel(sample_queue, error_msg):
 
 
 def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event, seed_offset=1):
+    # 环境的逐时隙诊断由 learner 侧聚合日志统一记录；采样子进程不向终端刷屏。
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
     """采样进程主函数（必须是模块顶层函数，spawn 可 pickle）。
 
     Args:

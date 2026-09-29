@@ -187,6 +187,8 @@ def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targ
 
 
 def print_precomputed_target_schedule(uavs_num, schedule, schedule_distances, hold_slots, total_time_slots):
+    # 训练期间不在终端逐项打印场景调度；需要时可恢复此函数体进行专项调试。
+    return
     print("==================================================")
     print("------------ [Precomputed Target Schedule] ------------")
     for t in range(total_time_slots):

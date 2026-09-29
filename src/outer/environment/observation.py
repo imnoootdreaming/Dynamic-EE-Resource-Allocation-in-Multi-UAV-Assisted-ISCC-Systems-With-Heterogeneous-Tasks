@@ -52,7 +52,7 @@ REFERENCE_SCENE_SHAPE = {
     "targets_num": 40,
     "antenna_nums": 10,
 }
-REFERENCE_OBS_DIM = 987
+REFERENCE_OBS_DIM = 1017
 
 _EPS = 1e-12
 
@@ -69,6 +69,9 @@ class ObsContext(NamedTuple):
     cur_target_indices: np.ndarray          # (I,) 当前窗口各 UAV 的分配目标索引
     next_target_indices: np.ndarray         # (I,) 下一窗口各 UAV 的分配目标索引
     slots_until_switch: np.ndarray          # (1,) 窗口切换倒计时
+    task_sizes: np.ndarray                  # (J,) L_j(t)
+    task_cycles: np.ndarray                 # (J,) C_j(t)
+    task_delays: np.ndarray                 # (J,) D_j^max(t)
     radius: float                           # 部署半径 R，用于距离归一化
 
 
@@ -165,6 +168,18 @@ def _build_slots_until_switch(ctx: ObsContext) -> np.ndarray:
     return np.asarray(ctx.slots_until_switch, dtype=np.float32).reshape(-1)
 
 
+def _build_task_sizes(ctx: ObsContext) -> np.ndarray:
+    return np.asarray(ctx.task_sizes, dtype=np.float32).reshape(-1)
+
+
+def _build_task_cycles(ctx: ObsContext) -> np.ndarray:
+    return np.asarray(ctx.task_cycles, dtype=np.float32).reshape(-1)
+
+
+def _build_task_delays(ctx: ObsContext) -> np.ndarray:
+    return np.asarray(ctx.task_delays, dtype=np.float32).reshape(-1)
+
+
 # ── 唯一真相来源：顺序 == 维度累加顺序 == 拼接顺序 ──────────────────────────────
 BS_OBSERVATION_SEGMENTS: Tuple[ObsSegment, ...] = (
     ObsSegment(
@@ -212,6 +227,9 @@ BS_OBSERVATION_SEGMENTS: Tuple[ObsSegment, ...] = (
         lambda a: 1,
         _build_slots_until_switch,
     ),
+    ObsSegment("task_sizes", lambda a: a.cus_num, _build_task_sizes),
+    ObsSegment("task_cycles", lambda a: a.cus_num, _build_task_cycles),
+    ObsSegment("task_delays", lambda a: a.cus_num, _build_task_delays),
 )
 
 
@@ -221,7 +239,7 @@ def compute_bs_obs_dim(base_args) -> int:
 
 
 def build_bs_observation(ctx: ObsContext) -> np.ndarray:
-    """按分段清单顺序拼接 BS 观测，返回 (dim,) float32（默认场景 987 维）。"""
+    """按分段清单顺序拼接 BS 观测，返回 (dim,) float32（默认场景 1017 维）。"""
     return np.concatenate(
         [segment.build(ctx) for segment in BS_OBSERVATION_SEGMENTS]
     ).astype(np.float32)
@@ -264,7 +282,7 @@ def validate_bs_observation_layout(base_args, ctx: ObsContext) -> Tuple[Tuple[st
 
 
 def is_reference_scene(base_args) -> bool:
-    """判断当前场景规模是否等于论文默认配置（决定是否做 987 维硬断言）。"""
+    """判断当前场景规模是否等于论文默认配置（决定是否做 1017 维硬断言）。"""
     return all(
         int(getattr(base_args, key)) == value for key, value in REFERENCE_SCENE_SHAPE.items()
     )

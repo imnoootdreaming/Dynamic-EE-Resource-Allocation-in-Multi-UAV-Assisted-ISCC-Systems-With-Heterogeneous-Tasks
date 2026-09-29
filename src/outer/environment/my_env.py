@@ -6,6 +6,12 @@ except ImportError:  # pragma: no cover
     from gymnasium import spaces
 import numpy as np
 
+# 训练时环境单步诊断由 learner 的 episode 聚合日志承载，避免多进程终端交错输出。
+def _env_debug_print(*args, **kwargs):
+    return None
+
+print = _env_debug_print
+
 from environment.channel_models import (
     compute_com_channel_gain,
     compute_sen_channel_gain,
@@ -141,7 +147,7 @@ class MyEnv(gym.Env):
         # BS 观测空间
         # 20260916 - 观测相对化(L2): 布局收敛到 environment.observation 的具名分段清单，
         # 维度与拼接顺序共用同一定义源（原本此处手算累加式 + `_build_bs_observation`
-        # 独立拼接两处手工同步）。默认场景 (I=4, J=10, K=40, N=10) 为 987 维：
+        # 独立拼接两处手工同步）。默认场景 (I=4, J=10, K=40, N=10) 为 1017 维：
         #   1. h_uav_bs              UAV→BS 信道实虚部                I·N·2   = 80
         #   2. h_uav_cu              UAV→CU 信道实虚部                I·J·N·2 = 800
         #   3. h_cu_bs               CU→BS 信道实虚部                 J·2     = 20
@@ -316,6 +322,13 @@ class MyEnv(gym.Env):
             cur_target_indices=self._get_current_uav_target_indices(),
             next_target_indices=self._get_next_uav_target_indices(),
             slots_until_switch=self._get_slots_until_switch(),
+            task_sizes=np.asarray(self.cus_entertaining_task_size, dtype=np.float32),
+            task_cycles=np.full(
+                self.base_args.cus_num, self.base_args.bs_cycles_per_bit, dtype=np.float32
+            ),
+            task_delays=np.full(
+                self.base_args.cus_num, self.base_args.cu_max_delay, dtype=np.float32
+            ),
             # radius 由 BaseArgsAdapter 透传内层 deploy_radius，不在此处写死默认值
             radius=float(self.base_args.radius),
         )

@@ -80,12 +80,34 @@ def setup_logger(log_path):
     logger.propagate = False
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
-    fmt = logging.Formatter("%(asctime)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    class LayerFormatter(logging.Formatter):
+        def format(self, record):
+            message = record.getMessage()
+            if message.startswith("[learner]"):
+                layer = "UPDATE"
+            elif "| 队列 |" in message:
+                layer = "QUEUE"
+            elif "已保存" in message or "最终结果" in message:
+                layer = "CHECKPOINT"
+            elif record.levelno >= logging.ERROR:
+                layer = "ERROR"
+            elif record.levelno >= logging.WARNING:
+                layer = "WARNING"
+            else:
+                layer = "INFO"
+            return f"{self.formatTime(record, self.datefmt)} | [{layer}] | {message}"
+
+    fmt = LayerFormatter(datefmt="%Y-%m-%d %H:%M:%S")
     file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
     file_handler.setFormatter(fmt)
     logger.addHandler(file_handler)
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(fmt)
+    class LearnerUpdateFilter(logging.Filter):
+        def filter(self, record):
+            return record.getMessage().startswith("[learner] iter=")
+
+    stream_handler.addFilter(LearnerUpdateFilter())
+    stream_handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(stream_handler)
     return logger
 
@@ -448,10 +470,11 @@ if __name__ == "__main__":
                 for k in ("optimal", "infeasible", "unknown", "error", "other")
             )
             logger.info(
-                f"iter={iteration} | 参数更新 | transitions={n_transitions} | cost={update_cost:.3f}s "
+                f"[learner] iter={iteration} transitions={n_transitions} completion={item['completion_rate']:.2f}% "
+                f"reward={item['avg_total_reward']:.3f} | cost={update_cost:.3f}s "
                 f"| lr_actor={lr_actor:.3e} lr_critic={lr_critic:.3e} "
                 f"| wv={used_version} stale={stale} ck={'ok' if checksum_ok else 'MISMATCH'}"
-                f"| reward={item['avg_total_reward']:.3f} obj={item['avg_obj_fun']:.3f} "
+                f"| obj={item['avg_obj_fun']:.3f} "
                 f"completion={item['completion_rate']:.2f}% "
                 f"finite_obj={item.get('finite_obj_rate', float('nan')):.1f}% "
                 f"no_solution={item.get('no_solution_rate', float('nan')):.1f}% "
