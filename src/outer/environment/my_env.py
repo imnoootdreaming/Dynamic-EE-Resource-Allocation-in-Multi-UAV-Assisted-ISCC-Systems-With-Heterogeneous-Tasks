@@ -20,6 +20,7 @@ from environment.channel_models import (
 )
 from environment.mapping import (
     build_unit_norm_rec_beam,
+    build_matched_rec_beam,
     build_uav_targets_matched_matrix,
     build_uavs_cus_matched_matrix,
 )
@@ -404,6 +405,21 @@ class MyEnv(gym.Env):
             self.base_args.uavs_num,
             self.base_args.antenna_nums,
         )
+        # Structured receive-beam reference.  The actor still samples the
+        # latent direction, so its PPO log-probability remains well-defined;
+        # this deterministic transform only changes the physical beam sent to
+        # the inner solver.
+        beam_alpha = float(np.clip(
+            getattr(self.madrl_args, "structured_beam_alpha", 1.0), 0.0, 1.0
+        ))
+        if beam_alpha < 1.0:
+            matched_beams = build_matched_rec_beam(
+                self.uavs_2_targets_channels,
+                self._get_current_uav_target_indices(),
+            )
+            mixed_beams = (1.0 - beam_alpha) * matched_beams + beam_alpha * uavs_rec_beam_vectors
+            mixed_norm = np.linalg.norm(mixed_beams, axis=1, keepdims=True)
+            uavs_rec_beam_vectors = mixed_beams / np.where(mixed_norm > 1e-12, mixed_norm, 1.0)
 
         # NOTE - 将离散 CU 索引动作转换为 UAV-CU 匹配矩阵输入 CCCP，以适配 reward 计算接口
         uavs_cus_matched_matrix = build_uavs_cus_matched_matrix(

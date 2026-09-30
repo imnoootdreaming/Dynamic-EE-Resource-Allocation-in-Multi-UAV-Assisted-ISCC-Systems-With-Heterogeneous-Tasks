@@ -262,11 +262,15 @@ def save_reward_plot(output_dir, reward_res):
 
 if __name__ == "__main__":
     current_time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    writer = get_tensorboard_writer(log_dir=os.path.join(_OUTER_ROOT, f"runs/beta-hppo/{current_time_str}_beta-hppo_async_result"))
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     base_args = get_base_args()
     madrl_args = get_madrl_args()
+    sync_training = bool(getattr(madrl_args, "sync_training", True))
+    writer = get_tensorboard_writer(log_dir=os.path.join(
+        _OUTER_ROOT,
+        f"runs/beta-hppo/{current_time_str}_beta-hppo_{'sync' if sync_training else 'async'}_result",
+    ))
     setSeed(seed=base_args.seed)
 
     # env 仅用于获取观测/动作空间维度（采样在子进程内自建 env）
@@ -299,11 +303,14 @@ if __name__ == "__main__":
     checkpoint_interval = max(1, int(madrl_args.checkpoint_interval))
     queue_maxsize = max(1, int(madrl_args.sample_queue_maxsize))
     num_samplers = max(1, int(madrl_args.num_samplers))
+    if sync_training:
+        num_samplers = 1
 
     # ── 异步架构：队列 + 停止事件 + 采样进程 ──────────────────────────────
     ctx = mp.get_context("spawn")  # Linux 服务器与 Windows 行为一致，且 CUDA 安全
     sample_queue = ctx.Queue(maxsize=queue_maxsize)
     stop_event = ctx.Event()
+    control_queue = ctx.Queue(maxsize=1) if sync_training else None
 
     # 多采样进程：每个 sampler 一条独立 weight_queue，互不争抢（详见 broadcast_weights 文档）
     weight_queues = [ctx.Queue(maxsize=1) for _ in range(num_samplers)]
@@ -327,12 +334,16 @@ if __name__ == "__main__":
         proc = ctx.Process(
             target=sampler_worker,
             # seed_offset = worker_id + 1：各采样进程使用互不相同的 RNG 流，避免产出同分布副本
-            args=(base_args, madrl_args, sample_queue, weight_queues[worker_id], stop_event, worker_id + 1),
+            args=(base_args, madrl_args, sample_queue, weight_queues[worker_id], stop_event,
+                  worker_id + 1, control_queue),
             daemon=True,
             name=f"sampler-{worker_id}",
         )
         proc.start()
         sampler_procs.append(proc)
+
+    if sync_training:
+        control_queue.put(1)
 
     cpu_count = os.cpu_count() or 1
     if num_samplers > cpu_count:
@@ -432,6 +443,8 @@ if __name__ == "__main__":
                 weight_queues, agent_bs, version=iteration,
                 state_norm_stats=state_norm_stats,
             )
+            if sync_training:
+                control_queue.put(1)
             # 只保留最近若干版本的指纹，避免长时训练下字典无限增长
             if len(checksum_by_version) > 512:
                 for stale_version in sorted(checksum_by_version)[:-512]:
@@ -543,6 +556,8 @@ if __name__ == "__main__":
         sample_queue.close()
         for weight_queue in weight_queues:
             weight_queue.close()
+        if control_queue is not None:
+            control_queue.close()
         # 仅在"非主动中断"时判定为故障：Ctrl+C / Ctrl+Break 会投递给整个进程组，
         # 采样进程同样收到信号并以 STATUS_CONTROL_C_EXIT (0xC000013A) 退出，属预期而非异常。
         if not interrupted:

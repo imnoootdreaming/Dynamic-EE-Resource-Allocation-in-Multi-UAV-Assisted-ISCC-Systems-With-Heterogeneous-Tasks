@@ -55,6 +55,34 @@ def build_unit_norm_rec_beam(dir_real_flat, dir_imag_flat, uavs_num, antenna_num
     return beams
 
 
+def build_matched_rec_beam(uavs_2_targets_channels, target_indices):
+    """Return per-UAV matched receive beams for the selected sensing targets.
+
+    The result is deterministic given the current sensing channel and target
+    schedule.  It is used as a structured initialization/reference for the
+    actor's receive-beam head; it does not alter the actor's latent action or
+    its PPO log-probability.
+    """
+    channels = np.asarray(uavs_2_targets_channels, dtype=complex)
+    if channels.ndim != 4:
+        raise ValueError("uavs_2_targets_channels 应为 (I, K, N, N)")
+    I, K, N, N2 = channels.shape
+    if N != N2:
+        raise ValueError("感知信道矩阵必须为方阵")
+    indices = np.clip(np.asarray(target_indices, dtype=np.int64).reshape(-1), 0, K - 1)
+    if indices.size != I:
+        raise ValueError("target_indices 长度必须等于 UAV 数量")
+    beams = np.zeros((I, N), dtype=complex)
+    for i, target_idx in enumerate(indices):
+        A = channels[i, int(target_idx)]
+        hermitian = (A + A.conj().T) / 2.0
+        _, vectors = np.linalg.eigh(hermitian)
+        beam = vectors[:, -1]
+        norm = np.linalg.norm(beam)
+        beams[i] = beam / norm if norm > 1e-12 else np.eye(N, dtype=complex)[0]
+    return beams
+
+
 def flatten_complex(channel):
     """复数信道 → 实部/虚部顺序拼接的 float32 向量。"""
     return np.concatenate([channel.real.flatten(), channel.imag.flatten()]).astype(np.float32)

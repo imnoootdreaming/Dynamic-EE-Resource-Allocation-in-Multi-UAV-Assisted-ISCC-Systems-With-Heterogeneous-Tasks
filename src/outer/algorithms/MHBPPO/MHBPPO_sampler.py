@@ -131,7 +131,8 @@ def _put_error_sentinel(sample_queue, error_msg):
     return False
 
 
-def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event, seed_offset=1):
+def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event,
+                   seed_offset=1, control_queue=None):
     # 环境的逐时隙诊断由 learner 侧聚合日志统一记录；采样子进程不向终端刷屏。
     sys.stdout = open(os.devnull, "w", encoding="utf-8")
     """采样进程主函数（必须是模块顶层函数，spawn 可 pickle）。
@@ -176,6 +177,17 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
         current_weights_checksum = None
 
         while not stop_event.is_set():
+            # 同步模式下由 learner 发放一次性许可；worker 采完一个 episode
+            # 后必须等待 learner 完成 PPO 更新并广播新权重。
+            if control_queue is not None:
+                while not stop_event.is_set():
+                    try:
+                        control_queue.get(timeout=1.0)
+                        break
+                    except queue_module.Empty:
+                        continue
+                if stop_event.is_set():
+                    break
             # episode 边界：加载学习端最新下发的 actor 权重，本 episode 全程使用该版本
             loaded_version, loaded_mean, loaded_std = _load_latest_weights(weight_queue, actor)
             if loaded_version is not None:
