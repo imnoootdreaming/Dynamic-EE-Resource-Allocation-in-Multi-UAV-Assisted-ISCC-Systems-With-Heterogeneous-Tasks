@@ -1,0 +1,369 @@
+"""MHBPPO 异步采样进程（生产者）。
+
+IMPALA 式 actor-learner 架构中的采样端：
+- 本进程持有 MyEnv、CPU 版 actor 副本；状态和奖励归一化统计量由 learner 统一维护，
+  持续 rollout 完整 episode 并将结果放入有界 sample_queue（满则阻塞 => 限制样本 staleness）。
+- 每个 episode 开始前从 weight_queue 取最新 actor 权重并加载（单 episode 内参数版本一致），
+  old_log_probs 随采样时的参数记录，PPO ratio 语义保持正确。
+- 逐 episode 场景重生成：reset(episode_idx) 以 SeedManager 派生的独立种子重建
+  布点 / CU 轨迹 / NLoS / 调度，不同 worker、不同 episode 的场景互异（可复现），
+  为并行 rollout 提供状态多样性；跨场景比较 reward 无意义，故不再记录最优轨迹。
+- 本进程不打印任何常规日志（避免与主进程 tqdm 输出交错），异常通过 error sentinel 上报。
+
+与学习进程（MHBPPO_main.py）的数据契约：
+- sample_queue 元素（本进程 -> 学习进程）:
+    {
+        "transition_dict": dict,     # 与原 transition_dict_bs 结构完全一致
+        "action_traces": list,       # 各时隙 env.step 实际变换后的动作快照
+        "sampler_id": int,           # 0-based worker 编号
+        "seed_offset": int,
+        "episode_idx": int,          # 本 worker 内 0-based episode 序号
+        "avg_total_reward": float,
+        "avg_obj_fun": float,
+        "avg_bs_reward": float,
+        "completion_rate": float,
+        "weights_version": int,      # 本 episode 采样时使用的参数版本（-1 = 从未收到权重）
+        "weights_checksum": float,   # 本进程 actor 加载后的参数指纹（供学习端比对验证）
+    }
+    异常哨兵: {"error": "<traceback 字符串>"}
+- weight_queue 元素（学习进程 -> 本进程, maxsize=1）:
+    {"actor_state_dict": OrderedDict}  # 已转 CPU 的 actor state_dict
+- stop_event: 学习进程置位后本进程在 episode 边界 / put 等待处感知并退出。
+
+注意：Windows/Linux 均以 spawn 方式启动，本 worker 必须保持为模块顶层函数，
+且内部自行构建 env / actor（不跨进程传递 env、tensor、agent 对象）。
+"""
+
+import queue as queue_module
+import os
+import random
+import sys
+import traceback
+
+import numpy as np
+import torch
+
+# 自动向上定位 outer 根目录（含 algorithms/ 的那一层），与 MHBPPO_main.py 保持一致。
+# spawn 子进程重新 import 本模块时，该 bootstrap 保证依赖模块可导入。
+_OUTER_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isdir(os.path.join(_OUTER_ROOT, "algorithms")):
+    _parent_root = os.path.dirname(_OUTER_ROOT)
+    if _parent_root == _OUTER_ROOT:
+        break
+    _OUTER_ROOT = _parent_root
+if _OUTER_ROOT not in sys.path:
+    sys.path.insert(0, _OUTER_ROOT)
+
+from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
+from environment.my_env import MyEnv
+
+
+def _set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def _choose_action(actor, state_norm):
+    """CPU 版动作采样，返回与 HPPO.choose_action 等价的结果（标量 log_prob）。"""
+    s = torch.tensor(state_norm, dtype=torch.float32).unsqueeze(0)
+    with torch.no_grad():
+        continuous_actions, discrete_actions, _, con_log_prob, dis_log_prob = actor.sample(s)
+    action = {
+        "continuous": continuous_actions.squeeze(0).cpu().numpy().astype(np.float32),
+        "discrete": discrete_actions.squeeze(0).cpu().numpy().astype(np.int64),
+    }
+    return action, float(np.asarray(con_log_prob).item()), float(np.asarray(dis_log_prob).item())
+
+
+def _actor_checksum(actor):
+    """本进程 actor 参数的标量指纹（与学习端 actor_checksum 同算法）。
+
+    采样端加载权重后用**自己的 actor** 计算并回传，学习端比对即可证明权重真正生效。
+    """
+    total = 0.0
+    with torch.no_grad():
+        for param in actor.parameters():
+            total += float(param.detach().abs().sum().cpu().item())
+    return round(total, 6)
+
+
+def _load_latest_weights(weight_queue, actor):
+    """清空 weight_queue 并加载最新一份 actor 权重（仅在本函数末尾 load，保证取到的是最新版本）。
+
+    Returns:
+        (version, mean, std)：本次加载到的参数版本号和 learner 统一维护的状态统计量。
+    """
+    latest_state_dict = None
+    latest_version = None
+    latest_mean = None
+    latest_std = None
+    while True:
+        try:
+            payload = weight_queue.get_nowait()
+        except queue_module.Empty:
+            break
+        if payload is not None:
+            latest_state_dict = payload["actor_state_dict"]
+            latest_version = payload.get("weights_version")
+            latest_mean = payload.get("state_norm_mean")
+            latest_std = payload.get("state_norm_std")
+    if latest_state_dict is not None:
+        actor.load_state_dict(latest_state_dict)
+    return latest_version, latest_mean, latest_std
+
+
+def _load_weights_until(weight_queue, actor, target_version, stop_event, timeout=1.0):
+    """同步模式：阻塞等到 version >= target_version 的权重到达后加载。
+
+    不能用 _load_latest_weights 的非阻塞读法：learner 下发的 actor state_dict 是 MB 级
+    对象，由 feeder 线程异步写入管道；采样端拿到许可令牌后立刻 get_nowait() 会读到空
+    队列，而 learner 下一次 broadcast 的 drain-then-put 又会把这份权重清掉，采样端将
+    永远停留在初始版本（表现为 wv 恒为 0、策略从不更新，症状与「内层恒不可行」一致）。
+    """
+    latest_state_dict = None
+    latest_version = None
+    latest_mean = None
+    latest_std = None
+    while not stop_event.is_set():
+        try:
+            payload = weight_queue.get(timeout=timeout)
+        except queue_module.Empty:
+            continue
+        if payload is None:
+            continue
+        latest_state_dict = payload["actor_state_dict"]
+        latest_version = payload.get("weights_version")
+        latest_mean = payload.get("state_norm_mean")
+        latest_std = payload.get("state_norm_std")
+        # 同步模式下每份许可对应一次广播，版本号应精确相等；用 >= 兼顾重复下发。
+        if latest_version is not None and target_version is not None and latest_version >= target_version:
+            break
+    if latest_state_dict is not None:
+        actor.load_state_dict(latest_state_dict)
+    return latest_version, latest_mean, latest_std
+
+
+def _put_with_stop(sample_queue, item, stop_event, timeout=1.0):
+    """向有界队列 put，等待期间周期性检查 stop_event。返回 False 表示收到停止信号。"""
+    while not stop_event.is_set():
+        try:
+            sample_queue.put(item, timeout=timeout)
+            return True
+        except queue_module.Full:
+            continue
+    return False
+
+
+def _put_error_sentinel(sample_queue, error_msg):
+    """尽力而为地上报异常哨兵（即使队列满也只等待有限时间，避免子进程悬挂）。"""
+    for _ in range(5):
+        try:
+            sample_queue.put({"error": error_msg}, timeout=1.0)
+            return True
+        except queue_module.Full:
+            continue
+    return False
+
+
+def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event,
+                   seed_offset=1, control_queue=None):
+    # 环境的逐时隙诊断由 learner 侧聚合日志统一记录；采样子进程不向终端刷屏。
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    """采样进程主函数（必须是模块顶层函数，spawn 可 pickle）。
+
+    Args:
+        base_args / madrl_args: 主进程已解析的 argparse Namespace（可 pickle）。
+        sample_queue: 有界样本队列（采样 -> 学习），maxsize 建议 2~4。
+        weight_queue: 权重队列（学习 -> 采样），maxsize=1，学习端 drain-then-put。
+        stop_event: 学习进程控制的停止事件。
+        seed_offset: 采样进程随机种子偏移，避免与学习进程使用完全相同的 RNG 流。
+    """
+    try:
+        _set_seed(base_args.seed + seed_offset)
+        # 采样进程不触碰 CUDA：actor 副本固定在 CPU 上推理（小 MLP，开销可忽略），
+        # 也避免与学习进程争用 GPU 以及 spawn 下子进程使用 CUDA 的潜在问题。
+        device = torch.device("cpu")
+
+        env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=seed_offset)
+
+        state_dim_bs = env.observation_space["bs"].shape[0]
+        bs_continuous_action_space = env.action_space["bs"]["continuous"]
+        bs_discrete_action_space = env.action_space["bs"]["discrete"]
+
+        # 与学习进程 HPPO 内部构造的 actor 结构完全一致（连续分布默认 beta），
+        # 初始随机权重由学习进程通过 weight_queue 下发的第一份 state_dict 覆盖。
+        actor = MultiHeadActor(
+            state_dim=state_dim_bs,
+            hidden_dim=madrl_args.hidden_dim,
+            continuous_action_splits=env.bs_continuous_action_splits,
+            discrete_action_dims=bs_discrete_action_space.nvec,
+            continuous_dist_type="beta",
+        ).to(device)
+
+        # 状态归一化统计量由 learner 统一维护；sampler 在一个 episode 内固定快照。
+        state_norm_mean = np.zeros(state_dim_bs, dtype=np.float64)
+        state_norm_std = np.ones(state_dim_bs, dtype=np.float64)
+
+        episode_idx = 0
+        # 探针：本进程当前使用的参数版本号与指纹（随每个样本回传，供学习端验证权重同步）
+        # -1 表示从未收到任何权重（采样端将一直使用随机初始策略）
+        current_weights_version = -1
+        current_weights_checksum = None
+
+        while not stop_event.is_set():
+            # 同步模式下由 learner 发放一次性许可；worker 采完一个 episode
+            # 后必须等待 learner 完成 PPO 更新并广播新权重。
+            if control_queue is not None:
+                target_version = None
+                while not stop_event.is_set():
+                    try:
+                        # 许可令牌携带本 episode 应使用的参数版本号
+                        target_version = control_queue.get(timeout=1.0)
+                        break
+                    except queue_module.Empty:
+                        continue
+                if stop_event.is_set():
+                    break
+                # episode 边界：阻塞等到该版本权重到手后加载，本 episode 全程使用该版本
+                loaded_version, loaded_mean, loaded_std = _load_weights_until(
+                    weight_queue, actor, target_version, stop_event)
+            else:
+                # 异步模式：非阻塞取最新一份（允许落后若干版本，stale 由队列容量限制）
+                loaded_version, loaded_mean, loaded_std = _load_latest_weights(weight_queue, actor)
+            if loaded_version is not None:
+                current_weights_version = loaded_version
+                # 用**本进程 actor 加载后**的参数计算指纹，证明权重确实落到了网络上
+                current_weights_checksum = _actor_checksum(actor)
+                if loaded_mean is not None and loaded_std is not None:
+                    state_norm_mean = np.asarray(loaded_mean, dtype=np.float64).copy()
+                    state_norm_std = np.maximum(np.asarray(loaded_std, dtype=np.float64), 1e-8)
+
+            episode_rewards_total = []
+            obj_fun_total = []
+            success_slots = 0
+            episode_reward_bs = 0.0
+            finite_obj_slots = 0
+            no_solution_slots = 0
+            collision_slots = 0
+            spectrum_penalty_slots = 0
+            solver_status_counts = {k: 0 for k in ("optimal", "infeasible", "unknown", "error", "other")}
+            action_traces = []
+            diagnostic_traces = []
+            action_min = float("inf")
+            action_max = float("-inf")
+
+            transition_dict_bs = {
+                "states": [],
+                "continuous_actions": [],
+                "discrete_actions": [],
+                "next_states": [],
+                "rewards": [],
+                "old_cont_log_probs": [],
+                "old_disc_log_probs": [],
+                "dones": [],
+                "real_dones": [],
+                "raw_states": [],
+                "raw_next_states": [],
+            }
+
+            s = env.reset(episode_idx)
+            diagnostic_scene = env.get_diagnostic_scene()
+            raw_state_bs = np.asarray(s["bs"], dtype=np.float32)
+            state_bs_norm = (raw_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
+            terminal = False
+
+            while not terminal:
+                action_bs, old_con_log_probs_bs, old_dis_log_probs_bs = _choose_action(actor, state_bs_norm)
+
+                next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
+                if env.last_action_trace is None:
+                    raise RuntimeError("env.step 未产生动作诊断快照")
+                action_traces.append({
+                    **env.last_action_trace,
+                    "outcome": {
+                        "total_reward": float(total_reward),
+                        "obj_fun": float(obj_fun),
+                        "success": int(success_flag),
+                        "done": bool(done),
+                        "solver_status_kind": str(r_dict.get("components", {}).get("solver_status_kind", "other")),
+                    },
+                })
+                if env.env_diagnostics:
+                    if env.last_env_diagnostic is None:
+                        raise RuntimeError("env.step 未产生已启用的环境诊断")
+                    diagnostic_traces.append(env.last_env_diagnostic)
+                success_slots += success_flag
+                finite_obj_slots += int(np.isfinite(obj_fun))
+                no_solution_slots += int(r_dict.get("components", {}).get("no_solution_penalty", 0) > 0)
+                collision_slots += int(r_dict.get("components", {}).get("uav_collision_penalty_sum", 0) > 0)
+                spectrum_penalty_slots += int(r_dict.get("components", {}).get("bs_alloc_spectrum_penalty", 0) > 0)
+                solver_kind = str(r_dict.get("components", {}).get("solver_status_kind", "other"))
+                solver_status_counts[solver_kind] = solver_status_counts.get(solver_kind, 0) + 1
+                action_min = min(action_min, float(np.min(action_bs["continuous"])))
+                action_max = max(action_max, float(np.max(action_bs["continuous"])))
+
+                r_bs = float(r_dict["bs"])
+                episode_rewards_total.append(float(total_reward))
+                obj_fun_total.append(float(obj_fun))
+                episode_reward_bs += r_bs
+
+                raw_next_state_bs = np.asarray(next_s["bs"], dtype=np.float32)
+                next_state_bs_norm = (raw_next_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
+                transition_dict_bs["states"].append(state_bs_norm)
+                transition_dict_bs["continuous_actions"].append(action_bs["continuous"])
+                transition_dict_bs["discrete_actions"].append(action_bs["discrete"])
+                transition_dict_bs["next_states"].append(next_state_bs_norm)
+                # 发送原始即时奖励；由 learner 使用统一的全局统计量归一化。
+                transition_dict_bs["rewards"].append(r_bs)
+                transition_dict_bs["old_cont_log_probs"].append(old_con_log_probs_bs)
+                transition_dict_bs["old_disc_log_probs"].append(old_dis_log_probs_bs)
+                transition_dict_bs["dones"].append(bool(done))
+                # NOTE - 调整了 real_dones，因为这是一个三十个时隙的感知任务
+                transition_dict_bs["real_dones"].append(bool(done))
+                transition_dict_bs["raw_states"].append(raw_state_bs.copy())
+                transition_dict_bs["raw_next_states"].append(raw_next_state_bs.copy())
+
+                state_bs_norm = next_state_bs_norm
+                raw_state_bs = raw_next_state_bs
+                terminal = done
+
+            avg_total_reward = float(np.mean(episode_rewards_total))
+
+            sample_result = {
+                "transition_dict": transition_dict_bs,
+                "action_traces": action_traces,
+                "diagnostic_traces": diagnostic_traces,
+                "diagnostic_scene": diagnostic_scene,
+                "diagnostics_enabled": env.env_diagnostics,
+                "sampler_id": int(seed_offset - 1),
+                "seed_offset": int(seed_offset),
+                "episode_idx": int(episode_idx),
+                "avg_total_reward": avg_total_reward,
+                "avg_obj_fun": float(np.mean(obj_fun_total)),
+                "avg_bs_reward": episode_reward_bs / len(episode_rewards_total),
+                "completion_rate": (success_slots / madrl_args.total_time_slots) * 100.0,
+                "finite_obj_rate": (finite_obj_slots / len(episode_rewards_total)) * 100.0,
+                "no_solution_rate": (no_solution_slots / len(episode_rewards_total)) * 100.0,
+                "collision_rate": (collision_slots / len(episode_rewards_total)) * 100.0,
+                "spectrum_penalty_rate": (spectrum_penalty_slots / len(episode_rewards_total)) * 100.0,
+                "solver_status_counts": solver_status_counts,
+                "action_min": action_min,
+                "action_max": action_max,
+                "state_norm_count": int(len(episode_rewards_total)),
+                "state_norm_mean": state_norm_mean.copy(),
+                "state_norm_std": state_norm_std.copy(),
+                # ── 探针字段：本 episode 实际使用的参数版本 / 指纹 ──
+                "weights_version": current_weights_version,
+                "weights_checksum": current_weights_checksum,
+            }
+
+            # 有界队列：队列满时阻塞在此（背压 => staleness 上限 = maxsize 个参数版本）
+            if not _put_with_stop(sample_queue, sample_result, stop_event):
+                break
+
+            episode_idx += 1
+
+    except Exception:
+        # 异常哨兵：主进程收到后终止训练并抛出，避免其在空队列上永久阻塞
+        _put_error_sentinel(sample_queue, traceback.format_exc())

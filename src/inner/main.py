@@ -8,6 +8,7 @@
 可用环境变量 PC3P_BACKEND=cvxpy 切换回 cvxpy 后端（pc3p.run_pc3p）。
 """
 
+import argparse
 import csv
 import os
 import time
@@ -19,6 +20,8 @@ from environment import build_environment
 from variables import InnerVariables, InnerContext
 from constraints import constraint_names
 from outer_sampler import load_outer_samples, sample_random_feasible
+from pc3p import compute_pure_energy
+from solution_checks import CHECK_FIELDS, solution_checks
 
 
 # 默认使用 MOSEK Fusion 后端；如需切回 cvxpy，设置环境变量 PC3P_BACKEND=cvxpy
@@ -138,7 +141,7 @@ CONVERGENCE_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "convergence_iterations.csv")
 
 # 完整诊断信息（sample_id / converged / status_kind / elapsed_s）。
-# 目前无需保存 details 文件，main() 中的写出调用已注释掉，此处仅保留路径与写出函数备用。
+# 明细包含能耗、精度配置和独立约束诊断，用于判断加速影响。
 CONVERGENCE_DETAIL_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                       "convergence_iterations_details.csv")
 
@@ -170,13 +173,14 @@ def save_iteration_counts(csv_path, rows):
 def save_iteration_counts_detail(csv_path, rows):
     """写出完整逐 case 求解统计（含 sample_id、是否收敛、状态类别、耗时）。
 
-    :param rows: 每项为 [case_index, sample_id, iterations, converged,
-                        status_kind, elapsed_s]，与 save_iteration_counts 入参一致。
+    :param rows: 前六项为 case_index、sample_id、iterations、converged、
+                 status_kind、elapsed_s；其后为精度、目标、纯能耗、秩一和 CHECK_FIELDS。
     """
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["case_index", "sample_id", "iterations", "converged",
-                         "status_kind", "elapsed_s"])
+                         "status_kind", "elapsed_s", "mosek_rel_gap",
+                         "objective_p4", "pure_energy", "rank1_gap"] + CHECK_FIELDS)
         for row in rows:
             writer.writerow(row)
 
@@ -191,10 +195,18 @@ def load_or_generate_outer_samples(params, csv_path=OUTER_SAMPLE_CSV,
 
 
 def main():
+    parser = argparse.ArgumentParser(description="PC3P 内层求解与 CSV 输出")
+    parser.add_argument("--mosek-rel-gap", type=float, default=None,
+                        help="覆盖相对最优性间隙容差；默认 Parameters 配置")
+    args = parser.parse_args()
     params = Parameters()
+    if args.mosek_rel_gap is not None:
+        if not 0 < args.mosek_rel_gap <= 1:
+            parser.error("--mosek-rel-gap 必须在 (0, 1] 内")
+        params.mosek_tol_rel_gap = args.mosek_rel_gap
     backend_name, solve = select_solver()
 
-    print("求解后端：{}".format(backend_name))
+    print("求解后端：{}；MOSEK RelGap={:.1e}".format(backend_name, params.mosek_tol_rel_gap))
     print("已注册约束：{}".format(", ".join(constraint_names())))
 
     outer_samples = load_or_generate_outer_samples(params)
@@ -220,9 +232,15 @@ def main():
 
         status_kind, status_label = classify_status(result["status"])
         status_counts[status_kind] += 1
+        checks = solution_checks(ctx, result)
+        pure_energy = (compute_pure_energy(ctx, result["W_sen_beam"], result["B_off_beam"],
+                                           result["f_uav_freq"], result["z_aux_rate"], result["D_cu_off"])
+                       if result["W_sen_beam"] is not None else float("nan"))
         iteration_rows.append([index, index - 1, result["iterations"],
                                result["converged"], status_kind,
-                               "{:.6f}".format(elapsed)])
+                               "{:.6f}".format(elapsed), params.mosek_tol_rel_gap,
+                               result["objective_p4"], pure_energy, result["rank1_gap"]]
+                              + [checks[k] for k in CHECK_FIELDS])
 
         # 逐轮历史（含第 0 轮）的两份候选记录
         current_iterations = iterations_of_result(result)
@@ -271,9 +289,9 @@ def main():
         print("  {:<12s} {:>4d} 组    （{}）".format(
             kind, status_counts[kind], STATUS_LABELS[kind]))
 
-    # 各 case（全部 30 组）的迭代次数统计；details 文件无需保存，此处直接注释掉
+    # 各 case 的迭代统计及能耗/精度/约束验收明细
     save_iteration_counts(CONVERGENCE_CSV, iteration_rows)
-    # save_iteration_counts_detail(CONVERGENCE_DETAIL_CSV, iteration_rows)
+    save_iteration_counts_detail(CONVERGENCE_DETAIL_CSV, iteration_rows)
     print("各 case 的迭代次数统计已保存到：{}".format(CONVERGENCE_CSV))
 
     # 逐轮迭代历史（能量项与两条秩一罚项的变化曲线）：
@@ -290,7 +308,7 @@ def main():
         save_iteration_history(HISTORY_CSV, obj_history, w_gap_history, b_gap_history)
         print("迭代 {} 次的求解（case_id = {}）的逐轮迭代历史已保存到：{}".format(
             iterations, case_index, HISTORY_CSV))
-    # print("各 case 的完整求解统计已保存到：{}".format(CONVERGENCE_DETAIL_CSV))
+    print("各 case 的完整求解统计已保存到：{}".format(CONVERGENCE_DETAIL_CSV))
 
 
 if __name__ == "__main__":

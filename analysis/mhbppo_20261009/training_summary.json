@@ -1,0 +1,173 @@
+{
+  "snapshot_last_iteration": 2541,
+  "snapshot_last_timestamp": "2026-10-09 15:35:54 +08:00",
+  "windows": [
+    {
+      "range": [
+        1,
+        100
+      ],
+      "n": 100,
+      "iter": 50.5,
+      "completion": 5.575,
+      "reward": -1.3599599999999998,
+      "finite": 10.9,
+      "no": 89.1,
+      "spectrum": 50.2,
+      "collision": 0,
+      "optimal": 10.9,
+      "infeasible": 79.275,
+      "unknown": 9.825,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        101,
+        500
+      ],
+      "n": 400,
+      "iter": 300.5,
+      "completion": 9.8125,
+      "reward": -1.1517575000000009,
+      "finite": 12.00625,
+      "no": 87.99375,
+      "spectrum": 34.66875,
+      "collision": 0,
+      "optimal": 12.00625,
+      "infeasible": 76.4,
+      "unknown": 11.59375,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        501,
+        1000
+      ],
+      "n": 500,
+      "iter": 750.5,
+      "completion": 13.205,
+      "reward": -0.8737899999999997,
+      "finite": 13.36,
+      "no": 86.64,
+      "spectrum": 12.32,
+      "collision": 0,
+      "optimal": 13.36,
+      "infeasible": 73.765,
+      "unknown": 12.875,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        1001,
+        1500
+      ],
+      "n": 500,
+      "iter": 1250.5,
+      "completion": 14.63,
+      "reward": -0.77249,
+      "finite": 14.775,
+      "no": 85.225,
+      "spectrum": 5.38,
+      "collision": 0,
+      "optimal": 14.775,
+      "infeasible": 73.18,
+      "unknown": 12.045,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        1501,
+        2000
+      ],
+      "n": 500,
+      "iter": 1750.5,
+      "completion": 15.93,
+      "reward": -0.7257159999999997,
+      "finite": 15.99,
+      "no": 84.01,
+      "spectrum": 3.205,
+      "collision": 0,
+      "optimal": 15.99,
+      "infeasible": 72.205,
+      "unknown": 11.805,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        2001,
+        2541
+      ],
+      "n": 541,
+      "iter": 2271,
+      "completion": 17.34750462107209,
+      "reward": -0.685608133086876,
+      "finite": 17.375231053604438,
+      "no": 82.62476894639556,
+      "spectrum": 1.7513863216266174,
+      "collision": 0,
+      "optimal": 17.375231053604438,
+      "infeasible": 70.02310536044362,
+      "unknown": 12.601663585951941,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        2042,
+        2541
+      ],
+      "n": 500,
+      "iter": 2291.5,
+      "completion": 17.41,
+      "reward": -0.6837580000000001,
+      "finite": 17.44,
+      "no": 82.56,
+      "spectrum": 1.675,
+      "collision": 0,
+      "optimal": 17.44,
+      "infeasible": 69.975,
+      "unknown": 12.585,
+      "error": 0,
+      "stale": 1
+    },
+    {
+      "range": [
+        2342,
+        2541
+      ],
+      "n": 200,
+      "iter": 2441.5,
+      "completion": 17.85,
+      "reward": -0.6730899999999995,
+      "finite": 17.8875,
+      "no": 82.1125,
+      "spectrum": 1.45,
+      "collision": 0,
+      "optimal": 17.8875,
+      "infeasible": 70.2875,
+      "unknown": 11.825,
+      "error": 0,
+      "stale": 1
+    }
+  ],
+  "weight_checks": {
+    "all_checks_ok": true,
+    "all_stale_one": true
+  },
+  "action_count_read": 102840,
+  "action_last_iteration": 2571,
+  "beamStats": {
+    "alpha": {
+      "0": 102840
+    },
+    "constant": 2571,
+    "total": 102840,
+    "maxIm": 0.31622776601659,
+    "maxBeamDiff": 0
+  }
+}

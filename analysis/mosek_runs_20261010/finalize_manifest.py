@@ -1,0 +1,4 @@
+from pathlib import Path
+import json,hashlib
+p=Path('analysis/mosek_runs_20261010/run_entries.py');s=p.read_text(encoding='utf8');s=s.replace("str(p.relative_to(R)):hashlib", "p.relative_to(R).as_posix():hashlib");p.write_text(s,encoding='utf8')
+p=Path('analysis/mosek_runs_20261010/run_manifest.json');m=json.loads(p.read_text());m['sha256']={k.replace('\\','/'):v for k,v in m['sha256'].items()};m['input_unchanged']=hashlib.sha256(Path('src/inner/feasible_outer_samples.csv').read_bytes()).hexdigest()==m['sha256']['src/inner/feasible_outer_samples.csv'];m['status']='all four entry runs exited 0; metadata path normalization corrected';p.write_text(json.dumps(m,indent=2),encoding='utf8');print(m['status'],m['input_unchanged'])

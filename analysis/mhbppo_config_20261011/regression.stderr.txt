@@ -1,0 +1,55 @@
+test_bc_and_ppo_ignore_resumed_adam_momentum_for_masked_heads (test_beam_action_mask.BeamActionMaskTests) ... D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\src\outer\algorithms\MHBPPO\MHBPPO_agent.py:431: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at C:\cb\pytorch_1000000000000\work\torch\csrc\utils\tensor_new.cpp:281.)
+  adv = torch.tensor(adv, dtype=torch.float32, device=self.device).view(-1, 1)
+ok
+test_effective_alpha_matches_environment_clipping (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_legacy_parameter_schema_strict_load_and_default_alpha_one (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_masked_beam_perturbations_do_not_change_probability_entropy_or_losses (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_nonzero_alpha_restores_beam_effect_and_gradient (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_sample_evaluate_contract_and_dynamic_dimensions (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_sampler_and_learner_probability_contract (test_beam_action_mask.BeamActionMaskTests) ... ok
+test_diagnostic_summary_is_separate_from_legacy_success (test_feasibility_diagnostics.LogContractTests) ... ok
+test_list_of_complex_recovered_beams_is_portable_json (test_feasibility_diagnostics.LogContractTests) ... ok
+test_misaligned_slots_are_rejected_before_writing (test_feasibility_diagnostics.LogContractTests) ... ok
+test_scene_deduplication_ids_nonfinite_encoding_and_close (test_feasibility_diagnostics.LogContractTests) ... ok
+test_analytic_feasible_rank_one_solution (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_deadline_zero_compute_time_is_rejected_even_below_tolerance (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_high_rank_is_not_accepted_as_physical_solution (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_indefinite_tiny_offloading_matrix_is_detected_relative_to_matrix (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_nonfinite_missing_and_bad_shape_are_not_evaluated_as_pass (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_offloading_shortfall_is_detected (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_original_cu_data_and_sensing_auxiliary_are_checked (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_recovered_beam_cannot_inherit_covariance_feasibility (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_sinr_boundary_uses_normalized_tolerance (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_tiny_watt_sinr_violation_is_not_hidden_by_absolute_tolerance (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_validation_is_read_only (test_feasibility_diagnostics.OriginalConstraintTests) ... ok
+test_candidate_sampling_is_explicit (test_feasibility_diagnostics.SensingTests) ... ok
+test_matching_checks_column_conflicts (test_feasibility_diagnostics.SensingTests) ... ok
+test_projection_matches_actual_complex_dot_convention (test_feasibility_diagnostics.SensingTests) ... ok
+test_zero_sensing_channel_certifies_fixed_beam_impossibility (test_feasibility_diagnostics.SensingTests) ... ok
+test_clockwise_and_counterclockwise_reverse_visits_with_same_start (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_default_scene_has_ordered_targets_and_logged_geometry (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_hold_slots_is_configured_and_quantity_contract_is_enforced (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_initial_collision_is_rejected_and_single_uav_works (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_inner_and_outer_targets_and_initial_uavs_agree (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_layout_only_change_preserves_communication_random_stream (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_old_direct_geometry_api_keeps_random_layout_return_shape (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_region_and_uav_count_changes_recompute_radius_and_shape (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_default_radius_and_adaptation (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_direction_reverses_visit_order_without_changing_points (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_geometry_and_budget_across_sizes_and_boundary_cases (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_inner_environment_builds_finite_channels (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_inner_initialization_uses_first_targets_and_preserves_rng_draws (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_inner_rejects_invalid_ring_and_unsafe_initial_separation (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_invalid_configuration_is_rejected (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_one_sector_uses_deployment_center_and_fixed_first_angle (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_window_alias_has_one_serialized_source (test_sector_ring_layout.SectorRingLayoutTests) ... ok
+test_configured_batch_size_is_used_by_ppo_update (test_training_configuration.TrainingConfigurationTests) ... ok
+test_defaults_and_json_cli_precedence (test_training_configuration.TrainingConfigurationTests) ... ok
+test_invalid_json_configuration_is_rejected (test_training_configuration.TrainingConfigurationTests) ... ok
+test_real_entry_writes_json_before_starting_workers (test_training_configuration.TrainingConfigurationTests) ... ok
+test_saved_recipe_roundtrips_and_effective_values_are_actual (test_training_configuration.TrainingConfigurationTests) ... ok
+
+----------------------------------------------------------------------
+Ran 48 tests in 4.558s
+
+OK

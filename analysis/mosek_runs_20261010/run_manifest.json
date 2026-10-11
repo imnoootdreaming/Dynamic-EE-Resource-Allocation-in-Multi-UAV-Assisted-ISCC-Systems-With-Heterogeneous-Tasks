@@ -1,0 +1,112 @@
+{
+  "python": "D:\\anaconda3\\envs\\cvx_new\\python.exe",
+  "config": {
+    "samples": 30,
+    "seed": 1208,
+    "candidates": 50,
+    "baseline_rel_gap": 1e-08,
+    "accelerated_rel_gap": 1e-07
+  },
+  "commands": [
+    {
+      "stage": "baseline",
+      "entry": "main",
+      "command": [
+        "D:\\anaconda3\\envs\\cvx_new\\python.exe",
+        "-u",
+        "main.py",
+        "--mosek-rel-gap",
+        "1e-8"
+      ],
+      "cwd": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\inner",
+      "exit_code": 0,
+      "wall_s": 17.394631899893284
+    },
+    {
+      "stage": "baseline",
+      "entry": "compare",
+      "command": [
+        "D:\\anaconda3\\envs\\cvx_new\\python.exe",
+        "-u",
+        "compare_pc3p_gc3p.py",
+        "--mosek-rel-gap",
+        "1e-8",
+        "--cases",
+        "30",
+        "--candidates",
+        "50",
+        "--csv",
+        "feasible_outer_samples.csv",
+        "--output",
+        "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mosek_runs_20261010\\baseline\\compare_pc3p_gc3p_results.csv",
+        "--detail-output",
+        "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mosek_runs_20261010\\baseline\\compare_pc3p_gc3p_details.csv"
+      ],
+      "cwd": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\inner",
+      "exit_code": 0,
+      "wall_s": 46.35842589987442
+    },
+    {
+      "stage": "accelerated",
+      "entry": "main",
+      "command": [
+        "D:\\anaconda3\\envs\\cvx_new\\python.exe",
+        "-u",
+        "main.py",
+        "--mosek-rel-gap",
+        "1e-7"
+      ],
+      "cwd": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\inner",
+      "exit_code": 0,
+      "wall_s": 11.432173199951649
+    },
+    {
+      "stage": "accelerated",
+      "entry": "compare",
+      "command": [
+        "D:\\anaconda3\\envs\\cvx_new\\python.exe",
+        "-u",
+        "compare_pc3p_gc3p.py",
+        "--mosek-rel-gap",
+        "1e-7",
+        "--cases",
+        "30",
+        "--candidates",
+        "50",
+        "--csv",
+        "feasible_outer_samples.csv",
+        "--output",
+        "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mosek_runs_20261010\\accelerated\\compare_pc3p_gc3p_results.csv",
+        "--detail-output",
+        "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mosek_runs_20261010\\accelerated\\compare_pc3p_gc3p_details.csv"
+      ],
+      "cwd": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\inner",
+      "exit_code": 0,
+      "wall_s": 44.47213179990649
+    }
+  ],
+  "sha256": {
+    "src/inner/parameters.py": "9ff21a66c8e3415f9dec670127d37700b683cf5858a0fa3a1b3bc611cb468ec0",
+    "src/inner/fusion_pc3p.py": "cc7b4c404e36d2445b36ed5b71b0054c1b3d4f314637d2216af677a3d5429a00",
+    "src/inner/pc3p.py": "3add970c703bf30126a00c1286976799a94505ae68553b6e75b1d81cd47154f7",
+    "src/inner/gc3p.py": "65d2c2cb32e3d647b22943f08dac58050ba0c162815938416dcd12bb8bfa71ee",
+    "src/inner/main.py": "6bafe67bb4b375e1136bd0e43d817ff78ee9db7908c0fa4faa6bdc914de5b18b",
+    "src/inner/compare_pc3p_gc3p.py": "4e3f302214d357f59237919150ff300b4456ff46fd99fd3f0d1a5af87b791093",
+    "src/inner/solution_checks.py": "7a94754504bcb4834e990d0336068f8d59612e2fc93141677d9aad349838f5a9",
+    "src/inner/feasible_outer_samples.csv": "72840ee125977f17c20202e8ef7d2372977d3c267a9522145690780de975b36e"
+  },
+  "input_unchanged": true,
+  "status": "all four entry runs exited 0; metadata path normalization corrected",
+  "final_sha256": {
+    "src/inner/parameters.py": "9ff21a66c8e3415f9dec670127d37700b683cf5858a0fa3a1b3bc611cb468ec0",
+    "src/inner/fusion_pc3p.py": "cc7b4c404e36d2445b36ed5b71b0054c1b3d4f314637d2216af677a3d5429a00",
+    "src/inner/pc3p.py": "5848bf77dde98d0161c7fb9c65ad65c412ab4809bce5681093ad420b59bc33ca",
+    "src/inner/gc3p.py": "65d2c2cb32e3d647b22943f08dac58050ba0c162815938416dcd12bb8bfa71ee",
+    "src/inner/main.py": "d7a349dc2e8ee281eb6cc0d675ac96e10a1bbcc41796d147a7915f3ea10b58ff",
+    "src/inner/compare_pc3p_gc3p.py": "34704eef9f738902bf794ec7abb6eba19f5ab0e58c16ae959f1c829341913ee9",
+    "src/inner/solution_checks.py": "7a94754504bcb4834e990d0336068f8d59612e2fc93141677d9aad349838f5a9"
+  },
+  "post_run_changes": "Documentation comments only in main/compare/pc3p; execution behavior unchanged",
+  "cache_precision_switch_check": "passed: same cached model 1e-8 -> 1e-7 -> 1e-8; Pfeas/Dfeas remain 1e-8",
+  "syntax_check": "passed"
+}

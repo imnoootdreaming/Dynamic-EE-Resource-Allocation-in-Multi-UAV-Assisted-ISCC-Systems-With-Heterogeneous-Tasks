@@ -42,7 +42,12 @@ class GaussianHead(nn.Module):
 
 
 class MultiHeadActor(nn.Module):
-    def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims, continuous_dist_type="beta"):
+    RECEIVE_BEAM_HEADS = frozenset({
+        "uav_rec_beam_dir_real", "uav_rec_beam_dir_imag",
+    })
+
+    def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
+                 continuous_dist_type="beta", structured_beam_alpha=1.0):
         super(MultiHeadActor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -53,6 +58,21 @@ class MultiHeadActor(nn.Module):
 
         self.continuous_action_splits = continuous_action_splits
         self.continuous_head_names = list(continuous_action_splits.keys())
+        # Match the environment's clipped physical mixing coefficient.  Keep
+        # the heads/actions for checkpoint compatibility, but exclude beams
+        # from the policy density when their physical contribution is zero.
+        configured_alpha = float(structured_beam_alpha)
+        if not np.isfinite(configured_alpha):
+            raise ValueError("structured_beam_alpha must be finite")
+        self.structured_beam_alpha_effective = float(np.clip(configured_alpha, 0.0, 1.0))
+        self.masked_continuous_head_names = tuple(
+            name for name in self.continuous_head_names
+            if self.structured_beam_alpha_effective == 0.0 and name in self.RECEIVE_BEAM_HEADS
+        )
+        self.active_continuous_head_names = tuple(
+            name for name in self.continuous_head_names
+            if name not in self.masked_continuous_head_names
+        )
         # 20260403 - 引入高斯分布对应的修改
         self.continuous_dist_type = str(continuous_dist_type).lower()
         if self.continuous_dist_type == "beta":
@@ -77,6 +97,21 @@ class MultiHeadActor(nn.Module):
         ])
         for head in self.discrete_heads:
             orthogonal_init(head, gain=0.01)
+
+    def action_probability_metadata(self):
+        """Runtime configuration, deliberately absent from parameter state_dict."""
+        return {
+            "action_probability_contract": "inactive_receive_beam_heads_excluded_v1",
+            "structured_beam_alpha_effective": self.structured_beam_alpha_effective,
+            "active_continuous_heads": list(self.active_continuous_head_names),
+            "masked_continuous_heads": list(self.masked_continuous_head_names),
+            "active_continuous_action_dim": sum(
+                self.continuous_action_splits[name] for name in self.active_continuous_head_names
+            ),
+            "masked_continuous_action_dim": sum(
+                self.continuous_action_splits[name] for name in self.masked_continuous_head_names
+            ),
+        }
 
     def _forward_features(self, s):
         s = self.activate_func(self.fc1(s))
@@ -140,6 +175,14 @@ class MultiHeadActor(nn.Module):
         con_log_prob = torch.zeros((batch_size, 1), dtype=torch.float32, device=device)
         for head_name in self.continuous_head_names:
             dist = continuous_dists[head_name]
+            if head_name in self.masked_continuous_head_names:
+                # Preserve the action layout and RNG draws without creating
+                # a probability/gradient path through unused beam parameters.
+                action = dist.sample()
+                if self.continuous_dist_type == "gaussian":
+                    action = torch.sigmoid(action)
+                continuous_actions.append(action)
+                continue
             action, action_log_prob, _ = self._sample_continuous_action_and_log_prob(dist)
             continuous_actions.append(action)
             total_log_prob = total_log_prob + action_log_prob
@@ -180,11 +223,15 @@ class MultiHeadActor(nn.Module):
         for head_name in self.continuous_head_names:
             head_dim = self.continuous_action_splits[head_name]
             action_slice = continuous_actions[:, start_idx:start_idx + head_dim]
+            start_idx += head_dim
+            if head_name in self.masked_continuous_head_names:
+                # Skip rather than multiply by zero: dedicated beam-head
+                # gradients stay None, including when Adam has old momentum.
+                continue
             dist = continuous_dists[head_name]
             head_log_prob, head_entropy = self._evaluate_continuous_log_prob_and_entropy(dist, action_slice)
             cont_log_prob += head_log_prob
             cont_entropy += head_entropy
-            start_idx += head_dim
 
         for head_idx, dist in enumerate(discrete_dists):
             action_slice = discrete_actions[:, head_idx]
@@ -217,7 +264,8 @@ class HPPO:
     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
-                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1):
+                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1,
+                 structured_beam_alpha=1.0, batch_size=32):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
         self.actor = MultiHeadActor(
@@ -225,7 +273,8 @@ class HPPO:
             hidden_dim=hidden_dim,
             continuous_action_splits=continuous_action_splits,
             discrete_action_dims=self.discrete_action_dims,
-            continuous_dist_type=continuous_dist_type
+            continuous_dist_type=continuous_dist_type,
+            structured_beam_alpha=structured_beam_alpha,
         ).to(device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
 
@@ -247,6 +296,9 @@ class HPPO:
         # NOTE - 学习率下限比例：线性衰减到 lr_min_ratio * 初始 lr 后保持不变，
         # 保证长时间训练后期仍有持续学习的能力（学习率不为 0）。
         self.lr_min_ratio = float(lr_min_ratio)
+        if isinstance(batch_size, bool) or int(batch_size) != batch_size or batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer")
+        self.batch_size = int(batch_size)
 
     def choose_action(self, s):
         s = torch.tensor(s, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -312,7 +364,7 @@ class HPPO:
                     discrete_actions[index],
                 )
                 loss = -(cont_lp + disc_lp).mean()
-                self.actor_optimizer.zero_grad()
+                self.actor_optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1.0)
                 self.actor_optimizer.step()
@@ -388,7 +440,7 @@ class HPPO:
         c_ents, d_ents = [], [] 
 
         batch_size = states.size(0)
-        mini_batch_size = min(32, batch_size)
+        mini_batch_size = min(self.batch_size, batch_size)
         
         # 辅助函数
         def _surr(ratio, a):
@@ -418,7 +470,7 @@ class HPPO:
                 #     -torch.min(surr1, surr2) - self.discrete_entropy_coef * d_ent - self.continuous_entropy_coef * c_ent)
                 critic_loss = F.mse_loss(self.critic(states[index]), v_target[index].detach())
 
-                self.actor_optimizer.zero_grad()
+                self.actor_optimizer.zero_grad(set_to_none=True)
                 self.critic_optimizer.zero_grad()
                 actor_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1)

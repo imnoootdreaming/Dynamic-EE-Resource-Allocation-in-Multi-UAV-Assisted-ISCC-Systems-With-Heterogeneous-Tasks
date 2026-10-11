@@ -1,0 +1,1911 @@
+{
+  "run_id": "18-43-56_2026-10-09_390330_mhbppo_train",
+  "cutoff": {
+    "iteration": 9396,
+    "time": "2026-10-10 15:27:22",
+    "transitions": 375840,
+    "file_bytes": {
+      ".log": 5228230,
+      "_env.jsonl": 6532135788,
+      "_actions.jsonl": 4969544269
+    },
+    "note": "Files remain live; .log frozen on first read; JSONL byte bounds frozen on subsequent read. Only iteration<=9396 used."
+  },
+  "metadata": {
+    "record_type": "metadata",
+    "schema_version": 1,
+    "algorithm": "MHBPPO",
+    "started_at": "2026-10-09T18:43:56.390330+08:00",
+    "seed": 1208,
+    "continuous_action_splits": {
+      "uav_angles": 4,
+      "uav_distances": 4,
+      "uav_off_durations": 4,
+      "cu_off_powers": 10,
+      "uav_rec_beam_dir_real": 40,
+      "uav_rec_beam_dir_imag": 40
+    },
+    "continuous_low": [
+      0,
+      0,
+      0,
+      0,
+      3,
+      3,
+      3,
+      3,
+      0.009999999776482582,
+      0.009999999776482582,
+      0.009999999776482582,
+      0.009999999776482582,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      0.019952623173594475,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "continuous_high": [
+      6.2831854820251465,
+      6.2831854820251465,
+      6.2831854820251465,
+      6.2831854820251465,
+      24,
+      24,
+      24,
+      24,
+      0.09000000357627869,
+      0.09000000357627869,
+      0.09000000357627869,
+      0.09000000357627869,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      0.19952623546123505,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "discrete_action_dims": [
+      10,
+      10,
+      10,
+      10
+    ],
+    "structured_beam_alpha_configured": 0,
+    "physical_units": {
+      "uav_angles": "rad",
+      "uav_distances": "m",
+      "uav_off_durations": "s",
+      "cu_off_powers": "W"
+    },
+    "continuous_mapping": "env.step uses continuous_low + clip(raw, 0, 1) * (continuous_high - continuous_low)",
+    "index_convention": "iteration: 1-based intended update; sampler/episode/step/time_slot/CU/target: 0-based",
+    "capture_semantics": "Actual env.step values before reward_compute; learner logs consumed episodes before update",
+    "non_finite_encoding": "NaN/Inf diagnostics are strings: nan, inf, -inf",
+    "run_id": "18-43-56_2026-10-09_390330_mhbppo_train",
+    "training_log_path": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\outer\\logs/MHBPPO\\18-43-56_2026-10-09_390330_mhbppo_train.log",
+    "action_log_path": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\src\\outer\\logs/MHBPPO\\18-43-56_2026-10-09_390330_mhbppo_train_actions.jsonl",
+    "runtime": {
+      "python": "3.9.21 (main, Dec 11 2024, 16:35:24) [MSC v.1929 64 bit (AMD64)]",
+      "python_executable": "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "numpy": "1.25.2",
+      "torch": "2.5.1",
+      "cvxpy": "1.7.5",
+      "Mosek": "11.1.10"
+    },
+    "source_sha256": {
+      "algorithms/MHBPPO/MHBPPO_main.py": "6cba1d59fed679ae26ccc411c9f7339d8b883eb562f684c57242649977e06de2",
+      "algorithms/MHBPPO/MHBPPO_sampler.py": "bd472398682664faa4d45ddc98cf4ed759ccea5f41521f970e25344019433575",
+      "algorithms/MHBPPO/MHBPPO_agent.py": "da1c4b1bd56c8f8545607dac962e740ee79b4cf9efd4e30ca47fc25852dcb57f",
+      "algorithms/MHBPPO/action_logging.py": "362e03ae4e93fa60fcf15056904b4362c029424aec80c2485113692b50c035ec",
+      "configs/base_params.py": "06bbd087b27544c4eee80c95eb5c2450e25d726e57fbb597e197b5314d90c687",
+      "configs/madrl_args.py": "c3f7870e30b398bafe783cc14bbbeece0144d23f0bd28379eab31367194c709e",
+      "configs/seed_manager.py": "f5ecd20590f66d74767600ae7a85e23bff2043062f3295dfe7e8eef6e42f9f2a",
+      "environment/my_env.py": "a87fb2ad5108791f75432df9f19dbc7d9eb0262efd174d8f3e36994a5941f374",
+      "environment/channel_models.py": "06224834b4b5458391a335076c7c8c9d854f311c85af5a0f5e2780cdb77136bb",
+      "environment/topology.py": "c23e02aa2655de7a322ecc55158747ec2fd587d83da1e637df5b2001021e4250",
+      "environment/observation.py": "f9ced76fd5135ac6914d6a090f3c56ec5be2b69e179aa1bb8e86926e78cb2501",
+      "environment/mapping.py": "499aecddd7a835169c71b540bd60203c2f0dbc459cf8a6badbe7305f57bf2bbd",
+      "reward/my_reward.py": "dcd8783bc37720dba21ac62243d50d00a6ca0ffa75674e288d6b3a9fac9ae8ca",
+      "reward/cccp_bridge.py": "67423f520cc4ed8ea301822e86c0c27dc8e93799cc8c6a1bc57220c2ce8f3498",
+      "reward/feasibility_diagnostics.py": "0f80f1cf4a45ddf72f2e664b30c6af5f1fd96a1d7646d8a042b37682cf4c442b",
+      "../inner/parameters.py": "05692b68904ad70b46f11b722bfb649d03d222f7225921090821e5a09c7544e0",
+      "../inner/environment.py": "997897a2f4c35f5523ca8133fd9c929b3c696bbc8d9e90810a7814234143bf6d",
+      "../inner/pc3p.py": "4c564b3bfe7e0d1a33f76bf939966864de6f1817766491fdc5f34df3ac69bc62",
+      "../inner/fusion_pc3p.py": "6b596c19069cfb5b82a78f2896ba4d7f87d49a6edfd7b4baddbb02d00463783a",
+      "../inner/variables.py": "fbdf5812b8f049b82f31156d2310ac6ddb4b0ba66f06798e91101e4066eb8b7a",
+      "../inner/cccp_params.py": "ec5e4c5f1960b479919e755bf1df65e973cf541606378730572a21e497f677ec"
+    },
+    "base_args": {
+      "uavs_num": 4,
+      "cus_num": 10,
+      "targets_num": 40,
+      "radius": 600,
+      "uav_height": 50,
+      "uav_max_speed": 40,
+      "uav_min_speed": 5,
+      "uav_safe_distance": 5,
+      "uav_c1": 0.00614,
+      "uav_c2": 15.976,
+      "bandwidth": 10000000,
+      "noise_power_density_dbm": -174,
+      "ref_path_loss_db": -30,
+      "rician_factor_db": 10,
+      "alpha_uav_link": 2,
+      "alpha_cu_link": 2.5,
+      "antenna_nums": 10,
+      "frac_d_lambda": 0.5,
+      "radar_rcs": 0.1,
+      "sen_sinr": 5,
+      "radar_duty_ratio": 0.01,
+      "var_range_fluctuation": 1e-14,
+      "radar_impulse_duration": 0.00002,
+      "radar_spectrum_shape": 1.8137993642342178,
+      "uav_sen_duration": 0.1,
+      "bs_cycles_per_bit": 1000,
+      "bs_max_freq": 10000000000,
+      "kappa": 1e-28,
+      "cu_max_power_dbm": 23,
+      "uav_max_power": 10,
+      "cu_max_delay": 0.6,
+      "uav_max_delay": 0.2,
+      "time_slot_duration": 0.6,
+      "omega_weight_1": 0.2,
+      "omega_weight_2": 0.4,
+      "omega_weight_3": 0.4,
+      "seed": 1208,
+      "z_scale": 100000,
+      "center": [
+        0,
+        0
+      ],
+      "num_cases": 30,
+      "markov_velocity": [
+        1,
+        0,
+        0
+      ],
+      "markov_memory_level": 0.4,
+      "markov_asymptotic_mean_of_velocity": [
+        1,
+        0,
+        0
+      ],
+      "markov_standard_deviation_of_velocity": 2
+    },
+    "inner_parameter_source": {
+      "area_length": 600,
+      "bs_pos": [
+        0,
+        0,
+        20
+      ],
+      "deploy_radius": 600,
+      "I": 4,
+      "J": 10,
+      "K": 40,
+      "uav_height": 50,
+      "uav_max_speed": 40,
+      "uav_min_speed": 5,
+      "varrho_1": 0.00614,
+      "varrho_2": 15.976,
+      "uav_safe_distance": 5,
+      "B": 10000000,
+      "noise_power_density_dbm": -174,
+      "ref_path_loss_db": -30,
+      "rician_factor_db": 10,
+      "alpha_1": 2,
+      "alpha_2": 2,
+      "alpha_3": 2.5,
+      "N": 10,
+      "d_over_lambda": 0.5,
+      "xi_0": 0.1,
+      "eps_sinr_db": 5,
+      "delta_radar": 0.01,
+      "sigma_pre_sq": 1e-14,
+      "nu_pulse": 0.00002,
+      "gamma_radar": 1.8137993642342178,
+      "D_bar_sen": 0.1,
+      "C_cycles_per_bit": 1000,
+      "F_max": 10000000000,
+      "kappa_cpu": 1e-28,
+      "P_max_uav_dbm": 40,
+      "P_max_cu_dbm": 23,
+      "D_max_sen": 0.2,
+      "D_max_cu_delay": 0.6,
+      "L_cu_task_bits": 170000,
+      "varkappa": 4,
+      "tau_slot": 0.6,
+      "freq_scale": 1000000,
+      "omega_1": 0.2,
+      "omega_2": 0.4,
+      "omega_3": 0.4,
+      "gamma_1": 0.00001,
+      "gamma_2": 0.00001,
+      "rho_penalty": 1,
+      "max_iterations": 10,
+      "rho_penalty_scale": 2,
+      "rho_penalty_max": 1,
+      "mosek_tol_feas": 1e-8,
+      "seed": 1208,
+      "rho_penalty_init": 1,
+      "rho_ref": 0.001,
+      "kappa_rician": 10,
+      "sigma_2": 3.981071705534985e-14,
+      "P_max_uav": 10,
+      "P_max_cu": 0.19952623149688786,
+      "eps_sinr": 3.1622776601683795,
+      "xi_1": 25,
+      "xi_2": 1315.9472534785812,
+      "tau_scale": 1000000000000,
+      "C_sen": 1000,
+      "C_cu_cycles": [
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000,
+        1000
+      ],
+      "L_cu_task": [
+        170000,
+        170000,
+        170000,
+        170000,
+        170000,
+        170000,
+        170000,
+        170000,
+        170000,
+        170000
+      ],
+      "D_max_cu": [
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "madrl_args": {
+      "actor_lr": 0.0003,
+      "critic_lr": 0.0003,
+      "lmbda": 0.95,
+      "eps": 0.2,
+      "gamma": 0.99,
+      "epochs": 5,
+      "total_time_slots": 40,
+      "hidden_dim": 128,
+      "episodes": 10000,
+      "sample_queue_maxsize": 1,
+      "num_samplers": 1,
+      "sync_training": true,
+      "structured_beam_alpha": 0,
+      "bc_dataset": "",
+      "bc_epochs": 20,
+      "bc_batch_size": 128,
+      "bc_lr": 0.0001,
+      "checkpoint_interval": 1000,
+      "log_file": "logs/MHBPPO/mhbppo_train.log",
+      "env_diagnostics": true,
+      "diagnostic_candidate_interval": 1,
+      "diagnostic_snapshot_limit": 1,
+      "randomize_layout_per_episode": false,
+      "randomize_cu_traj_per_episode": false,
+      "randomize_nlos_per_episode": false,
+      "debug_topology": false
+    },
+    "diagnostic_semantics": "read_only_original_constraints; legacy reward/success unchanged",
+    "channel_time": "before_move",
+    "collision_time": "after_move",
+    "candidate_matching_scope": "sensing_only_fixed_position_and_receive_beam"
+  },
+  "source_hash_checks": [
+    {
+      "p": "algorithms/MHBPPO/MHBPPO_main.py",
+      "same": true
+    },
+    {
+      "p": "algorithms/MHBPPO/MHBPPO_sampler.py",
+      "same": true
+    },
+    {
+      "p": "algorithms/MHBPPO/MHBPPO_agent.py",
+      "same": true
+    },
+    {
+      "p": "algorithms/MHBPPO/action_logging.py",
+      "same": true
+    },
+    {
+      "p": "configs/base_params.py",
+      "same": true
+    },
+    {
+      "p": "configs/madrl_args.py",
+      "same": true
+    },
+    {
+      "p": "configs/seed_manager.py",
+      "same": true
+    },
+    {
+      "p": "environment/my_env.py",
+      "same": true
+    },
+    {
+      "p": "environment/channel_models.py",
+      "same": true
+    },
+    {
+      "p": "environment/topology.py",
+      "same": true
+    },
+    {
+      "p": "environment/observation.py",
+      "same": true
+    },
+    {
+      "p": "environment/mapping.py",
+      "same": true
+    },
+    {
+      "p": "reward/my_reward.py",
+      "same": true
+    },
+    {
+      "p": "reward/cccp_bridge.py",
+      "same": true
+    },
+    {
+      "p": "reward/feasibility_diagnostics.py",
+      "same": true
+    },
+    {
+      "p": "../inner/parameters.py",
+      "same": false
+    },
+    {
+      "p": "../inner/environment.py",
+      "same": true
+    },
+    {
+      "p": "../inner/pc3p.py",
+      "same": false
+    },
+    {
+      "p": "../inner/fusion_pc3p.py",
+      "same": false
+    },
+    {
+      "p": "../inner/variables.py",
+      "same": true
+    },
+    {
+      "p": "../inner/cccp_params.py",
+      "same": true
+    }
+  ],
+  "trainSummary": [
+    {
+      "lo": 1,
+      "hi": 100,
+      "n": 100,
+      "completion": 5.575,
+      "reward": -1.3599599999999998,
+      "optimal": 10.9,
+      "infeasible": 79.275,
+      "unknown": 9.825,
+      "spectrum": 50.2,
+      "cov": 1.375,
+      "beam": 2.675,
+      "c06": 89.075
+    },
+    {
+      "lo": 901,
+      "hi": 1000,
+      "n": 100,
+      "completion": 13.025,
+      "reward": -0.8305399999999998,
+      "optimal": 13.2,
+      "infeasible": 73.85,
+      "unknown": 12.95,
+      "spectrum": 7.9,
+      "cov": 3.725,
+      "beam": 4.975,
+      "c06": 86.775
+    },
+    {
+      "lo": 2001,
+      "hi": 3000,
+      "n": 1000,
+      "completion": 17.6775,
+      "reward": -0.6734610000000001,
+      "optimal": 17.7025,
+      "infeasible": 69.6025,
+      "unknown": 12.695,
+      "spectrum": 1.215,
+      "cov": 2.1075,
+      "beam": 4.1325,
+      "c06": 82.28
+    },
+    {
+      "lo": 4001,
+      "hi": 5000,
+      "n": 1000,
+      "completion": 20.8275,
+      "reward": -0.6095830000000002,
+      "optimal": 20.9325,
+      "infeasible": 62.85,
+      "unknown": 16.2175,
+      "spectrum": 0.9075,
+      "cov": 3.5775,
+      "beam": 5.735,
+      "c06": 79.03
+    },
+    {
+      "lo": 6001,
+      "hi": 7000,
+      "n": 1000,
+      "completion": 36.83,
+      "reward": -0.30627300000000046,
+      "optimal": 36.865,
+      "infeasible": 49.99,
+      "unknown": 13.145,
+      "spectrum": 0.92,
+      "cov": 3.1275,
+      "beam": 6.6125,
+      "c06": 63.0875
+    },
+    {
+      "lo": 7001,
+      "hi": 8000,
+      "n": 1000,
+      "completion": 40.49,
+      "reward": -0.2340509999999999,
+      "optimal": 40.515,
+      "infeasible": 46.93,
+      "unknown": 12.555,
+      "spectrum": 0.68,
+      "cov": 4.025,
+      "beam": 8.0225,
+      "c06": 59.425
+    },
+    {
+      "lo": 8001,
+      "hi": 9000,
+      "n": 1000,
+      "completion": 42.47,
+      "reward": -0.194847,
+      "optimal": 42.485,
+      "infeasible": 46.2625,
+      "unknown": 11.2525,
+      "spectrum": 0.675,
+      "cov": 3.62,
+      "beam": 7.7275,
+      "c06": 57.465
+    },
+    {
+      "lo": 9001,
+      "hi": 9396,
+      "n": 396,
+      "completion": 43.535353535353536,
+      "reward": -0.17291161616161613,
+      "optimal": 43.5479797979798,
+      "infeasible": 46.18055555555556,
+      "unknown": 10.271464646464647,
+      "spectrum": 0.5808080808080808,
+      "cov": 3.522727272727273,
+      "beam": 7.8977272727272725,
+      "c06": 56.41414141414141
+    }
+  ],
+  "weights_contract_bad": 0,
+  "envAgg": [
+    {
+      "lo": 1,
+      "hi": 100,
+      "n": 4000,
+      "status": {
+        "optimal": 436,
+        "unknown": 393,
+        "infeasible": 3171
+      },
+      "bad": 3563,
+      "noMatch": 1197,
+      "currentMatch": 1471,
+      "minMatch": 2803,
+      "cov": 55,
+      "beam": 107,
+      "outer": 1992,
+      "failCov": {
+        "c04_offloading_psd": 361,
+        "c08_uav_offloading": 279,
+        "c03_sensing_psd": 51
+      },
+      "failBeam": {
+        "c08_uav_offloading": 329
+      },
+      "windows": [
+        {
+          "n": 400,
+          "opt": 343,
+          "bad": 56,
+          "noMatch": 0,
+          "minMatch": 400,
+          "dist": 21165.9081747097
+        },
+        {
+          "n": 400,
+          "opt": 88,
+          "bad": 312,
+          "noMatch": 0,
+          "minMatch": 400,
+          "dist": 53648.24233125025
+        },
+        {
+          "n": 400,
+          "opt": 4,
+          "bad": 396,
+          "noMatch": 0,
+          "minMatch": 400,
+          "dist": 87858.60129728494
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 6,
+          "minMatch": 394,
+          "dist": 91675.33693631303
+        },
+        {
+          "n": 400,
+          "opt": 1,
+          "bad": 399,
+          "noMatch": 35,
+          "minMatch": 365,
+          "dist": 94831.43405150296
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 36,
+          "minMatch": 364,
+          "dist": 95327.85424320036
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 134,
+          "minMatch": 266,
+          "dist": 115505.80870073555
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 293,
+          "minMatch": 107,
+          "dist": 131889.44243229026
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 365,
+          "minMatch": 35,
+          "dist": 152566.92033272082
+        },
+        {
+          "n": 400,
+          "opt": 0,
+          "bad": 400,
+          "noMatch": 328,
+          "minMatch": 72,
+          "dist": 134857.5957263217
+        }
+      ],
+      "examples": [
+        {
+          "it": 1,
+          "step": 0,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 4,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 25,
+            "rank1_gap": -8.806245301365305e-8,
+            "failed_iteration": null,
+            "last_solved_iteration": 4,
+            "returned_solution": true,
+            "solve_seconds": 1.5004730000000013
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                8.802793938083501e-9,
+                8.544260837056225e-9,
+                8.437534750213058e-9,
+                1.0606799211396657e-8,
+                1.021948683854094e-7,
+                1.2742771595402797e-7,
+                1.1835368485444153e-7,
+                4.7428627859292644e-7
+              ],
+              "relative_gap": [
+                8.020383369791706e-8,
+                6.049441172850636e-7,
+                2.306982706471146e-9,
+                7.639105165383622e-8,
+                0.44001655020056374,
+                0.420628886506792,
+                0.4739760803109066,
+                0.27713640010609275
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        },
+        {
+          "it": 1,
+          "step": 2,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 4,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 23,
+            "rank1_gap": 1.186531288102328e-7,
+            "failed_iteration": null,
+            "last_solved_iteration": 4,
+            "returned_solution": true,
+            "solve_seconds": 1.348297800000001
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c03_sensing_psd",
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                1.1860524314048123e-8,
+                1.9575379989631367e-8,
+                1.152432192232917e-8,
+                1.1855389461471994e-8,
+                4.565065191992538e-8,
+                2.5112641875297447e-8,
+                2.1491324676627217e-8,
+                1.8948582043019158e-8
+              ],
+              "relative_gap": [
+                1.6126782503982254e-8,
+                0.000003636035641234512,
+                2.2885228548927619e-7,
+                7.234727701472958e-7,
+                0.3374458412808818,
+                0.20319349221230137,
+                0.21758551345107566,
+                0.13046462267537481
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        }
+      ]
+    },
+    {
+      "lo": 6001,
+      "hi": 7000,
+      "n": 40000,
+      "status": {
+        "optimal": 14746,
+        "unknown": 5258,
+        "infeasible": 19996
+      },
+      "bad": 25235,
+      "noMatch": 12959,
+      "currentMatch": 21900,
+      "minMatch": 27041,
+      "cov": 1251,
+      "beam": 2645,
+      "outer": 39632,
+      "failCov": {
+        "c04_offloading_psd": 13139,
+        "c08_uav_offloading": 11115,
+        "c03_sensing_psd": 1984,
+        "c06_sensing_sinr": 1,
+        "c12_original_cu_offloading": 1
+      },
+      "failBeam": {
+        "c08_uav_offloading": 12101,
+        "c06_sensing_sinr": 1
+      },
+      "windows": [
+        {
+          "n": 4000,
+          "opt": 3944,
+          "bad": 43,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 217535.7333162716
+        },
+        {
+          "n": 4000,
+          "opt": 3831,
+          "bad": 169,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 427585.1050430031
+        },
+        {
+          "n": 4000,
+          "opt": 3446,
+          "bad": 553,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 652497.0043524436
+        },
+        {
+          "n": 4000,
+          "opt": 2466,
+          "bad": 1532,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 622438.2837458852
+        },
+        {
+          "n": 4000,
+          "opt": 1045,
+          "bad": 2952,
+          "noMatch": 2,
+          "minMatch": 3998,
+          "dist": 633281.3751961
+        },
+        {
+          "n": 4000,
+          "opt": 14,
+          "bad": 3986,
+          "noMatch": 101,
+          "minMatch": 3899,
+          "dist": 816758.5982675734
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 2206,
+          "minMatch": 1794,
+          "dist": 1145698.592285236
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3386,
+          "minMatch": 614,
+          "dist": 1379893.607212846
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3720,
+          "minMatch": 280,
+          "dist": 1596977.1555902269
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3544,
+          "minMatch": 456,
+          "dist": 1568413.4858818073
+        }
+      ],
+      "examples": [
+        {
+          "it": 6001,
+          "step": 0,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 3,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 26,
+            "rank1_gap": 6.736711305830078e-7,
+            "failed_iteration": null,
+            "last_solved_iteration": 3,
+            "returned_solution": true,
+            "solve_seconds": 0.24723810000432422
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                7.569569139580871e-8,
+                7.839871049827841e-8,
+                7.213232693520527e-8,
+                7.904535414696198e-8,
+                8.146340923751649e-8,
+                1.4438597406574097e-7,
+                8.195876838328222e-8,
+                8.366876869837251e-8
+              ],
+              "relative_gap": [
+                0.000004272645623358261,
+                5.3479573518727833e-8,
+                0.00000484510449074627,
+                0.0000015027565498485261,
+                0.00006644463309137173,
+                0.016395906682217694,
+                0.00015138584623560446,
+                0.07290366267005217
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        },
+        {
+          "it": 6001,
+          "step": 1,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 3,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 26,
+            "rank1_gap": 0.000007814862176652971,
+            "failed_iteration": null,
+            "last_solved_iteration": 3,
+            "returned_solution": true,
+            "solve_seconds": 0.2635817999980645
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [],
+          "beam": [],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                9.77431451790806e-7,
+                9.729568575338287e-7,
+                9.660850066346278e-7,
+                9.773349500928305e-7,
+                9.517484689921052e-7,
+                0.0000010224720720500904,
+                0.0000010120737216947772,
+                9.347596481642619e-7
+              ],
+              "relative_gap": [
+                0.000003923736067725563,
+                0.000007299279211017434,
+                0.000007026303158032923,
+                0.00000814692562941699,
+                0.0753630703880786,
+                0.02026516070800151,
+                0.00032539589899336166,
+                0.12700952362773335
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        }
+      ]
+    },
+    {
+      "lo": 8001,
+      "hi": 9000,
+      "n": 40000,
+      "status": {
+        "optimal": 16994,
+        "unknown": 4501,
+        "infeasible": 18505
+      },
+      "bad": 22986,
+      "noMatch": 12786,
+      "currentMatch": 22803,
+      "minMatch": 27214,
+      "cov": 1448,
+      "beam": 3091,
+      "outer": 39730,
+      "failCov": {
+        "c04_offloading_psd": 15204,
+        "c08_uav_offloading": 12879,
+        "c03_sensing_psd": 2186,
+        "c06_sensing_sinr": 1
+      },
+      "failBeam": {
+        "c08_uav_offloading": 13903,
+        "c06_sensing_sinr": 1
+      },
+      "windows": [
+        {
+          "n": 4000,
+          "opt": 3943,
+          "bad": 48,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 217819.0601523228
+        },
+        {
+          "n": 4000,
+          "opt": 3798,
+          "bad": 202,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 434130.26069439575
+        },
+        {
+          "n": 4000,
+          "opt": 3589,
+          "bad": 411,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 653668.52516898
+        },
+        {
+          "n": 4000,
+          "opt": 3044,
+          "bad": 951,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 610239.350312463
+        },
+        {
+          "n": 4000,
+          "opt": 2514,
+          "bad": 1481,
+          "noMatch": 0,
+          "minMatch": 4000,
+          "dist": 578113.9990340683
+        },
+        {
+          "n": 4000,
+          "opt": 106,
+          "bad": 3893,
+          "noMatch": 92,
+          "minMatch": 3908,
+          "dist": 761380.907702345
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 1994,
+          "minMatch": 2006,
+          "dist": 1080971.445382831
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3443,
+          "minMatch": 557,
+          "dist": 1345805.144188405
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3642,
+          "minMatch": 358,
+          "dist": 1564186.8181038485
+        },
+        {
+          "n": 4000,
+          "opt": 0,
+          "bad": 4000,
+          "noMatch": 3615,
+          "minMatch": 385,
+          "dist": 1599312.1338441286
+        }
+      ],
+      "examples": [
+        {
+          "it": 8001,
+          "step": 0,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 3,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 28,
+            "rank1_gap": 9.762218817633454e-7,
+            "failed_iteration": null,
+            "last_solved_iteration": 3,
+            "returned_solution": true,
+            "solve_seconds": 0.2570501999944099
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                1.1273322688140521e-7,
+                1.1163897067269273e-7,
+                1.074773467693533e-7,
+                1.107223214504239e-7,
+                1.2033635083510924e-7,
+                1.5197281381473022e-7,
+                1.1981509353506045e-7,
+                1.7719944656830222e-7
+              ],
+              "relative_gap": [
+                0.0000032512866796448337,
+                2.4373047839548363e-8,
+                0.00001146470076389763,
+                0.000012778920168264257,
+                0.00014294910560476144,
+                0.04584783780617219,
+                0.00008802169278377448,
+                0.005352660497437419
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        },
+        {
+          "it": 8001,
+          "step": 1,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 4,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 27,
+            "rank1_gap": 5.645953636147754e-7,
+            "failed_iteration": null,
+            "last_solved_iteration": 4,
+            "returned_solution": true,
+            "solve_seconds": 0.36541120000038063
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c03_sensing_psd",
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                6.972916884276504e-8,
+                1.1995746018866573e-7,
+                8.265127068589879e-8,
+                5.899205870219977e-8,
+                1.030861807278365e-7,
+                9.771419840379977e-8,
+                6.908999176675198e-8,
+                9.414598945887696e-8
+              ],
+              "relative_gap": [
+                2.9759201517286805e-7,
+                5.235055201155765e-7,
+                3.4270604732181697e-7,
+                0.0000014592555384355577,
+                0.18759932387996373,
+                0.01290684973016231,
+                0.00004556181137232029,
+                0.2143465616759414
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        }
+      ]
+    },
+    {
+      "lo": 9001,
+      "hi": 9396,
+      "n": 15840,
+      "status": {
+        "optimal": 6898,
+        "unknown": 1627,
+        "infeasible": 7315
+      },
+      "bad": 8936,
+      "noMatch": 5157,
+      "currentMatch": 9000,
+      "minMatch": 10683,
+      "cov": 558,
+      "beam": 1251,
+      "outer": 15748,
+      "failCov": {
+        "c03_sensing_psd": 960,
+        "c04_offloading_psd": 6193,
+        "c08_uav_offloading": 5244
+      },
+      "failBeam": {
+        "c08_uav_offloading": 5647
+      },
+      "windows": [
+        {
+          "n": 1584,
+          "opt": 1562,
+          "bad": 18,
+          "noMatch": 0,
+          "minMatch": 1584,
+          "dist": 86314.67075327811
+        },
+        {
+          "n": 1584,
+          "opt": 1517,
+          "bad": 67,
+          "noMatch": 0,
+          "minMatch": 1584,
+          "dist": 168695.23746534283
+        },
+        {
+          "n": 1584,
+          "opt": 1455,
+          "bad": 129,
+          "noMatch": 0,
+          "minMatch": 1584,
+          "dist": 256757.97658044612
+        },
+        {
+          "n": 1584,
+          "opt": 1327,
+          "bad": 257,
+          "noMatch": 0,
+          "minMatch": 1584,
+          "dist": 241401.2225349772
+        },
+        {
+          "n": 1584,
+          "opt": 998,
+          "bad": 584,
+          "noMatch": 0,
+          "minMatch": 1584,
+          "dist": 231179.2818582257
+        },
+        {
+          "n": 1584,
+          "opt": 39,
+          "bad": 1545,
+          "noMatch": 53,
+          "minMatch": 1531,
+          "dist": 305625.2512824244
+        },
+        {
+          "n": 1584,
+          "opt": 0,
+          "bad": 1584,
+          "noMatch": 865,
+          "minMatch": 719,
+          "dist": 436290.404987615
+        },
+        {
+          "n": 1584,
+          "opt": 0,
+          "bad": 1584,
+          "noMatch": 1386,
+          "minMatch": 198,
+          "dist": 538998.9350669752
+        },
+        {
+          "n": 1584,
+          "opt": 0,
+          "bad": 1584,
+          "noMatch": 1437,
+          "minMatch": 147,
+          "dist": 624507.5790057285
+        },
+        {
+          "n": 1584,
+          "opt": 0,
+          "bad": 1584,
+          "noMatch": 1416,
+          "minMatch": 168,
+          "dist": 634152.643573316
+        }
+      ],
+      "examples": [
+        {
+          "it": 9001,
+          "step": 0,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 3,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 39,
+            "rank1_gap": 0.0000014741974697144569,
+            "failed_iteration": null,
+            "last_solved_iteration": 3,
+            "returned_solution": true,
+            "solve_seconds": 0.33579610000015236
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c03_sensing_psd",
+            "c04_offloading_psd"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                1.5300679229670273e-7,
+                1.4964637710488354e-7,
+                1.8205053556254523e-7,
+                1.5213460029754521e-7,
+                1.7832702369051834e-7,
+                8.996605204762375e-7,
+                1.637488938317391e-7,
+                2.8265314328717755e-7
+              ],
+              "relative_gap": [
+                0.000010669421381846919,
+                6.270314642386667e-8,
+                0.000023607072859551925,
+                9.015340969012266e-7,
+                0.000123641198203565,
+                0.030944539785577495,
+                0.00013171645773788404,
+                0.19604528285332112
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        },
+        {
+          "it": 9001,
+          "step": 1,
+          "solver": {
+            "solver_status": "ProblemStatus.PrimalAndDualFeasible",
+            "solver_status_kind": "optimal",
+            "solver_converged": true,
+            "solver_iterations": 4,
+            "problem_status": "ProblemStatus.PrimalAndDualFeasible",
+            "primal_solution_status": "SolutionStatus.Optimal",
+            "dual_solution_status": "SolutionStatus.Optimal",
+            "optimizer_response_code": 0,
+            "interior_point_iterations": 28,
+            "rank1_gap": 3.041876820217163e-7,
+            "failed_iteration": null,
+            "last_solved_iteration": 4,
+            "returned_solution": true,
+            "solve_seconds": 0.4168451000005007
+          },
+          "validationKeys": [
+            "covariance",
+            "recovered_beams",
+            "rank",
+            "physical_solution_verified",
+            "tolerances"
+          ],
+          "cov": [
+            "c04_offloading_psd",
+            "c08_uav_offloading"
+          ],
+          "beam": [
+            "c08_uav_offloading"
+          ],
+          "other": {
+            "rank": {
+              "evaluated": true,
+              "absolute_gap_w": [
+                5.560925383923746e-8,
+                4.9354866556402124e-8,
+                5.880788262045416e-8,
+                4.9445696788016576e-8,
+                6.279565352379287e-8,
+                7.458857970383903e-8,
+                4.5912067173927673e-8,
+                5.745733720237245e-8
+              ],
+              "relative_gap": [
+                8.874323662785112e-9,
+                4.450191097442494e-7,
+                5.97789339816965e-7,
+                8.423204730889059e-7,
+                0.2132196168841453,
+                0.013500542256059789,
+                0.00003180078056505231,
+                0.244436224283203
+              ],
+              "passed": false
+            },
+            "physical_solution_verified": false,
+            "tolerances": {
+              "relative": 0.000001,
+              "matrix": 1e-7,
+              "rank_relative": 0.00001,
+              "rank_absolute": 0.00001
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "recent_strict_validation": {
+    "n": 15840,
+    "physical": 6,
+    "rank": 45,
+    "optimalBad": 0,
+    "infBad": 7315,
+    "unknownBad": 1621,
+    "optimalBeam": 1251,
+    "optimalCov": 558,
+    "c06passNoOptimal": 6
+  },
+  "actionSummary": [
+    {
+      "lo": 1,
+      "hi": 100,
+      "n": 4000,
+      "power": 0.10974879383919792,
+      "matchedPower": 0.11000933168665505,
+      "move": 13.53035113710165,
+      "duration": 0.04997323253389913,
+      "dupPct": 50.2,
+      "disc_counts": [
+        [
+          400,
+          395,
+          418,
+          391,
+          384,
+          405,
+          435,
+          388,
+          395,
+          389
+        ],
+        [
+          419,
+          415,
+          345,
+          407,
+          419,
+          401,
+          404,
+          392,
+          426,
+          372
+        ],
+        [
+          413,
+          361,
+          389,
+          425,
+          407,
+          375,
+          447,
+          387,
+          384,
+          412
+        ],
+        [
+          390,
+          428,
+          370,
+          370,
+          434,
+          382,
+          385,
+          462,
+          408,
+          371
+        ]
+      ]
+    },
+    {
+      "lo": 6001,
+      "hi": 7000,
+      "n": 40000,
+      "power": 0.10133270701192318,
+      "matchedPower": 0.09179771255329251,
+      "move": 13.259203185679018,
+      "duration": 0.04906348991155392,
+      "dupPct": 0.92,
+      "disc_counts": [
+        [
+          35,
+          15499,
+          467,
+          15622,
+          2823,
+          10,
+          20,
+          5,
+          13,
+          5506
+        ],
+        [
+          11,
+          1,
+          65,
+          26,
+          3781,
+          13184,
+          24,
+          11,
+          8778,
+          14119
+        ],
+        [
+          34051,
+          15,
+          6,
+          13,
+          69,
+          89,
+          2,
+          5709,
+          38,
+          8
+        ],
+        [
+          2,
+          7389,
+          3391,
+          4093,
+          917,
+          193,
+          23155,
+          692,
+          153,
+          15
+        ]
+      ]
+    },
+    {
+      "lo": 8001,
+      "hi": 9000,
+      "n": 40000,
+      "power": 0.09988921520857164,
+      "matchedPower": 0.08855738576707663,
+      "move": 13.086693707922102,
+      "duration": 0.049708547433209606,
+      "dupPct": 0.675,
+      "disc_counts": [
+        [
+          12,
+          15001,
+          52,
+          20383,
+          50,
+          2,
+          4,
+          1,
+          13,
+          4482
+        ],
+        [
+          4,
+          0,
+          23,
+          7,
+          1870,
+          13750,
+          68,
+          75,
+          7187,
+          17016
+        ],
+        [
+          34189,
+          8,
+          8,
+          21,
+          8,
+          35,
+          9,
+          5632,
+          87,
+          3
+        ],
+        [
+          0,
+          4206,
+          12694,
+          4250,
+          168,
+          288,
+          16237,
+          353,
+          1801,
+          3
+        ]
+      ]
+    },
+    {
+      "lo": 9001,
+      "hi": 9396,
+      "n": 15840,
+      "power": 0.09902310153059074,
+      "matchedPower": 0.08691690412845059,
+      "move": 13.034134067173557,
+      "duration": 0.049897510221394395,
+      "dupPct": 0.5808080808080808,
+      "disc_counts": [
+        [
+          5,
+          6286,
+          17,
+          7888,
+          22,
+          3,
+          0,
+          2,
+          4,
+          1613
+        ],
+        [
+          1,
+          0,
+          4,
+          2,
+          1054,
+          5221,
+          24,
+          6,
+          2833,
+          6695
+        ],
+        [
+          13119,
+          4,
+          7,
+          2,
+          9,
+          5,
+          0,
+          2668,
+          25,
+          1
+        ],
+        [
+          3,
+          1701,
+          3852,
+          2586,
+          48,
+          63,
+          6752,
+          124,
+          710,
+          1
+        ]
+      ]
+    }
+  ]
+}

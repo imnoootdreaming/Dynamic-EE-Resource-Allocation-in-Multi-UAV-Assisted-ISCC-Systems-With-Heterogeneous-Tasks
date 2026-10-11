@@ -1,0 +1,284 @@
+{
+  "criterion": "solver_status_kind=optimal only; user override for this analysis",
+  "cutoff": {
+    "time": "2026-10-10 18:22:01",
+    "iter": 10590,
+    "reward": -0.091,
+    "optimal": 47.5,
+    "infeasible": 50,
+    "unknown": 2.5,
+    "spectrum": 0,
+    "lr": 0.00003,
+    "wv": 10589,
+    "ck": true
+  },
+  "latestBounds": {
+    "_env.jsonl": 7512127274,
+    "_actions.jsonl": 5600651638
+  },
+  "latestSummary": [
+    {
+      "lo": 8001,
+      "hi": 8500,
+      "n": 500,
+      "optimal": 41.895,
+      "reward": -0.20770200000000016,
+      "infeasible": 46.3,
+      "unknown": 11.805,
+      "spectrum": 0.755,
+      "min": 27.5,
+      "max": 52.5,
+      "sd": 4.737771100422646
+    },
+    {
+      "lo": 8501,
+      "hi": 9000,
+      "n": 500,
+      "optimal": 43.075,
+      "reward": -0.18199200000000018,
+      "infeasible": 46.225,
+      "unknown": 10.7,
+      "spectrum": 0.595,
+      "min": 30,
+      "max": 52.5,
+      "sd": 4.484069022662337
+    },
+    {
+      "lo": 9001,
+      "hi": 9500,
+      "n": 500,
+      "optimal": 43.6,
+      "reward": -0.17160999999999993,
+      "infeasible": 46.185,
+      "unknown": 10.215,
+      "spectrum": 0.555,
+      "min": 27.5,
+      "max": 55,
+      "sd": 4.297092039973067
+    },
+    {
+      "lo": 9501,
+      "hi": 10000,
+      "n": 500,
+      "optimal": 44.065,
+      "reward": -0.16253600000000004,
+      "infeasible": 45.995,
+      "unknown": 9.94,
+      "spectrum": 0.515,
+      "min": 30,
+      "max": 55,
+      "sd": 4.1848864978634674
+    },
+    {
+      "lo": 10001,
+      "hi": 10500,
+      "n": 500,
+      "optimal": 44.785,
+      "reward": -0.14608600000000016,
+      "infeasible": 45.615,
+      "unknown": 9.6,
+      "spectrum": 0.375,
+      "min": 25,
+      "max": 55,
+      "sd": 4.3204484720917575
+    },
+    {
+      "lo": 10091,
+      "hi": 10590,
+      "n": 500,
+      "optimal": 44.89,
+      "reward": -0.14380200000000004,
+      "infeasible": 45.525,
+      "unknown": 9.585,
+      "spectrum": 0.355,
+      "min": 25,
+      "max": 55,
+      "sd": 4.360378423944414
+    },
+    {
+      "lo": 10491,
+      "hi": 10590,
+      "n": 100,
+      "optimal": 44.9,
+      "reward": -0.14323,
+      "infeasible": 45.5,
+      "unknown": 9.6,
+      "spectrum": 0.3,
+      "min": 32.5,
+      "max": 52.5,
+      "sd": 4.567822238222499
+    }
+  ],
+  "env": {
+    "n": 20000,
+    "minIt": 10091,
+    "maxIt": 10590,
+    "status": {
+      "optimal": 8978,
+      "unknown": 1917,
+      "infeasible": 9105
+    },
+    "windows": [
+      {
+        "n": 2000,
+        "opt": 1981,
+        "bad": 18,
+        "noMatch": 0,
+        "dist": 109138.69568047559
+      },
+      {
+        "n": 2000,
+        "opt": 1951,
+        "bad": 49,
+        "noMatch": 0,
+        "dist": 213250.783085478
+      },
+      {
+        "n": 2000,
+        "opt": 1810,
+        "bad": 190,
+        "noMatch": 0,
+        "dist": 325333.6182872602
+      },
+      {
+        "n": 2000,
+        "opt": 1686,
+        "bad": 312,
+        "noMatch": 0,
+        "dist": 302921.5377938419
+      },
+      {
+        "n": 2000,
+        "opt": 1492,
+        "bad": 507,
+        "noMatch": 0,
+        "dist": 284104.8291180424
+      },
+      {
+        "n": 2000,
+        "opt": 58,
+        "bad": 1942,
+        "noMatch": 54,
+        "dist": 377247.367958475
+      },
+      {
+        "n": 2000,
+        "opt": 0,
+        "bad": 2000,
+        "noMatch": 1060,
+        "dist": 535540.0996487134
+      },
+      {
+        "n": 2000,
+        "opt": 0,
+        "bad": 2000,
+        "noMatch": 1707,
+        "dist": 667675.8220629109
+      },
+      {
+        "n": 2000,
+        "opt": 0,
+        "bad": 2000,
+        "noMatch": 1788,
+        "dist": 774513.1246800213
+      },
+      {
+        "n": 2000,
+        "opt": 0,
+        "bad": 2000,
+        "noMatch": 1747,
+        "dist": 795400.9779118347
+      }
+    ],
+    "power": 0,
+    "matchedPower": 0,
+    "move": 0,
+    "dup": 0,
+    "duration": 0
+  },
+  "actions": {
+    "n": 20000,
+    "minIt": 10091,
+    "maxIt": 10590,
+    "status": {},
+    "windows": [
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      },
+      {
+        "n": 0,
+        "opt": 0,
+        "bad": 0,
+        "noMatch": 0,
+        "dist": 0
+      }
+    ],
+    "power": 1985.3538228753935,
+    "matchedPower": 1751.721129015088,
+    "move": 259199.81042402983,
+    "dup": 71,
+    "duration": 1000.957037208369
+  },
+  "weights_contract_errors": 0,
+  "comparison_previous_cutoff": 9396
+}

@@ -1,0 +1,13 @@
+test_clockwise_and_counterclockwise_reverse_visits_with_same_start (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_default_scene_has_ordered_targets_and_logged_geometry (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_hold_slots_is_configured_and_quantity_contract_is_enforced (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_initial_collision_is_rejected_and_single_uav_works (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_inner_and_outer_targets_and_initial_uavs_agree (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_layout_only_change_preserves_communication_random_stream (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_old_direct_geometry_api_keeps_random_layout_return_shape (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+test_region_and_uav_count_changes_recompute_radius_and_shape (test_outer_ring_integration.OuterRingIntegrationTests) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.102s
+
+OK

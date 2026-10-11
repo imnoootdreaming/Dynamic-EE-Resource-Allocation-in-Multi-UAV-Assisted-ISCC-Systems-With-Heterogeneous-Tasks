@@ -12,13 +12,15 @@ import numpy as np
 
 
 class MyReward:
-    def __init__(self, base_args):
+    def __init__(self, base_args, enable_diagnostics=True):
         self.base_args = base_args
+        self.enable_diagnostics = bool(enable_diagnostics)
 
     def reward_compute(self, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels, uavs_2_targets_channels,
                        uavs_targets_matched_matrix, uavs_cus_matched_matrix,
                        uavs_pos, uavs_pos_cur, uavs_off_duration, cus_off_power, cus_entertaining_task_size,
-                       uavs_rec_beam_vectors=None):
+                       uavs_rec_beam_vectors=None, *, diagnostic_candidates=True,
+                       diagnostic_cu_min_power=None, capture_failed_solution=False):
         uav_collision_penalty = np.zeros(self.base_args.uavs_num)
 
         for i in range(self.base_args.uavs_num):
@@ -46,7 +48,11 @@ class MyReward:
             cus_off_power=cus_off_power,
             cus_entertaining_task_size=cus_entertaining_task_size,
             uavs_rec_beam_vectors=uavs_rec_beam_vectors,
-            return_solution=True
+            return_solution=True,
+            collect_diagnostics=self.enable_diagnostics,
+            diagnostic_candidates=diagnostic_candidates,
+            diagnostic_cu_min_power=diagnostic_cu_min_power,
+            capture_failed_solution=capture_failed_solution,
         )
 
         avg_cu_off_power = float(np.mean(cus_off_power)) if len(cus_off_power) > 0 else float("nan")
@@ -119,4 +125,6 @@ class MyReward:
                 "solver_iterations": int((solution_payload or {}).get("solver_iterations", 0) or 0),
             }
         }
+        if self.enable_diagnostics:
+            reward["diagnostics"] = (solution_payload or {}).get("env_diagnostic")
         return float(total_reward), reward, energy_opt

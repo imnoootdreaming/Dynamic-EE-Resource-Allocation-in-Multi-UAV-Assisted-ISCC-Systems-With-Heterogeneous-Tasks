@@ -1,0 +1,659 @@
+[
+  {
+    "config": "baseline",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolPfeas_1e-07",
+    "max_variable_energy_relative_difference": 0.00011165573100390223,
+    "max_objective_absolute_difference_j": 5.374168592098272e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.00014484820540125847,
+      "B_off_beam": 1.7918391829090718,
+      "f_uav_freq": 0.4561373636111577,
+      "z_aux_rate": 0.6498932845075808,
+      "D_cu_off": 0.005565893548460953
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 21,
+      "6": 2,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 12
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 24
+    }
+  },
+  {
+    "config": "intpntCoTolPfeas_1e-06",
+    "max_variable_energy_relative_difference": 0.00020541932476355457,
+    "max_objective_absolute_difference_j": 6.082113299399339e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 8.76454127139783e-05,
+      "B_off_beam": 4.645919133421947,
+      "f_uav_freq": 0.5225292586940679,
+      "z_aux_rate": 1.254885491343585,
+      "D_cu_off": 0.001872101218019715
+    },
+    "outer_iterations": {
+      "3": 25,
+      "4": 5
+    },
+    "termination_codes": {
+      "0": 90,
+      "100006": 5
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 23
+    }
+  },
+  {
+    "config": "intpntCoTolPfeas_1e-05",
+    "max_variable_energy_relative_difference": 0.00020541932476355457,
+    "max_objective_absolute_difference_j": 6.082113299399339e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 8.76454127139783e-05,
+      "B_off_beam": 4.645919133421947,
+      "f_uav_freq": 0.5225292586940679,
+      "z_aux_rate": 1.254885491343585,
+      "D_cu_off": 0.001872101218019715
+    },
+    "outer_iterations": {
+      "3": 25,
+      "4": 5
+    },
+    "termination_codes": {
+      "0": 90,
+      "100006": 5
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 23
+    }
+  },
+  {
+    "config": "intpntCoTolDfeas_1e-07",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolDfeas_1e-06",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolDfeas_1e-05",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolRelGap_1e-07",
+    "max_variable_energy_relative_difference": 0.00044464397084256025,
+    "max_objective_absolute_difference_j": 6.296656057003247e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.00023562642713035413,
+      "B_off_beam": 34.114576502786036,
+      "f_uav_freq": 0.8485176435858084,
+      "z_aux_rate": 2.4754237080819204,
+      "D_cu_off": 0.005603065620742295
+    },
+    "outer_iterations": {
+      "3": 22,
+      "5": 2,
+      "4": 6
+    },
+    "termination_codes": {
+      "0": 99,
+      "100006": 1
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 1
+    }
+  },
+  {
+    "config": "intpntCoTolRelGap_1e-06",
+    "max_variable_energy_relative_difference": 0.00044464397084256025,
+    "max_objective_absolute_difference_j": 6.296656057003247e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.00023562642713035413,
+      "B_off_beam": 34.114576502786036,
+      "f_uav_freq": 0.8485176435858084,
+      "z_aux_rate": 2.4754237080819204,
+      "D_cu_off": 0.005603065620742295
+    },
+    "outer_iterations": {
+      "3": 23,
+      "5": 2,
+      "4": 5
+    },
+    "termination_codes": {
+      "0": 99
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 1
+    }
+  },
+  {
+    "config": "intpntCoTolRelGap_1e-05",
+    "max_variable_energy_relative_difference": 0.00044464397084256025,
+    "max_objective_absolute_difference_j": 6.296656057003247e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.00023562642713035413,
+      "B_off_beam": 34.114576502786036,
+      "f_uav_freq": 0.8485176435858084,
+      "z_aux_rate": 2.4754237080819204,
+      "D_cu_off": 0.005603065620742295
+    },
+    "outer_iterations": {
+      "3": 23,
+      "5": 2,
+      "4": 5
+    },
+    "termination_codes": {
+      "0": 99
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 1
+    }
+  },
+  {
+    "config": "intpntCoTolMuRed_1e-07",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolMuRed_1e-06",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "intpntCoTolMuRed_1e-05",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "joint_1e-07",
+    "max_variable_energy_relative_difference": 0.0005765826749503376,
+    "max_objective_absolute_difference_j": 6.751204466226568e-05,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0014803787519059764,
+      "B_off_beam": 61.903043432951094,
+      "f_uav_freq": 1.1508718401377316,
+      "z_aux_rate": 3.0433914544108873,
+      "D_cu_off": 0.005519863359247384
+    },
+    "outer_iterations": {
+      "3": 18,
+      "4": 7,
+      "6": 1,
+      "5": 2,
+      "10": 1,
+      "7": 1
+    },
+    "termination_codes": {
+      "0": 115
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 3
+    }
+  },
+  {
+    "config": "joint_1e-06",
+    "max_variable_energy_relative_difference": 0.0056687499058873285,
+    "max_objective_absolute_difference_j": 0.0021885811321169513,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0019048941772565713,
+      "B_off_beam": 2407.7050891157896,
+      "f_uav_freq": 2.42232938002589,
+      "z_aux_rate": 11.284713487970434,
+      "D_cu_off": 0.007592702342102746
+    },
+    "outer_iterations": {
+      "3": 2,
+      "7": 2,
+      "4": 6,
+      "10": 16,
+      "6": 2,
+      "5": 1,
+      "9": 1
+    },
+    "termination_codes": {
+      "0": 230
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 3
+    }
+  },
+  {
+    "config": "joint_1e-05",
+    "max_variable_energy_relative_difference": 0.004557604259069193,
+    "max_objective_absolute_difference_j": 0.0005899392309913765,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0017890015259280278,
+      "B_off_beam": 1268.8657504455778,
+      "f_uav_freq": 3.6965389110815527,
+      "z_aux_rate": 10.424565877035755,
+      "D_cu_off": 0.009185775737866575
+    },
+    "outer_iterations": {
+      "10": 27,
+      "9": 1,
+      "6": 1,
+      "7": 1
+    },
+    "termination_codes": {
+      "0": 292
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "threads_1",
+    "max_variable_energy_relative_difference": 4.214716751317816e-05,
+    "max_objective_absolute_difference_j": 4.935010327500322e-06,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 5.8557708902748876e-05,
+      "B_off_beam": 12.24337153110695,
+      "f_uav_freq": 0.34220854344056784,
+      "z_aux_rate": 0.9778720271168346,
+      "D_cu_off": 5.9068534812231086e-05
+    },
+    "outer_iterations": {
+      "4": 5,
+      "3": 24,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 91,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 16
+    }
+  },
+  {
+    "config": "threads_2",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "threads_4",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "threads_8",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "iterations_10",
+    "max_variable_energy_relative_difference": null,
+    "max_objective_absolute_difference_j": null,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": null,
+      "B_off_beam": null,
+      "f_uav_freq": null,
+      "z_aux_rate": null,
+      "D_cu_off": null
+    },
+    "outer_iterations": {
+      "1": 30
+    },
+    "termination_codes": {
+      "100000": 30
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "iterations_20",
+    "max_variable_energy_relative_difference": null,
+    "max_objective_absolute_difference_j": null,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": null,
+      "B_off_beam": null,
+      "f_uav_freq": null,
+      "z_aux_rate": null,
+      "D_cu_off": null
+    },
+    "outer_iterations": {
+      "2": 25,
+      "3": 4,
+      "4": 1
+    },
+    "termination_codes": {
+      "0": 35,
+      "100000": 31
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "iterations_30",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 22,
+      "2": 1,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 89,
+      "100006": 6,
+      "100000": 2
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 17
+    }
+  },
+  {
+    "config": "iterations_50",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 6,
+      "3": 23,
+      "5": 1
+    },
+    "termination_codes": {
+      "0": 92,
+      "100006": 6
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 19
+    }
+  },
+  {
+    "config": "time_0.02",
+    "max_variable_energy_relative_difference": null,
+    "max_objective_absolute_difference_j": null,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": null,
+      "B_off_beam": null,
+      "f_uav_freq": null,
+      "z_aux_rate": null,
+      "D_cu_off": null
+    },
+    "outer_iterations": {
+      "1": 30
+    },
+    "termination_codes": {
+      "100001": 30
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "time_0.05",
+    "max_variable_energy_relative_difference": null,
+    "max_objective_absolute_difference_j": null,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": null,
+      "B_off_beam": null,
+      "f_uav_freq": null,
+      "z_aux_rate": null,
+      "D_cu_off": null
+    },
+    "outer_iterations": {
+      "1": 30
+    },
+    "termination_codes": {
+      "100001": 30
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "time_0.1",
+    "max_variable_energy_relative_difference": null,
+    "max_objective_absolute_difference_j": null,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": null,
+      "B_off_beam": null,
+      "f_uav_freq": null,
+      "z_aux_rate": null,
+      "D_cu_off": null
+    },
+    "outer_iterations": {
+      "1": 24,
+      "2": 4,
+      "3": 2
+    },
+    "termination_codes": {
+      "100001": 31,
+      "0": 7
+    },
+    "recovered_failed_checks": {}
+  },
+  {
+    "config": "time_0.2",
+    "max_variable_energy_relative_difference": 0.0,
+    "max_objective_absolute_difference_j": 0.0,
+    "max_component_relative_norm_difference": {
+      "W_sen_beam": 0.0,
+      "B_off_beam": 0.0,
+      "f_uav_freq": 0.0,
+      "z_aux_rate": 0.0,
+      "D_cu_off": 0.0
+    },
+    "outer_iterations": {
+      "4": 3,
+      "3": 7,
+      "2": 6,
+      "1": 14
+    },
+    "termination_codes": {
+      "0": 36,
+      "100006": 2,
+      "100001": 21
+    },
+    "recovered_failed_checks": {
+      "c08_uav_offloading": 6
+    }
+  }
+]

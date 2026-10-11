@@ -1,0 +1,28 @@
+{
+  "python": "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+  "numpy": "1.25.2",
+  "witnesses_verified": 40,
+  "diagnostics_toggle": {
+    "slots": 40,
+    "finite_slots": 8,
+    "max_reward_difference": 0.0,
+    "max_energy_difference": 0.0
+  },
+  "sampler_log_contract": {
+    "count": 40,
+    "sensing_infeasible_rate": 92.5,
+    "covariance_pass_rate": 2.5,
+    "recovered_beam_pass_rate": 2.5,
+    "physical_solution_pass_rate": 0.0,
+    "diagnostic_seconds": 0.04615669999999561,
+    "solver_seconds": 6.637658699999994,
+    "sample_wall_seconds": 12.5562292,
+    "writer_seconds_per_episode": 0.02883939999999896,
+    "writer_bytes_per_episode": 510060,
+    "env_jsonl": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mhbppo_20261009\\t02_t03\\17-35-45_2026-10-09_446651_smoke_train_env.jsonl",
+    "action_jsonl": "D:\\Desktop\\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\\analysis\\mhbppo_20261009\\t02_t03\\17-35-45_2026-10-09_446651_smoke_train_actions.jsonl",
+    "scenes_written": 1,
+    "records_written": 80,
+    "failure_snapshots_first_episode": 1
+  }
+}

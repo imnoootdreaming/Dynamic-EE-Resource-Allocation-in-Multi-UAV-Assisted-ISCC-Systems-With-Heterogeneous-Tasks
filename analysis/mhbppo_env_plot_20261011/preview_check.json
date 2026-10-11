@@ -1,0 +1,5 @@
+{
+  "code": 0,
+  "stdout": "{\"path\": \"analysis/mhbppo_env_plot_20261011\\\\env.png\", \"targets\": 40, \"uavs\": 4, \"size\": [1424, 1417], \"first_sampler_scene_matches\": true}\r\n",
+  "stderr": ""
+}

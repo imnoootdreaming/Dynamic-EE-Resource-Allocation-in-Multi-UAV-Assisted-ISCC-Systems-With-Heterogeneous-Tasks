@@ -1,0 +1,83 @@
+{
+  "groups": {
+    "main_pc3p": {
+      "cases": 30,
+      "baseline_time_median": 0.3160055,
+      "accelerated_time_median": 0.2823965,
+      "median_paired_time_ratio": 0.8899848212972278,
+      "baseline_time_total": 10.691404999999998,
+      "accelerated_time_total": 9.485361,
+      "max_energy_relative_difference": 3.861240374154291e-06,
+      "max_variable_energy_relative_difference": 0.0004902873002217951,
+      "max_absolute_energy_difference_j": 6.938264461098242e-05,
+      "baseline_converged": 30,
+      "accelerated_converged": 30,
+      "baseline_recovered_passed": 11,
+      "accelerated_recovered_passed": 29,
+      "baseline_physical_verified": 0,
+      "accelerated_physical_verified": 0,
+      "baseline_mean_iterations": 3.2666666666666666,
+      "accelerated_mean_iterations": 3.3333333333333335
+    },
+    "compare_pc3p": {
+      "cases": 30,
+      "baseline_time_median": 0.3183714500628412,
+      "accelerated_time_median": 0.2812654501758516,
+      "median_paired_time_ratio": 0.9156669026770221,
+      "baseline_time_total": 10.44818179961294,
+      "accelerated_time_total": 9.46360510122031,
+      "max_energy_relative_difference": 3.861240374154291e-06,
+      "max_variable_energy_relative_difference": 0.0004902873002217951,
+      "max_absolute_energy_difference_j": 6.938264461098242e-05,
+      "baseline_converged": 30,
+      "accelerated_converged": 30,
+      "baseline_recovered_passed": 11,
+      "accelerated_recovered_passed": 29,
+      "baseline_physical_verified": 0,
+      "accelerated_physical_verified": 0,
+      "baseline_mean_iterations": 3.2666666666666666,
+      "accelerated_mean_iterations": 3.3333333333333335
+    },
+    "compare_gc3p": {
+      "cases": 30,
+      "baseline_time_median": 1.0887423499953002,
+      "accelerated_time_median": 1.0449288501404226,
+      "median_paired_time_ratio": 0.9865874634263636,
+      "baseline_time_total": 33.74688599957153,
+      "accelerated_time_total": 32.968686199281365,
+      "max_energy_relative_difference": 4.535750627718114e-07,
+      "max_variable_energy_relative_difference": 4.557102210872885e-05,
+      "max_absolute_energy_difference_j": 7.933281132466163e-06,
+      "baseline_converged": 30,
+      "accelerated_converged": 30,
+      "baseline_recovered_passed": 30,
+      "accelerated_recovered_passed": 30,
+      "baseline_physical_verified": 30,
+      "accelerated_physical_verified": 30,
+      "baseline_mean_iterations": 4.2,
+      "accelerated_mean_iterations": 4.2,
+      "baseline_candidate_counts": [
+        50
+      ],
+      "accelerated_candidate_counts": [
+        50
+      ],
+      "baseline_feasible_candidates_total": 50,
+      "accelerated_feasible_candidates_total": 50,
+      "baseline_fallback_cases": 29,
+      "accelerated_fallback_cases": 29
+    }
+  },
+  "validation": {
+    "baseline/compare_pc3p_gc3p_results.csv": "30 rows, schema OK",
+    "accelerated/compare_pc3p_gc3p_results.csv": "30 rows, schema OK",
+    "baseline/convergence_iterations.csv": "30 rows, schema OK",
+    "accelerated/convergence_iterations.csv": "30 rows, schema OK",
+    "published/first_sample_cccp_history.csv": "matches accelerated output",
+    "published/convergence_iterations.csv": "matches accelerated output",
+    "published/convergence_iterations_details.csv": "matches accelerated output",
+    "published/compare_pc3p_gc3p_results.csv": "matches accelerated output",
+    "published/compare_pc3p_gc3p_details.csv": "matches accelerated output",
+    "input_samples": "SHA256 unchanged"
+  }
+}

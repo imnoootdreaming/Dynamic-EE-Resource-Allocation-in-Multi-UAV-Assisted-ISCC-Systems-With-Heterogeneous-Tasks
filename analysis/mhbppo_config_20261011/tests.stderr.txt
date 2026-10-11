@@ -1,0 +1,12 @@
+test_configured_batch_size_is_used_by_ppo_update (test_training_configuration.TrainingConfigurationTests) ... D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\src\outer\algorithms\MHBPPO\MHBPPO_agent.py:431: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at C:\cb\pytorch_1000000000000\work\torch\csrc\utils\tensor_new.cpp:281.)
+  adv = torch.tensor(adv, dtype=torch.float32, device=self.device).view(-1, 1)
+ok
+test_defaults_and_json_cli_precedence (test_training_configuration.TrainingConfigurationTests) ... ok
+test_invalid_json_configuration_is_rejected (test_training_configuration.TrainingConfigurationTests) ... ok
+test_real_entry_writes_json_before_starting_workers (test_training_configuration.TrainingConfigurationTests) ... ok
+test_saved_recipe_roundtrips_and_effective_values_are_actual (test_training_configuration.TrainingConfigurationTests) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 3.717s
+
+OK

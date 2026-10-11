@@ -1,0 +1,48 @@
+MOSEK RelGap=1.0e-07
+开始对比：30 个 case，GC3P 候选解个数 = 50
+[case  1] PC3P E=20.795954 (0.41s,  3 it) | GC3P E=20.796360 (1.02s,  4 it, gap=1.3e-15, cand=0/50, src=dominant-projection-fallback)
+[case  2] PC3P E=26.796921 (0.30s,  3 it) | GC3P E=26.797361 (1.04s,  4 it, gap=2.7e-15, cand=0/50, src=dominant-projection-fallback)
+[case  3] PC3P E=40.441802 (0.26s,  3 it) | GC3P E=40.442361 (0.97s,  4 it, gap=-9.4e-16, cand=0/50, src=dominant-projection-fallback)
+[case  4] PC3P E=44.137745 (0.27s,  3 it) | GC3P E=44.138019 (0.93s,  3 it, gap=-3.5e-16, cand=0/50, src=dominant-projection-fallback)
+[case  5] PC3P E=30.109122 (0.24s,  3 it) | GC3P E=30.109685 (1.01s,  3 it, gap=-4.5e-16, cand=0/50, src=dominant-projection-fallback)
+[case  6] PC3P E=17.584056 (0.50s,  5 it) | GC3P E=17.584329 (1.19s,  4 it, gap=-3.7e-15, cand=0/50, src=dominant-projection-fallback)
+[case  7] PC3P E=10.519660 (0.43s,  4 it) | GC3P E=10.519931 (1.30s,  6 it, gap=-7.8e-16, cand=0/50, src=dominant-projection-fallback)
+[case  8] PC3P E=42.505287 (0.30s,  3 it) | GC3P E=42.505645 (0.96s,  3 it, gap=4.4e-16, cand=0/50, src=dominant-projection-fallback)
+[case  9] PC3P E=19.776089 (0.27s,  3 it) | GC3P E=19.776523 (1.04s,  4 it, gap=4.5e-16, cand=0/50, src=dominant-projection-fallback)
+[case 10] PC3P E=14.867160 (0.39s,  4 it) | GC3P E=14.867577 (1.25s,  5 it, gap=-1.7e-16, cand=0/50, src=dominant-projection-fallback)
+[case 11] PC3P E=21.047626 (0.22s,  3 it) | GC3P E=21.048104 (1.11s,  5 it, gap=3.1e-15, cand=0/50, src=dominant-projection-fallback)
+[case 12] PC3P E=35.646067 (0.27s,  3 it) | GC3P E=35.646597 (1.01s,  4 it, gap=-2.2e-15, cand=0/50, src=dominant-projection-fallback)
+[case 13] PC3P E=57.561382 (0.50s,  5 it) | GC3P E=57.561653 (1.10s,  3 it, gap=-4.4e-16, cand=0/50, src=dominant-projection-fallback)
+[case 14] PC3P E=15.733829 (0.28s,  3 it) | GC3P E=15.734144 (1.22s,  6 it, gap=-2.1e-15, cand=0/50, src=dominant-projection-fallback)
+[case 15] PC3P E=26.221428 (0.43s,  4 it) | GC3P E=26.221634 (1.04s,  4 it, gap=-3.7e-15, cand=0/50, src=dominant-projection-fallback)
+[case 16] PC3P E=21.238023 (0.28s,  3 it) | GC3P E=21.238507 (1.13s,  4 it, gap=-8.3e-16, cand=0/50, src=dominant-projection-fallback)
+[case 17] PC3P E=17.020496 (0.27s,  3 it) | GC3P E=17.020800 (1.09s,  5 it, gap=2.1e-16, cand=0/50, src=dominant-projection-fallback)
+[case 18] PC3P E=22.915722 (0.26s,  3 it) | GC3P E=22.916107 (0.95s,  3 it, gap=8.9e-16, cand=0/50, src=dominant-projection-fallback)
+[case 19] PC3P E=21.497529 (0.25s,  3 it) | GC3P E=21.498026 (1.11s,  5 it, gap=-5.6e-16, cand=0/50, src=dominant-projection-fallback)
+[case 20] PC3P E=50.516389 (0.48s,  4 it) | GC3P E=50.516878 (1.07s,  4 it, gap=6.6e-16, cand=0/50, src=dominant-projection-fallback)
+[case 21] PC3P E=32.936598 (0.28s,  3 it) | GC3P E=32.936929 (1.05s,  4 it, gap=-3.5e-15, cand=0/50, src=dominant-projection-fallback)
+[case 22] PC3P E=39.801266 (0.28s,  3 it) | GC3P E=39.801673 (1.15s,  4 it, gap=-1.1e-15, cand=0/50, src=dominant-projection-fallback)
+[case 23] PC3P E=31.090949 (0.28s,  3 it) | GC3P E=31.091486 (1.17s,  5 it, gap=-3.5e-15, cand=0/50, src=dominant-projection-fallback)
+[case 24] PC3P E=34.982652 (0.27s,  3 it) | GC3P E=34.983109 (1.00s,  4 it, gap=8.9e-16, cand=0/50, src=dominant-projection-fallback)
+[case 25] PC3P E=17.490262 (0.28s,  3 it) | GC3P E=17.490566 (1.03s,  4 it, gap=2.9e-15, cand=0/50, src=dominant-projection-fallback)
+[case 26] PC3P E=9.390578 (0.30s,  4 it) | GC3P E=9.390986 (1.19s,  6 it, gap=2.7e-15, cand=0/50, src=dominant-projection-fallback)
+[case 27] PC3P E=26.814371 (0.29s,  3 it) | GC3P E=26.814834 (1.88s,  5 it, gap=-1.3e-16, cand=50/50, src=gaussian-15)
+[case 28] PC3P E=14.411115 (0.30s,  4 it) | GC3P E=14.411533 (1.00s,  4 it, gap=-2.7e-15, cand=0/50, src=dominant-projection-fallback)
+[case 29] PC3P E=46.814045 (0.31s,  3 it) | GC3P E=46.814325 (0.93s,  3 it, gap=-1.1e-15, cand=0/50, src=dominant-projection-fallback)
+[case 30] PC3P E=38.716273 (0.26s,  3 it) | GC3P E=38.716651 (1.01s,  4 it, gap=1.1e-16, cand=0/50, src=dominant-projection-fallback)
+逐 case 结果已写入: D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\analysis\mosek_runs_20261010\accelerated\compare_pc3p_gc3p_results.csv
+完整逐 case 指标已写入: D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\analysis\mosek_runs_20261010\accelerated\compare_pc3p_gc3p_details.csv
+
+==========================================================================
+PC3P vs GC3P 对比汇总（30 个外层样本）
+==========================================================================
+平均真实能量     : PC3P 28.312680 J | GC3P 28.313078 J
+平均能量改善     : -0.0017%   （总能量节省 -0.0014%）
+平均耗时         : PC3P 0.32 s | GC3P 1.10 s
+总耗时           : PC3P 9.46 s | GC3P 32.97 s
+平均迭代次数     : PC3P 3.33 | GC3P 4.20
+收敛样本数       : PC3P 30/30 | GC3P 30/30
+平均秩一间隙     : PC3P 5.128e-06 | GC3P -3.962e-16 (松弛 1.297e-04)
+平均最大违反量   : PC3P 4.153e-09 | GC3P 4.010e-09
+GC3P 候选可行解  : 平均 1.7 / 50 个（1/30 个 case 达到全部候选可行）；由随机方向取胜 1/30 个 case
+==========================================================================

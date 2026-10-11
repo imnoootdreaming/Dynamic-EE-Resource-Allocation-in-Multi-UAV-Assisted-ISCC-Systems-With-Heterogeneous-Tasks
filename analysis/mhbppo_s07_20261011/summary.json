@@ -1,0 +1,67 @@
+{
+  "task": "S07",
+  "date": "2026-10-11",
+  "status": "complete",
+  "python": "D:/anaconda3/envs/ML2024_Task1/python.exe",
+  "unit_tests": {
+    "count": 43,
+    "exitcode": 0,
+    "stderr_file": "unit_tests.stderr.txt"
+  },
+  "real_integration": {
+    "exitcode": 0,
+    "total_transitions": 80,
+    "cases": [
+      {
+        "alpha": 0,
+        "transitions": 40,
+        "sampler_exitcode": 0,
+        "masked_dimensions": 80,
+        "beam_head_unchanged": true,
+        "finite_update_scalars": true,
+        "status_counts": {
+          "optimal": 5,
+          "unknown": 12,
+          "infeasible": 23
+        },
+        "wall_seconds": 29.2110197
+      },
+      {
+        "alpha": 1,
+        "transitions": 40,
+        "sampler_exitcode": 0,
+        "masked_dimensions": 0,
+        "beam_head_unchanged": false,
+        "finite_update_scalars": true,
+        "status_counts": {
+          "infeasible": 38,
+          "unknown": 2
+        },
+        "wall_seconds": 27.188506999999994
+      }
+    ]
+  },
+  "syntax_exitcode": 0,
+  "diff_check_exitcode": 0,
+  "defaults": {
+    "alpha": 1,
+    "target_layout": "sector_ring",
+    "space_ratio": 0.3333333333333333,
+    "move_ratio": 0.85,
+    "direction": "clockwise",
+    "window_source": "varkappa (target_hold_slots property alias)",
+    "ring_radius_m": 74.26776008362017
+  },
+  "limits": [
+    "Smoke tests use randomly initialized policies; alpha0 optimal5/40 and alpha1 optimal0/40 do not establish trained performance.",
+    "Same-dimension actor parameters remain checkpoint-compatible; old rollout likelihoods must not be reused.",
+    "Increasing I requires K=I*ceil(total_time_slots/varkappa).",
+    "Existing user training was not stopped or replaced; no long training started."
+  ],
+  "evidence": {
+    "source_manifest": "source_manifest.json",
+    "diff": "implementation.diff.txt",
+    "integration": "integration_summary.json",
+    "usage": "src/outer/algorithms/MHBPPO/S07_USAGE.md"
+  }
+}

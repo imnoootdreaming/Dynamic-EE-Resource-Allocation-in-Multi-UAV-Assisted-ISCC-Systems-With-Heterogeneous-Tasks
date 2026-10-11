@@ -1,0 +1,30 @@
+{
+  "required_multiplier": {
+    "median": 39.38905557813383,
+    "p90": 1359.1617828952062,
+    "p95": 2457.053402011093
+  },
+  "c06_pass_under_signal_gain": [
+    {
+      "gain": 1,
+      "pass_percent": 17.35
+    },
+    {
+      "gain": 2,
+      "pass_percent": 20.165
+    },
+    {
+      "gain": 3.1622776601683795,
+      "pass_percent": 22.33
+    },
+    {
+      "gain": 10,
+      "pass_percent": 32.28
+    },
+    {
+      "gain": 100,
+      "pass_percent": 62.215
+    }
+  ],
+  "unknown_with_c06_bad": 2511
+}

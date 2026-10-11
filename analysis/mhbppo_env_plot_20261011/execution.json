@@ -1,0 +1,27 @@
+{
+  "task": "S08",
+  "status": "complete",
+  "date": "2026-10-11",
+  "production_entry": "src/outer/algorithms/MHBPPO/MHBPPO_main.py",
+  "backup_link_preserved": true,
+  "plan_file_missing": true,
+  "plan_search": "rg --files -g *.md src analysis found no MHBPPO_TASK_PLAN.md; did not restore externally removed documentation",
+  "startup_output": "src/outer/ckpt/MHBPPO/<timestamp>_mhbppo_seed_<seed>/env.png",
+  "preview": "analysis/mhbppo_env_plot_20261011/env.png",
+  "first_sampler_seed_offset": 1,
+  "checks": {
+    "path": "analysis/mhbppo_env_plot_20261011\\env.png",
+    "targets": 40,
+    "uavs": 4,
+    "size": [
+      1424,
+      1417
+    ],
+    "first_sampler_scene_matches": true
+  },
+  "exitcode": 0,
+  "before_sha256": "4a4f3fe46e120435d26897a3acd1bf4dd4d3e7f4033b6b0027c288a72e22aae8",
+  "after_sha256": "40fc1f6225170d6624d86aec1a203cc918cdb5547adee96812b1c4c42d9a0ab0",
+  "function_line": 280,
+  "startup_call_line": 409
+}

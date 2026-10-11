@@ -5,6 +5,8 @@ except ImportError:  # pragma: no cover
     import gymnasium as gym
     from gymnasium import spaces
 import numpy as np
+import hashlib
+from datetime import datetime
 
 # 训练时环境单步诊断由 learner 的 episode 聚合日志承载，避免多进程终端交错输出。
 def _env_debug_print(*args, **kwargs):
@@ -39,6 +41,7 @@ from environment.topology import (
     generate_pos,
     generate_uav_target_schedule,
     get_num_target_windows,
+    validate_target_schedule_requirements,
     print_precomputed_target_schedule,
 )
 from reward.my_reward import MyReward
@@ -61,7 +64,18 @@ class MyEnv(gym.Env):
         self.madrl_args = madrl_args
         self.epsilon = 1e-4
         self.t = 0
-        self.target_hold_slots = 4  # 每 4 个时隙分配一次目标
+        self.last_action_trace = None  # 最近一步动作的只读日志快照（不改变 step 返回契约）
+        self.last_env_diagnostic = None
+        self.env_diagnostics = bool(getattr(madrl_args, "env_diagnostics", True))
+        self.diagnostic_candidate_interval = max(1, int(getattr(madrl_args, "diagnostic_candidate_interval", 1)))
+        self.diagnostic_snapshot_limit = max(0, int(getattr(madrl_args, "diagnostic_snapshot_limit", 1)))
+        self._diagnostic_snapshots_used = 0
+        self._diagnostic_scene = None
+        hold_slots = getattr(self.base_args, "target_hold_slots", 4)
+        if isinstance(hold_slots, bool) or int(hold_slots) != hold_slots or hold_slots <= 0:
+            raise ValueError("target_hold_slots must be a positive integer")
+        self.target_hold_slots = int(hold_slots)
+        self.target_layout = getattr(self.base_args, "target_layout", "random_sector")
         # ── 场景随机化配置（并行 rollout 状态多样性） ─────────────────────────
         # seed_offset：采样进程的种子偏移（worker_id + 1）；0 表示基线 seed
         #（学习进程 / 仅取维度的主进程场景）。逐 episode 种子经
@@ -93,6 +107,12 @@ class MyEnv(gym.Env):
         # NOTE - UAV 个离散头: 每个 UAV 选择一个 CU 索引进行匹配
         self.bs_discrete_action_dims = np.full(self.base_args.uavs_num, self.base_args.cus_num, dtype=np.int64)
 
+        # 与 inner/outer_sampler 的可行样本范围对齐：
+        # CU 功率避免接近 0；UAV 卸载时长为 [0.01, 0.09] s，
+        # 为 D_sensing + D_off < D_sensing_max 留出两侧安全裕量。
+        cu_max_power = dbm_2_watt(self.base_args.cu_max_power_dbm)
+        uav_off_duration_low = 0.01
+        uav_off_duration_high = 0.09
         bs_continuous_low = np.concatenate([
             np.zeros(self.base_args.uavs_num, dtype=np.float32),  # UAV 飞行角度
             np.full(
@@ -100,8 +120,8 @@ class MyEnv(gym.Env):
                 self.base_args.uav_min_speed * self.base_args.time_slot_duration,
                 dtype=np.float32
             ), # UAV 飞行距离
-            np.full(self.base_args.uavs_num, self.epsilon, dtype=np.float32),  # UAV 卸载时长
-            np.full(self.base_args.cus_num, self.epsilon, dtype=np.float32),  # CU 卸载功率
+            np.full(self.base_args.uavs_num, uav_off_duration_low, dtype=np.float32),  # UAV 卸载时长
+            np.full(self.base_args.cus_num, 0.1 * cu_max_power, dtype=np.float32),  # CU 卸载功率
             np.full(
                 self.base_args.uavs_num * self.base_args.antenna_nums,
                 -1.0,
@@ -120,12 +140,8 @@ class MyEnv(gym.Env):
                 self.base_args.uav_max_speed * self.base_args.time_slot_duration,
                 dtype=np.float32
             ),  # UAV 飞行距离
-            np.full(
-                self.base_args.uavs_num,
-                self.base_args.uav_max_delay - self.base_args.uav_sen_duration,
-                dtype=np.float32
-            ),  # UAV 卸载时长
-            np.full(self.base_args.cus_num, dbm_2_watt(self.base_args.cu_max_power_dbm), dtype=np.float32),  # CU 卸载功率
+            np.full(self.base_args.uavs_num, uav_off_duration_high, dtype=np.float32),  # UAV 卸载时长
+            np.full(self.base_args.cus_num, cu_max_power, dtype=np.float32),  # CU 卸载功率
             np.full(
                 self.base_args.uavs_num * self.base_args.antenna_nums,
                 1.0,
@@ -163,7 +179,7 @@ class MyEnv(gym.Env):
             "bs": spaces.Box(low=-np.inf, high=np.inf, shape=(obs_dim_bs,), dtype=np.float32)
         }
 
-        self.reward_calculator = MyReward(self.base_args)
+        self.reward_calculator = MyReward(self.base_args, enable_diagnostics=self.env_diagnostics)
         self._validate_bs_observation_layout()
 
     def _generate_scenario(self, rng):
@@ -175,9 +191,13 @@ class MyEnv(gym.Env):
         """
         # 场景重生成从 t=0 开始（内部多处按 self.t 取预生成量）
         self.t = 0
+        self._diagnostic_scene = None
+        validate_target_schedule_requirements(
+            self.base_args.uavs_num, self.base_args.targets_num,
+            self.madrl_args.total_time_slots, self.target_hold_slots)
         # ── 布点（扇区分区部署，显式 rng） ─────────────────────────────────
         (self.init_uavs_pos, self.init_cus_pos, self.init_targets_pos,
-         self.target_sector) = generate_pos(
+         self.target_sector, self.target_layout_info) = generate_pos(
             self.base_args.uavs_num,
             self.base_args.cus_num,
             self.base_args.targets_num,
@@ -185,6 +205,16 @@ class MyEnv(gym.Env):
             self.base_args.radius,
             self.base_args.uav_height,
             rng=rng,
+            target_layout=self.target_layout,
+            target_hold_slots=self.target_hold_slots,
+            time_slot_duration=self.base_args.time_slot_duration,
+            uav_min_speed=self.base_args.uav_min_speed,
+            uav_max_speed=self.base_args.uav_max_speed,
+            target_ring_space_ratio=getattr(self.base_args, "target_ring_space_ratio", 1.0 / 3.0),
+            target_ring_move_ratio=getattr(self.base_args, "target_ring_move_ratio", 0.85),
+            target_ring_direction=getattr(self.base_args, "target_ring_direction", "clockwise"),
+            uav_safe_distance=self.base_args.uav_safe_distance,
+            return_layout_info=True,
         )
         self.cur_uavs_pos = self.init_uavs_pos.copy()
 
@@ -215,6 +245,7 @@ class MyEnv(gym.Env):
             hold_slots=self.target_hold_slots,
             center=self.base_args.center,
             target_sector=self.target_sector,
+            target_layout=self.target_layout,
         )
         # 调度表仅在 debug 模式打印（正常训练逐 episode 重生成场景，打印会刷屏）
         if self.debug_topology:
@@ -372,7 +403,47 @@ class MyEnv(gym.Env):
             )
         )
 
+    def get_diagnostic_scene(self):
+        """Scenario record cached per generated scene; learner writes it once."""
+        if not self.env_diagnostics:
+            return None
+        if self._diagnostic_scene is None:
+            digest = hashlib.sha256()
+            components = {"uav_initial": self.init_uavs_pos, "cu_initial": self.init_cus_pos,
+                          "targets": self.init_targets_pos, "cu_trajectory": self.precomputed_cus_traj,
+                          "target_schedule": self.precomputed_uav_target_schedule,
+                          **self.precomputed_nlos_components}
+            hashes = {}
+            for name, values in components.items():
+                values = np.ascontiguousarray(values)
+                fingerprint = hashlib.sha256(values.tobytes()).hexdigest()
+                hashes[name] = fingerprint
+                digest.update((name + str(values.shape) + str(values.dtype) + fingerprint).encode())
+            regenerated = (self.randomize_layout_per_episode or
+                           self.randomize_cu_traj_per_episode or self.randomize_nlos_per_episode)
+            scenario_episode = self._episode_idx if regenerated else 0
+            self._diagnostic_scene = {
+                "scene_id": digest.hexdigest(), "base_seed": int(self.base_args.seed),
+                "seed_offset": self.seed_offset, "scenario_episode_idx": int(scenario_episode),
+                "rng_entropy": int(self.base_args.seed) + self.seed_offset,
+                "rng_spawn_key": [int(scenario_episode)], "rng_bit_generator": "PCG64",
+                "randomization": {"layout": self.randomize_layout_per_episode,
+                                  "cu_trajectory": self.randomize_cu_traj_per_episode,
+                                  "nlos": self.randomize_nlos_per_episode},
+                "regeneration_semantics": "any_enabled_flag_regenerates_all_components",
+                "target_hold_slots": self.target_hold_slots,
+                "target_layout": self.target_layout_info,
+                "initial_uav_positions": self.init_uavs_pos.tolist(),
+                "initial_cu_positions": self.init_cus_pos.tolist(),
+                "target_positions": self.init_targets_pos.tolist(),
+                "target_schedule": self.precomputed_uav_target_schedule.tolist(),
+                "component_sha256": hashes,
+            }
+        return self._diagnostic_scene
+
     def step(self, actions, i_episode=None):
+        self.last_action_trace = None
+        self.last_env_diagnostic = None
         bs_actions = actions["bs"] if isinstance(actions, dict) and "bs" in actions else actions
 
         continuous_actions = np.asarray(bs_actions["continuous"], dtype=np.float32)
@@ -380,8 +451,8 @@ class MyEnv(gym.Env):
 
         continuous_low = self.action_space["bs"]["continuous"].low
         continuous_high = self.action_space["bs"]["continuous"].high
-        continuous_actions = np.clip(continuous_actions, 0.0, 1.0)
-        continuous_actions = continuous_actions * (continuous_high - continuous_low) + continuous_low
+        clipped_continuous_actions = np.clip(continuous_actions, 0.0, 1.0)
+        continuous_actions = clipped_continuous_actions * (continuous_high - continuous_low) + continuous_low
 
         offset = 0
         diff_theta = continuous_actions[offset:offset + self.base_args.uavs_num]
@@ -405,6 +476,8 @@ class MyEnv(gym.Env):
             self.base_args.uavs_num,
             self.base_args.antenna_nums,
         )
+        normalized_rec_beam_vectors = uavs_rec_beam_vectors.copy()
+        matched_beams = None
         # Structured receive-beam reference.  The actor still samples the
         # latent direction, so its PPO log-probability remains well-defined;
         # this deterministic transform only changes the physical beam sent to
@@ -433,6 +506,41 @@ class MyEnv(gym.Env):
             diff_distance * np.sin(diff_theta),
             np.zeros_like(diff_distance),
         ], axis=1)
+
+        # Snapshot the exact transformed values used below, before solver/state mutation.
+        # Store complex beams as real/imaginary matrices for portable JSON logging.
+        self.last_action_trace = {
+            "captured_at": datetime.now().astimezone().isoformat(timespec="milliseconds"),
+            "time_slot": int(self.t),
+            "clipped_action": {
+                "continuous": clipped_continuous_actions.tolist(),
+                "discrete": np.argmax(uavs_cus_matched_matrix, axis=1).tolist(),
+            },
+            "mapped_continuous": continuous_actions.tolist(),
+            "physical_action": {
+                "uav_angles": diff_theta.tolist(),
+                "uav_distances": diff_distance.tolist(),
+                "uav_off_durations": off_duration.tolist(),
+                "cu_off_powers": cus_off_power.tolist(),
+                "uavs_cus_matched_matrix": uavs_cus_matched_matrix.tolist(),
+                "uavs_targets_matched_matrix": self.uavs_targets_matched_matrix.tolist(),
+                "uavs_pos_before": self.cur_uavs_pos.tolist(),
+                "uavs_pos_after": next_uavs_pos.tolist(),
+                "uavs_rec_beam_vectors": {
+                    "real": uavs_rec_beam_vectors.real.tolist(),
+                    "imag": uavs_rec_beam_vectors.imag.tolist(),
+                },
+            },
+            "normalized_rec_beam_vectors": {
+                "real": normalized_rec_beam_vectors.real.tolist(),
+                "imag": normalized_rec_beam_vectors.imag.tolist(),
+            },
+            "structured_beam_alpha": beam_alpha,
+            "matched_rec_beam_vectors": None if matched_beams is None else {
+                "real": matched_beams.real.tolist(),
+                "imag": matched_beams.imag.tolist(),
+            },
+        }
 
         color_reset = "\033[0m"
         color_title = "\033[38;5;67m"
@@ -472,7 +580,24 @@ class MyEnv(gym.Env):
             cus_off_power=cus_off_power,
             cus_entertaining_task_size=self.cus_entertaining_task_size,
             uavs_rec_beam_vectors=uavs_rec_beam_vectors,
+            diagnostic_candidates=(self.t % self.diagnostic_candidate_interval == 0),
+            diagnostic_cu_min_power=float(self.action_space["bs"]["continuous"].low[3 * self.base_args.uavs_num]),
+            capture_failed_solution=(self._diagnostic_snapshots_used < self.diagnostic_snapshot_limit),
         )
+        if self.env_diagnostics:
+            diagnostic = reward.get("diagnostics")
+            if diagnostic is None:
+                raise RuntimeError("内层求解未返回已启用的环境诊断")
+            if "problem_snapshot" in diagnostic:
+                self._diagnostic_snapshots_used += 1
+            self.last_env_diagnostic = {
+                **diagnostic, "time_slot": int(self.t),
+                "scene_id": self.get_diagnostic_scene()["scene_id"],
+                "target_indices": self._get_current_uav_target_indices().tolist(),
+                "structured_beam_alpha": beam_alpha,
+                "reward_components": reward.get("components", {}),
+                "legacy_reward": float(total_reward), "legacy_energy": float(energy_opt),
+            }
         print(
             f"{color_title}Episode {i_episode}, Time Slot {self.t}:{color_reset} "
             f"{color_metric}Total Reward = {total_reward:.4f}{color_reset}, "
@@ -495,6 +620,8 @@ class MyEnv(gym.Env):
             reward_components.get("uav_collision_penalty_sum", 0) == 0 and
             reward_components.get("bs_alloc_spectrum_penalty", 0) == 0
         )
+        if self.last_env_diagnostic is not None:
+            self.last_env_diagnostic["legacy_success"] = success
         self.t += 1
         self.cur_uavs_pos = next_uavs_pos
         self.cur_cus_pos = self.precomputed_cus_traj[self.t].copy()
@@ -518,6 +645,9 @@ class MyEnv(gym.Env):
             同 (seed, seed_offset, episode_idx) 场景严格可复现，不同
             worker / 不同 episode 互异。
         """
+        self.last_action_trace = None
+        self.last_env_diagnostic = None
+        self._diagnostic_snapshots_used = 0
         if episode_idx is None:
             episode_idx = self._episode_idx + 1
         self._episode_idx = int(episode_idx)

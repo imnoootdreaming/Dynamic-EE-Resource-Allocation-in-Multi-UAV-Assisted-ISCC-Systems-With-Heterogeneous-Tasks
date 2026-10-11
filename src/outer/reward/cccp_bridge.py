@@ -33,6 +33,11 @@ import sys
 from math import log10
 
 import numpy as np
+from time import perf_counter
+
+from reward.feasibility_diagnostics import (
+    sensing_diagnostics, outer_action_checks, validate_original_solution,
+)
 
 # ── 内层模块加载 ─────────────────────────────────────────────────────────────
 _BRIDGE_DIR = os.path.dirname(os.path.abspath(__file__))        # src/outer/reward
@@ -193,12 +198,36 @@ def build_inner_parameters(base_args, cus_entertaining_task_size=None):
     return params
 
 
+def _diagnostic_problem_snapshot(params, environment, result, target_indices):
+    """One bounded failure snapshot for exact post-hoc numerical verification."""
+    def pack(value):
+        if isinstance(value, (np.ndarray, list, tuple)):
+            array = np.asarray(value)
+            if np.iscomplexobj(array):
+                return {"real": array.real.tolist(), "imag": array.imag.tolist()}
+            return array.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
+    fields = ("q_uav_pos", "q_uav_pos_next", "h_cu_2_uav", "h_uav_2_bs", "h_cu_2_bs",
+              "A_theta", "g_rec_beam", "eta_share", "p_cu_power", "D_uav_off", "d_uav_target")
+    solution_fields = ("W_sen_beam", "B_off_beam", "w_sen_beam", "b_off_beam",
+                       "f_uav_freq", "f_cu_freq", "z_aux_rate", "D_cu_off")
+    return {"parameters": {k: pack(v) for k, v in vars(params).items()},
+            "environment": {k: pack(getattr(environment, k)) for k in fields},
+            "target_indices": np.asarray(target_indices).tolist(),
+            "solution": {k: pack(result.get(k)) for k in solution_fields},
+            "scope": "returned_values_and_original_constraints_not_P5_certificate"}
+
+
 # ── 主入口 ───────────────────────────────────────────────────────────────────
 def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels,
                        uavs_2_targets_channels, uavs_targets_matched_matrix,
                        uavs_cus_matched_matrix, uavs_pos_pre, uavs_pos_cur,
                        uavs_off_duration, cus_off_power, cus_entertaining_task_size,
-                       uavs_rec_beam_vectors=None, return_solution=True):
+                       uavs_rec_beam_vectors=None, return_solution=True, *,
+                       collect_diagnostics=True, diagnostic_candidates=True,
+                       diagnostic_cu_min_power=None, capture_failed_solution=False):
     """外层场景 -> 内层 PC3P 求解 -> 返回与旧 penalty_based_cccp 一致的 12 元组。
 
     :param uavs_rec_beam_vectors: 可选，(I, N) 复数，外层智能体产出的接收波束 g_i
@@ -263,7 +292,21 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
 
     variables = InnerVariables.create(params)
     ctx = InnerContext(params, environment, variables)
+    diagnostic_start = perf_counter()
+    env_diagnostic = None
+    if collect_diagnostics:
+        env_diagnostic = {
+            "schema_version": 1,
+            "sensing": sensing_diagnostics(
+                params, environment, cu_min_power=diagnostic_cu_min_power,
+                candidates=diagnostic_candidates),
+            "outer_action": outer_action_checks(
+                params, environment, cu_min_power=diagnostic_cu_min_power),
+        }
+    diagnostic_pre_seconds = perf_counter() - diagnostic_start
+    solver_start = perf_counter()
     result = run_pc3p(ctx)
+    solver_seconds = perf_counter() - solver_start
     solver_status = result.get("status")
     solver_status_kind = _classify_solver_status(solver_status)
     solver_diagnostic = {
@@ -272,6 +315,30 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
         "solver_converged": bool(result.get("converged", False)),
         "solver_iterations": int(result.get("iterations", 0) or 0),
     }
+
+    if collect_diagnostics:
+        validation_start = perf_counter()
+        validation = validate_original_solution(params, environment, result)
+        env_diagnostic.update({
+            "solver": {
+                **solver_diagnostic,
+                **result.get("solver_diagnostics", {}),
+                "rank1_gap": result.get("rank1_gap"),
+                "failed_iteration": result.get("iterations")
+                    if result["W_sen_beam"] is None else None,
+                "last_solved_iteration": result.get("last_solved_iteration", 0),
+                "returned_solution": result["W_sen_beam"] is not None,
+                "solve_seconds": solver_seconds,
+            },
+            "validation": validation,
+        })
+        env_diagnostic["diagnostic_seconds"] = (
+            diagnostic_pre_seconds + perf_counter() - validation_start)
+        if capture_failed_solution and result["W_sen_beam"] is not None and (
+                not validation["physical_solution_verified"]):
+            env_diagnostic["problem_snapshot"] = _diagnostic_problem_snapshot(
+                params, environment, result, target_idx)
+        solver_diagnostic["env_diagnostic"] = env_diagnostic
 
     if result["W_sen_beam"] is None:
         return (float("inf"), None, None, None, None, None, None,

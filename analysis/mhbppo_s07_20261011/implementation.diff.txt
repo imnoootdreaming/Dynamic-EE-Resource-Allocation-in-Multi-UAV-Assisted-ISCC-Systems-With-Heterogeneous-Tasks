@@ -1,0 +1,528 @@
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/environment/topology.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/environment/topology.py
+index 1f30707..4e25856 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/environment/topology.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/environment/topology.py
+@@ -18,10 +18,28 @@
+ """
+ 
+ import warnings
++import importlib.util
++from pathlib import Path
+ 
+ import numpy as np
+ 
+ 
++
++_RING_GENERATOR = None
++
++
++def generate_ring_targets(*args, **kwargs):
++    """Load the shared inner/outer geometry without relying on sys.path order."""
++    global _RING_GENERATOR
++    if _RING_GENERATOR is None:
++        path = Path(__file__).resolve().parents[2] / "inner" / "target_layout.py"
++        spec = importlib.util.spec_from_file_location("_iscc_target_layout", path)
++        module = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(module)
++        _RING_GENERATOR = module.generate_sector_ring_targets
++    return _RING_GENERATOR(*args, **kwargs)
++
++
+ # ── 扇区划分工具（对齐 src/inner/environment.py 的分区责任制语义） ─────────────
+ 
+ 
+@@ -136,7 +154,7 @@ def assign_targets_for_window(reference_positions, candidate_target_indices, uav
+ def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targets_pos,
+                                  total_time_slots, hold_slots,
+                                  center=(0.0, 0.0), target_sector=None,
+-                                 initial_reference_positions=None):
++                                 initial_reference_positions=None, target_layout="random_sector"):
+     """预计算每个时隙的 UAV→目标分配调度及其规划转移距离（扇区内链式）。
+ 
+     :param center: 部署区域中心（x, y），用于 `target_sector` 未给定时的扇区推导。
+@@ -151,6 +169,29 @@ def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targ
+         return schedule, schedule_distances
+ 
+     validate_target_schedule_requirements(uavs_num, targets_num, total_time_slots, hold_slots)
++    if target_layout not in ("random_sector", "sector_ring"):
++        raise ValueError("Unknown target_layout: " + str(target_layout))
++    if target_layout == "sector_ring":
++        sectors = np.asarray(target_sector if target_sector is not None else
++                             sector_of(init_targets_pos, center, uavs_num), dtype=int)
++        per_sector = targets_num // uavs_num
++        by_sector = [np.flatnonzero(sectors == i) for i in range(uavs_num)]
++        if any(len(indices) != per_sector for indices in by_sector):
++            raise ValueError("sector_ring requires equal target counts in every sector")
++        reference = np.asarray(init_uavs_pos if initial_reference_positions is None else
++                               initial_reference_positions, dtype=float).copy()
++        for window_idx in range(get_num_target_windows(total_time_slots, hold_slots)):
++            assigned = np.array([indices[window_idx] for indices in by_sector], dtype=np.int64)
++            distance = np.linalg.norm(init_targets_pos[assigned] - reference, axis=1)
++            start = window_idx * hold_slots
++            end = min(start + hold_slots, total_time_slots)
++            schedule[start:end] = assigned
++            schedule_distances[start:end] = distance
++            reference = init_targets_pos[assigned].copy()
++        schedule[total_time_slots] = schedule[total_time_slots - 1]
++        schedule_distances[total_time_slots] = schedule_distances[total_time_slots - 1]
++        return schedule, schedule_distances
++
+     if target_sector is None:
+         target_sector = sector_of(init_targets_pos, center, uavs_num)
+     else:
+@@ -210,7 +251,12 @@ def print_precomputed_target_schedule(uavs_num, schedule, schedule_distances, ho
+     print("==================================================")
+ 
+ 
+-def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng=None):
++def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng=None,
++                 *, target_layout="random_sector", target_hold_slots=4,
++                 time_slot_duration=0.6, uav_min_speed=5.0, uav_max_speed=40.0,
++                 target_ring_space_ratio=1.0 / 3.0, target_ring_move_ratio=0.85,
++                 target_ring_direction="clockwise", uav_safe_distance=0.0,
++                 return_layout_info=False):
+     """扇区分区部署（对齐 inner 语义）：目标均分到 I 个等角扇区，UAV 各负责一个扇区。
+ 
+     - CU：全区域圆盘均匀（r = R·sqrt(U)），z = 0；
+@@ -233,6 +279,31 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
+     cus_pos[:, 0] = center[0] + r_cu * np.cos(theta_cu)
+     cus_pos[:, 1] = center[1] + r_cu * np.sin(theta_cu)
+ 
++    if target_layout not in ("random_sector", "sector_ring"):
++        raise ValueError("Unknown target_layout: " + str(target_layout))
++    if target_layout == "sector_ring":
++        targets_pos, target_sector, layout_info = generate_ring_targets(
++            uavs_num, targets_num, center, radius,
++            hold_slots=target_hold_slots, time_slot_duration=time_slot_duration,
++            min_speed=uav_min_speed, max_speed=uav_max_speed,
++            space_ratio=target_ring_space_ratio, move_ratio=target_ring_move_ratio,
++            direction=target_ring_direction)
++        # Preserve subsequent trajectory/NLoS random draws for layout-only comparisons.
++        # These old draws are discarded; the actual ring targets are deterministic.
++        for i in range(uavs_num):
++            sample_in_sector(rng, targets_num // uavs_num, i, center, radius, uavs_num, 0.0)
++        uavs_pos = targets_pos[np.arange(uavs_num) * (targets_num // uavs_num)].copy()
++        uavs_pos[:, 2] = uav_height
++        if uavs_num > 1:
++            distances = np.linalg.norm(uavs_pos[:, None, :] - uavs_pos[None, :, :], axis=2)
++            distances[np.diag_indices(uavs_num)] = np.inf
++            if np.min(distances) < uav_safe_distance:
++                raise ValueError("sector_ring initial UAV spacing violates uav_safe_distance; "
++                                 "increase deploy_radius or reduce UAV count")
++        layout_info["target_rng_semantics"] = "deterministic_ring_preserves_legacy_draws"
++        result = (uavs_pos, cus_pos, targets_pos, target_sector)
++        return result + (layout_info,) if return_layout_info else result
++
+     # ── 目标：均分到各扇区并在扇区内均匀采样 ──────────────────────────────
+     counts = [targets_num // uavs_num] * uavs_num
+     for i in range(targets_num % uavs_num):
+@@ -271,7 +342,10 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
+         uavs_pos[i, 2] = uav_height
+         used_target_indices.add(nearest_global)
+ 
+-    return uavs_pos, cus_pos, targets_pos, target_sector
++    result = (uavs_pos, cus_pos, targets_pos, target_sector)
++    layout_info = {"layout": "random_sector", "deploy_radius": float(radius),
++                   "direction": "nearest_neighbor", "target_rng_semantics": "random_sector"}
++    return result + (layout_info,) if return_layout_info else result
+ 
+ 
+ def generate_cu_trajectory(init_cus_pos, cus_num, total_time_slots,
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/environment/my_env.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/environment/my_env.py
+index bebb756..c847548 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/environment/my_env.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/environment/my_env.py
+@@ -41,6 +41,7 @@ from environment.topology import (
+     generate_pos,
+     generate_uav_target_schedule,
+     get_num_target_windows,
++    validate_target_schedule_requirements,
+     print_precomputed_target_schedule,
+ )
+ from reward.my_reward import MyReward
+@@ -70,7 +71,11 @@ class MyEnv(gym.Env):
+         self.diagnostic_snapshot_limit = max(0, int(getattr(madrl_args, "diagnostic_snapshot_limit", 1)))
+         self._diagnostic_snapshots_used = 0
+         self._diagnostic_scene = None
+-        self.target_hold_slots = 4  # 每 4 个时隙分配一次目标
++        hold_slots = getattr(self.base_args, "target_hold_slots", 4)
++        if isinstance(hold_slots, bool) or int(hold_slots) != hold_slots or hold_slots <= 0:
++            raise ValueError("target_hold_slots must be a positive integer")
++        self.target_hold_slots = int(hold_slots)
++        self.target_layout = getattr(self.base_args, "target_layout", "random_sector")
+         # ── 场景随机化配置（并行 rollout 状态多样性） ─────────────────────────
+         # seed_offset：采样进程的种子偏移（worker_id + 1）；0 表示基线 seed
+         #（学习进程 / 仅取维度的主进程场景）。逐 episode 种子经
+@@ -187,9 +192,12 @@ class MyEnv(gym.Env):
+         # 场景重生成从 t=0 开始（内部多处按 self.t 取预生成量）
+         self.t = 0
+         self._diagnostic_scene = None
++        validate_target_schedule_requirements(
++            self.base_args.uavs_num, self.base_args.targets_num,
++            self.madrl_args.total_time_slots, self.target_hold_slots)
+         # ── 布点（扇区分区部署，显式 rng） ─────────────────────────────────
+         (self.init_uavs_pos, self.init_cus_pos, self.init_targets_pos,
+-         self.target_sector) = generate_pos(
++         self.target_sector, self.target_layout_info) = generate_pos(
+             self.base_args.uavs_num,
+             self.base_args.cus_num,
+             self.base_args.targets_num,
+@@ -197,6 +205,16 @@ class MyEnv(gym.Env):
+             self.base_args.radius,
+             self.base_args.uav_height,
+             rng=rng,
++            target_layout=self.target_layout,
++            target_hold_slots=self.target_hold_slots,
++            time_slot_duration=self.base_args.time_slot_duration,
++            uav_min_speed=self.base_args.uav_min_speed,
++            uav_max_speed=self.base_args.uav_max_speed,
++            target_ring_space_ratio=getattr(self.base_args, "target_ring_space_ratio", 1.0 / 3.0),
++            target_ring_move_ratio=getattr(self.base_args, "target_ring_move_ratio", 0.85),
++            target_ring_direction=getattr(self.base_args, "target_ring_direction", "clockwise"),
++            uav_safe_distance=self.base_args.uav_safe_distance,
++            return_layout_info=True,
+         )
+         self.cur_uavs_pos = self.init_uavs_pos.copy()
+ 
+@@ -227,6 +245,7 @@ class MyEnv(gym.Env):
+             hold_slots=self.target_hold_slots,
+             center=self.base_args.center,
+             target_sector=self.target_sector,
++            target_layout=self.target_layout,
+         )
+         # 调度表仅在 debug 模式打印（正常训练逐 episode 重生成场景，打印会刷屏）
+         if self.debug_topology:
+@@ -413,6 +432,7 @@ class MyEnv(gym.Env):
+                                   "nlos": self.randomize_nlos_per_episode},
+                 "regeneration_semantics": "any_enabled_flag_regenerates_all_components",
+                 "target_hold_slots": self.target_hold_slots,
++                "target_layout": self.target_layout_info,
+                 "initial_uav_positions": self.init_uavs_pos.tolist(),
+                 "initial_cu_positions": self.init_cus_pos.tolist(),
+                 "target_positions": self.init_targets_pos.tolist(),
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/inner/parameters.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/inner/parameters.py
+index 5397b7c..4fcd2fc 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/inner/parameters.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/inner/parameters.py
+@@ -29,6 +29,12 @@ class Parameters:
+     J: int = 10                         # CU 数量
+     K: int = 40                         # target 数量
+ 
++    # ── 目标布局：每扇区独立圆周，半径随区域、扇区和移动预算自适应 ─────────
++    target_layout: str = "sector_ring"  # sector_ring / random_sector
++    target_ring_space_ratio: float = 1.0 / 3.0  # 整圆可容纳半径的比例
++    target_ring_move_ratio: float = 0.85        # 参考窗口移动预算的比例
++    target_ring_direction: str = "clockwise"   # clockwise / counterclockwise
++
+     # ── UAV 飞行参数 ──────────────────────────────────────────────────────
+     uav_height: float = 50.0            # H，UAV 固定飞行高度 (m) (修改前:100)
+     uav_max_speed: float = 40.0         # V_max (m/s)
+@@ -103,6 +109,17 @@ class Parameters:
+     # ── 随机种子  ─────────────
+     seed: int = 1208
+ 
++    @property
++    def target_hold_slots(self):
++        """Readable layout/schedule alias for the physical window length varkappa."""
++        return self.varkappa
++
++    @target_hold_slots.setter
++    def target_hold_slots(self, value):
++        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)) or value <= 0:
++            raise ValueError("target_hold_slots must be a positive integer")
++        self.varkappa = int(value)
++
+     def __post_init__(self):
+         # ρ 的初值快照：PC3P 迭代中会把 rho_penalty 逐步放大（P1）并原地写回 params，
+         # 而同一个 Parameters 实例会被 main 循环复用给每个外层样本，若不复位，
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/inner/environment.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/inner/environment.py
+index 6fb35a9..8a820e3 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/inner/environment.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/inner/environment.py
+@@ -9,6 +9,11 @@ from dataclasses import dataclass
+ 
+ import numpy as np
+ 
++try:
++    from .target_layout import generate_sector_ring_targets
++except ImportError:  # Direct execution from src/inner remains supported.
++    from target_layout import generate_sector_ring_targets
++
+ 
+ def _steering_vector(sin_phi, antenna_nums, d_over_lambda):
+     """阵列响应向量 [1, e^{j2π(𝔡/λ)sinφ}, ..., e^{j2π(𝔡/λ)(N-1)sinφ}]。"""
+@@ -76,7 +81,7 @@ def _sample_in_sector(rng, count, sector, params, height):
+ 
+ 
+ def _generate_positions(params, rng):
+-    """按扇区生成位置：CU 全区域随机；UAV 每扇区质心一个；目标均分到各扇区。"""
++    """按扇区生成位置：CU 全区域随机；目标支持自适应圆周或原随机部署。"""
+     def sample_in_disk(num, height):
+         radius = params.deploy_radius * np.sqrt(rng.random(num))
+         theta = rng.random(num) * 2.0 * np.pi
+@@ -88,13 +93,42 @@ def _generate_positions(params, rng):
+ 
+     q_cu_pos = sample_in_disk(params.J, 0.0)          # CU：全区域随机（不变）
+ 
++    layout = getattr(params, "target_layout", "random_sector")
++    if layout == "sector_ring":
++        # Shared validation runs before division by I or position allocation.
++        q_target_pos, _, _ = generate_sector_ring_targets(
++            params.I, params.K, params.bs_pos, params.deploy_radius,
++            hold_slots=getattr(params, "target_hold_slots", params.varkappa),
++            time_slot_duration=params.tau_slot,
++            min_speed=params.uav_min_speed, max_speed=params.uav_max_speed,
++            space_ratio=getattr(params, "target_ring_space_ratio", 1.0 / 3.0),
++            move_ratio=getattr(params, "target_ring_move_ratio", 0.85),
++            direction=getattr(params, "target_ring_direction", "clockwise"),
++        )
++    elif layout != "random_sector":
++        raise ValueError("target_layout must be 'sector_ring' or 'random_sector'")
++
+     counts = [params.K // params.I] * params.I        # 目标均分，余数补给前几个扇区
+     for i in range(params.K % params.I):
+         counts[i] += 1
+ 
+-    q_uav_pos = np.vstack([_sector_centroid(i, params) for i in range(params.I)])
+-    q_target_pos = np.vstack([_sample_in_sector(rng, counts[i], i, params, 0.0)
+-                              for i in range(params.I)])
++    if layout == "sector_ring":
++        # Keep legacy target draws so same-seed communication randomness is
++        # comparable to random_sector; these draws do not determine targets.
++        for i in range(params.I):
++            _sample_in_sector(rng, counts[i], i, params, 0.0)
++        q_uav_pos = q_target_pos[np.arange(params.I) * (params.K // params.I)].copy()
++        q_uav_pos[:, 2] = params.uav_height
++        if params.I > 1:
++            distances = np.linalg.norm(q_uav_pos[:, None, :] - q_uav_pos[None, :, :], axis=2)
++            np.fill_diagonal(distances, np.inf)
++            if np.min(distances) < params.uav_safe_distance:
++                raise ValueError("sector_ring initial UAV separation is below uav_safe_distance; "
++                                 "increase deployment radius or reduce UAV count")
++    else:
++        q_uav_pos = np.vstack([_sector_centroid(i, params) for i in range(params.I)])
++        q_target_pos = np.vstack([_sample_in_sector(rng, counts[i], i, params, 0.0)
++                                  for i in range(params.I)])
+     return q_uav_pos, q_cu_pos, q_target_pos
+ 
+ 
+@@ -192,7 +226,7 @@ def build_environment(params, rng, outer_variables=None):
+     q_uav_pos, q_cu_pos, q_target_pos = _generate_positions(params, rng)
+ 
+     # ── 每个 UAV 的指定感知目标 ──────────────────────────────────────────
+-    # （_assign_nearest_targets 用扇区质心作为归属锚点确定各 UAV 的扇区，再在本区目标中取最近）
++    # （随机布局从扇区质心选最近点；圆周布局初始 UAV 已在本区首目标上方）
+     target_idx = _assign_nearest_targets(q_uav_pos, q_target_pos, params)
+     q_target_designated = q_target_pos[target_idx]
+ 
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_agent.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_agent.py
+index f576724..3801c49 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_agent.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_agent.py
+@@ -42,7 +42,12 @@ class GaussianHead(nn.Module):
+ 
+ 
+ class MultiHeadActor(nn.Module):
+-    def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims, continuous_dist_type="beta"):
++    RECEIVE_BEAM_HEADS = frozenset({
++        "uav_rec_beam_dir_real", "uav_rec_beam_dir_imag",
++    })
++
++    def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
++                 continuous_dist_type="beta", structured_beam_alpha=1.0):
+         super(MultiHeadActor, self).__init__()
+         self.fc1 = nn.Linear(state_dim, hidden_dim)
+         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+@@ -53,6 +58,21 @@ class MultiHeadActor(nn.Module):
+ 
+         self.continuous_action_splits = continuous_action_splits
+         self.continuous_head_names = list(continuous_action_splits.keys())
++        # Match the environment's clipped physical mixing coefficient.  Keep
++        # the heads/actions for checkpoint compatibility, but exclude beams
++        # from the policy density when their physical contribution is zero.
++        configured_alpha = float(structured_beam_alpha)
++        if not np.isfinite(configured_alpha):
++            raise ValueError("structured_beam_alpha must be finite")
++        self.structured_beam_alpha_effective = float(np.clip(configured_alpha, 0.0, 1.0))
++        self.masked_continuous_head_names = tuple(
++            name for name in self.continuous_head_names
++            if self.structured_beam_alpha_effective == 0.0 and name in self.RECEIVE_BEAM_HEADS
++        )
++        self.active_continuous_head_names = tuple(
++            name for name in self.continuous_head_names
++            if name not in self.masked_continuous_head_names
++        )
+         # 20260403 - 引入高斯分布对应的修改
+         self.continuous_dist_type = str(continuous_dist_type).lower()
+         if self.continuous_dist_type == "beta":
+@@ -78,6 +98,21 @@ class MultiHeadActor(nn.Module):
+         for head in self.discrete_heads:
+             orthogonal_init(head, gain=0.01)
+ 
++    def action_probability_metadata(self):
++        """Runtime configuration, deliberately absent from parameter state_dict."""
++        return {
++            "action_probability_contract": "inactive_receive_beam_heads_excluded_v1",
++            "structured_beam_alpha_effective": self.structured_beam_alpha_effective,
++            "active_continuous_heads": list(self.active_continuous_head_names),
++            "masked_continuous_heads": list(self.masked_continuous_head_names),
++            "active_continuous_action_dim": sum(
++                self.continuous_action_splits[name] for name in self.active_continuous_head_names
++            ),
++            "masked_continuous_action_dim": sum(
++                self.continuous_action_splits[name] for name in self.masked_continuous_head_names
++            ),
++        }
++
+     def _forward_features(self, s):
+         s = self.activate_func(self.fc1(s))
+         s = self.activate_func(self.fc2(s))
+@@ -140,6 +175,14 @@ class MultiHeadActor(nn.Module):
+         con_log_prob = torch.zeros((batch_size, 1), dtype=torch.float32, device=device)
+         for head_name in self.continuous_head_names:
+             dist = continuous_dists[head_name]
++            if head_name in self.masked_continuous_head_names:
++                # Preserve the action layout and RNG draws without creating
++                # a probability/gradient path through unused beam parameters.
++                action = dist.sample()
++                if self.continuous_dist_type == "gaussian":
++                    action = torch.sigmoid(action)
++                continuous_actions.append(action)
++                continue
+             action, action_log_prob, _ = self._sample_continuous_action_and_log_prob(dist)
+             continuous_actions.append(action)
+             total_log_prob = total_log_prob + action_log_prob
+@@ -180,11 +223,15 @@ class MultiHeadActor(nn.Module):
+         for head_name in self.continuous_head_names:
+             head_dim = self.continuous_action_splits[head_name]
+             action_slice = continuous_actions[:, start_idx:start_idx + head_dim]
++            start_idx += head_dim
++            if head_name in self.masked_continuous_head_names:
++                # Skip rather than multiply by zero: dedicated beam-head
++                # gradients stay None, including when Adam has old momentum.
++                continue
+             dist = continuous_dists[head_name]
+             head_log_prob, head_entropy = self._evaluate_continuous_log_prob_and_entropy(dist, action_slice)
+             cont_log_prob += head_log_prob
+             cont_entropy += head_entropy
+-            start_idx += head_dim
+ 
+         for head_idx, dist in enumerate(discrete_dists):
+             action_slice = discrete_actions[:, head_idx]
+@@ -217,7 +264,8 @@ class HPPO:
+     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
+                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
+                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
+-                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1):
++                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1,
++                 structured_beam_alpha=1.0):
+         self.continuous_action_splits = continuous_action_splits
+         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
+         self.actor = MultiHeadActor(
+@@ -225,7 +273,8 @@ class HPPO:
+             hidden_dim=hidden_dim,
+             continuous_action_splits=continuous_action_splits,
+             discrete_action_dims=self.discrete_action_dims,
+-            continuous_dist_type=continuous_dist_type
++            continuous_dist_type=continuous_dist_type,
++            structured_beam_alpha=structured_beam_alpha,
+         ).to(device)
+         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
+ 
+@@ -312,7 +361,7 @@ class HPPO:
+                     discrete_actions[index],
+                 )
+                 loss = -(cont_lp + disc_lp).mean()
+-                self.actor_optimizer.zero_grad()
++                self.actor_optimizer.zero_grad(set_to_none=True)
+                 loss.backward()
+                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1.0)
+                 self.actor_optimizer.step()
+@@ -418,7 +467,7 @@ class HPPO:
+                 #     -torch.min(surr1, surr2) - self.discrete_entropy_coef * d_ent - self.continuous_entropy_coef * c_ent)
+                 critic_loss = F.mse_loss(self.critic(states[index]), v_target[index].detach())
+ 
+-                self.actor_optimizer.zero_grad()
++                self.actor_optimizer.zero_grad(set_to_none=True)
+                 self.critic_optimizer.zero_grad()
+                 actor_loss.backward()
+                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1)
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_sampler.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_sampler.py
+index b975499..2bef9bd 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_sampler.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_sampler.py
+@@ -199,6 +199,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
+             continuous_action_splits=env.bs_continuous_action_splits,
+             discrete_action_dims=bs_discrete_action_space.nvec,
+             continuous_dist_type="beta",
++            structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
+         ).to(device)
+ 
+         # 状态归一化统计量由 learner 统一维护；sampler 在一个 episode 内固定快照。
+@@ -356,6 +357,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
+                 # ── 探针字段：本 episode 实际使用的参数版本 / 指纹 ──
+                 "weights_version": current_weights_version,
+                 "weights_checksum": current_weights_checksum,
++                "action_probability_metadata": actor.action_probability_metadata(),
+             }
+ 
+             # 有界队列：队列满时阻塞在此（背压 => staleness 上限 = maxsize 个参数版本）
+
+diff --git a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_main.py b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_main.py
+index 14bdeee..f8ab457 100644
+--- a/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/analysis/mhbppo_s07_20261011/before/src/outer/algorithms/MHBPPO/MHBPPO_main.py
++++ b/D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/algorithms/MHBPPO/MHBPPO_main.py
+@@ -132,12 +132,19 @@ _TRANSITION_KEYS = (
+ )
+ 
+ 
+-def validate_sample(item):
++def validate_sample(item, expected_probability_metadata=None):
+     """校验从队列取出元素的自洽性，防止训练错位。返回该 episode 的 transition 条数。
+ 
+     错位风险主要来自各字段长度不一致（会导致 PPO 用错位的 old_log_probs / next_states
+     参与 ratio 与 GAE 计算），因此在消费前强制检查 9 个字段等长且非空。
+     """
++    if expected_probability_metadata is not None:
++        actual = item.get("action_probability_metadata")
++        if actual != expected_probability_metadata:
++            raise RuntimeError(
++                f"采样端/学习端动作概率契约不一致: sampler={actual}, "
++                f"learner={expected_probability_metadata}; 不可混用旧 rollout"
++            )
+     transition_dict = item.get("transition_dict", {})
+     missing = [k for k in _TRANSITION_KEYS if k not in transition_dict]
+     if missing:
+@@ -324,7 +331,10 @@ if __name__ == "__main__":
+         num_episodes=madrl_args.episodes,  # lr 衰减 horizon
+         device=device,
+         entropy_coef=0.01,
++        structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
+     )
++    probability_metadata = agent_bs.actor.action_probability_metadata()
++    action_log_metadata.update(probability_metadata)
+ 
+     output_dir = os.path.join(
+         _OUTER_ROOT, "ckpt", "MHBPPO", f"{current_time_str}_mhbppo_seed_{base_args.seed}",
+@@ -435,6 +445,7 @@ if __name__ == "__main__":
+ 
+     logger.info(f"[learner] device={device} | num_samplers={num_samplers} | sample_queue_maxsize={queue_maxsize} | "
+                 f"checkpoint_interval={checkpoint_interval} | lr_decay_horizon={madrl_args.episodes} | cpu={cpu_count}")
++    logger.info(f"[learner] 动作概率契约: {probability_metadata}")
+     logger.info(f"[learner] 输出目录: {output_dir}")
+     logger.info(f"[learner] 实时日志: {log_path}")
+     logger.info(f"[learner] 动作日志: {action_log_path}（每条 transition 包含原始与环境处理后的动作）")
+@@ -497,7 +508,7 @@ if __name__ == "__main__":
+ 
+             # ── 消费：一次 update = 一次 iteration ──
+             # 消费前校验该 episode 的 9 个字段等长自洽，避免错位数据参与 PPO 更新
+-            n_transitions = validate_sample(item)
++            n_transitions = validate_sample(item, probability_metadata)
+ 
+             # 先落盘实际动作与原始奖励；即使 PPO 更新失败，也保留该批诊断。
+             action_writer.write_episode(item, iteration=iteration + 1)

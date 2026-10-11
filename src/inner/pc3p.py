@@ -228,10 +228,11 @@ def run_pc3p(ctx):
     update_linearization(ctx)
     problem = cp.Problem(cp.Minimize(build_objective(ctx)), collect_constraints(ctx))
 
-    # 内点法可行性容差：默认 1e-8，放宽到 mosek_tol_feas 可显著减少内点迭代（仅影响收敛判据）
+    # 可行性容差与最优性间隙分别配置；默认仅放宽 RelGap，不放宽可行性。
     mosek_params = {
         "MSK_DPAR_INTPNT_CO_TOL_PFEAS": ctx.mosek_tol_feas,
         "MSK_DPAR_INTPNT_CO_TOL_DFEAS": ctx.mosek_tol_feas,
+        "MSK_DPAR_INTPNT_CO_TOL_REL_GAP": ctx.mosek_tol_rel_gap,
     }
 
     for n in range(1, ctx.max_iterations + 1):

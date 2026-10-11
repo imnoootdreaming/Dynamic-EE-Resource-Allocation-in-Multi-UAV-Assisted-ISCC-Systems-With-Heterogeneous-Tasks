@@ -1,0 +1,584 @@
+求解后端：fusion；MOSEK RelGap=1.0e-08
+已注册约束：P1:Task-Fresh, P1-1:UAV-task-delay, P2:Sen-Semi-Positive, P2:Off-Semi-Positive, P2:UAV-Sen-Max-Power, P2:Sensing-SINR, P2:UAV-Off-Max-Power, P2:UAVs-task-successful-offloading, P3:CU-Frequency-Always-Positive, P3:BS-Max-Frequency, CCCP:Auxiliary-Variable-1, CCCP:CUs-task-successful-offloading, DCP-Auxiliary:Freq-Squared-SOC
+外层变量样本数：30
+
+样本 1/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.732 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：20.795904 J
+秩一间隙：9.546e-08
+u_0: ||w||^2 = 0.3083 W, ||b||^2 = 0.0002 W, f_u = 3.0869e+07 Hz, z = 314.6612 bits
+u_1: ||w||^2 = 1.6534 W, ||b||^2 = 0.0000 W, f_u = 1.8930e+07 Hz, z = 310.0108 bits
+u_2: ||w||^2 = 1.2629 W, ||b||^2 = 0.0013 W, f_u = 2.0380e+07 Hz, z = 331.6778 bits
+u_3: ||w||^2 = 3.5710 W, ||b||^2 = 0.0000 W, f_u = 1.5156e+07 Hz, z = 302.4462 bits
+c_0: D^off = 0.0018 s, f_c = 2.8416e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8424e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.1337 s, f_c = 3.6459e+08 Hz
+c_4: D^off = 0.1811 s, f_c = 4.0586e+08 Hz
+c_5: D^off = 0.1620 s, f_c = 3.8817e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8404e+08 Hz
+c_7: D^off = 0.1197 s, f_c = 3.5397e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8384e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8406e+08 Hz
+
+样本 2/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.433 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：26.796922 J
+秩一间隙：1.300e-06
+u_0: ||w||^2 = 5.6755 W, ||b||^2 = 0.0000 W, f_u = 2.1436e+07 Hz, z = 532.8310 bits
+u_1: ||w||^2 = 5.4052 W, ||b||^2 = 0.0000 W, f_u = 1.9333e+07 Hz, z = 365.0701 bits
+u_2: ||w||^2 = 5.5807 W, ||b||^2 = 0.0020 W, f_u = 3.7814e+07 Hz, z = 354.1840 bits
+u_3: ||w||^2 = 2.7599 W, ||b||^2 = 0.0000 W, f_u = 2.3588e+07 Hz, z = 451.0587 bits
+c_0: D^off = 0.0016 s, f_c = 2.8409e+08 Hz
+c_1: D^off = 0.1106 s, f_c = 3.4739e+08 Hz
+c_2: D^off = 0.0019 s, f_c = 2.8425e+08 Hz
+c_3: D^off = 0.0020 s, f_c = 2.8428e+08 Hz
+c_4: D^off = 0.0021 s, f_c = 2.8431e+08 Hz
+c_5: D^off = 0.1908 s, f_c = 4.1543e+08 Hz
+c_6: D^off = 0.0014 s, f_c = 2.8400e+08 Hz
+c_7: D^off = 0.1629 s, f_c = 3.8896e+08 Hz
+c_8: D^off = 0.0012 s, f_c = 2.8388e+08 Hz
+c_9: D^off = 0.1279 s, f_c = 3.6007e+08 Hz
+
+样本 3/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.312 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：40.441803 J
+秩一间隙：9.286e-07
+u_0: ||w||^2 = 3.8127 W, ||b||^2 = 0.0000 W, f_u = 2.3575e+07 Hz, z = 574.9559 bits
+u_1: ||w||^2 = 4.0491 W, ||b||^2 = 0.0000 W, f_u = 2.0415e+07 Hz, z = 325.0699 bits
+u_2: ||w||^2 = 2.5733 W, ||b||^2 = 0.0025 W, f_u = 2.8429e+07 Hz, z = 495.4644 bits
+u_3: ||w||^2 = 0.3371 W, ||b||^2 = 0.0000 W, f_u = 2.1492e+07 Hz, z = 562.7823 bits
+c_0: D^off = 0.1232 s, f_c = 3.5652e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8426e+08 Hz
+c_2: D^off = 0.1757 s, f_c = 4.0066e+08 Hz
+c_3: D^off = 0.1363 s, f_c = 3.6663e+08 Hz
+c_4: D^off = 0.1571 s, f_c = 3.8382e+08 Hz
+c_5: D^off = 0.0025 s, f_c = 2.8454e+08 Hz
+c_6: D^off = 0.0019 s, f_c = 2.8423e+08 Hz
+c_7: D^off = 0.0019 s, f_c = 2.8424e+08 Hz
+c_8: D^off = 0.0013 s, f_c = 2.8394e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8405e+08 Hz
+
+样本 4/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.304 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：44.137745 J
+秩一间隙：1.295e-06
+u_0: ||w||^2 = 1.3319 W, ||b||^2 = 0.0000 W, f_u = 2.5136e+07 Hz, z = 725.5817 bits
+u_1: ||w||^2 = 1.7917 W, ||b||^2 = 0.0000 W, f_u = 2.5042e+07 Hz, z = 704.2706 bits
+u_2: ||w||^2 = 0.1072 W, ||b||^2 = 0.0012 W, f_u = 2.4625e+07 Hz, z = 1066.9491 bits
+u_3: ||w||^2 = 0.7538 W, ||b||^2 = 0.0000 W, f_u = 2.4132e+07 Hz, z = 373.8230 bits
+c_0: D^off = 0.1371 s, f_c = 3.6725e+08 Hz
+c_1: D^off = 0.0020 s, f_c = 2.8430e+08 Hz
+c_2: D^off = 0.1251 s, f_c = 3.5795e+08 Hz
+c_3: D^off = 0.0018 s, f_c = 2.8417e+08 Hz
+c_4: D^off = 0.0019 s, f_c = 2.8421e+08 Hz
+c_5: D^off = 0.0021 s, f_c = 2.8432e+08 Hz
+c_6: D^off = 0.1413 s, f_c = 3.7061e+08 Hz
+c_7: D^off = 0.1380 s, f_c = 3.6799e+08 Hz
+c_8: D^off = 0.0012 s, f_c = 2.8392e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8405e+08 Hz
+
+样本 5/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.359 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：30.109122 J
+秩一间隙：2.426e-07
+u_0: ||w||^2 = 2.3912 W, ||b||^2 = 0.0000 W, f_u = 1.4082e+07 Hz, z = 332.0071 bits
+u_1: ||w||^2 = 3.3948 W, ||b||^2 = 0.0000 W, f_u = 1.3328e+07 Hz, z = 390.6195 bits
+u_2: ||w||^2 = 5.1181 W, ||b||^2 = 0.0000 W, f_u = 1.4541e+07 Hz, z = 323.3179 bits
+u_3: ||w||^2 = 2.4190 W, ||b||^2 = 0.0000 W, f_u = 1.7392e+07 Hz, z = 443.1193 bits
+c_0: D^off = 0.0018 s, f_c = 2.8417e+08 Hz
+c_1: D^off = 0.1294 s, f_c = 3.6122e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_3: D^off = 0.0021 s, f_c = 2.8435e+08 Hz
+c_4: D^off = 0.1107 s, f_c = 3.4742e+08 Hz
+c_5: D^off = 0.1601 s, f_c = 3.8643e+08 Hz
+c_6: D^off = 0.0017 s, f_c = 2.8416e+08 Hz
+c_7: D^off = 0.0017 s, f_c = 2.8416e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8383e+08 Hz
+c_9: D^off = 0.1246 s, f_c = 3.5762e+08 Hz
+
+样本 6/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.329 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：17.584105 J
+秩一间隙：3.091e-06
+u_0: ||w||^2 = 7.8229 W, ||b||^2 = 0.0001 W, f_u = 2.9153e+07 Hz, z = 1084.1066 bits
+u_1: ||w||^2 = 0.8370 W, ||b||^2 = 0.0000 W, f_u = 2.7316e+07 Hz, z = 341.3397 bits
+u_2: ||w||^2 = 0.8071 W, ||b||^2 = 0.0013 W, f_u = 4.5528e+07 Hz, z = 384.1211 bits
+u_3: ||w||^2 = 0.5012 W, ||b||^2 = 0.0001 W, f_u = 2.7757e+07 Hz, z = 303.8012 bits
+c_0: D^off = 0.0017 s, f_c = 2.8412e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8424e+08 Hz
+c_2: D^off = 0.1322 s, f_c = 3.6339e+08 Hz
+c_3: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_4: D^off = 0.1898 s, f_c = 4.1441e+08 Hz
+c_5: D^off = 0.0025 s, f_c = 2.8454e+08 Hz
+c_6: D^off = 0.0018 s, f_c = 2.8418e+08 Hz
+c_7: D^off = 0.0021 s, f_c = 2.8432e+08 Hz
+c_8: D^off = 0.1368 s, f_c = 3.6701e+08 Hz
+c_9: D^off = 0.1112 s, f_c = 3.4779e+08 Hz
+
+样本 7/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.413 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：10.519661 J
+秩一间隙：1.782e-06
+u_0: ||w||^2 = 4.5388 W, ||b||^2 = 0.0001 W, f_u = 2.5262e+07 Hz, z = 302.2977 bits
+u_1: ||w||^2 = 0.2314 W, ||b||^2 = 0.0000 W, f_u = 2.4527e+07 Hz, z = 394.8538 bits
+u_2: ||w||^2 = 1.0558 W, ||b||^2 = 0.0010 W, f_u = 3.3727e+07 Hz, z = 485.9142 bits
+u_3: ||w||^2 = 0.8824 W, ||b||^2 = 0.0000 W, f_u = 2.5141e+07 Hz, z = 654.9366 bits
+c_0: D^off = 0.1415 s, f_c = 3.7076e+08 Hz
+c_1: D^off = 0.0020 s, f_c = 2.8428e+08 Hz
+c_2: D^off = 0.1798 s, f_c = 4.0460e+08 Hz
+c_3: D^off = 0.1159 s, f_c = 3.5116e+08 Hz
+c_4: D^off = 0.0019 s, f_c = 2.8421e+08 Hz
+c_5: D^off = 0.0021 s, f_c = 2.8431e+08 Hz
+c_6: D^off = 0.0017 s, f_c = 2.8415e+08 Hz
+c_7: D^off = 0.0019 s, f_c = 2.8424e+08 Hz
+c_8: D^off = 0.1278 s, f_c = 3.6004e+08 Hz
+c_9: D^off = 0.0016 s, f_c = 2.8411e+08 Hz
+
+样本 8/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.402 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：42.505289 J
+秩一间隙：4.675e-07
+u_0: ||w||^2 = 1.1397 W, ||b||^2 = 0.0001 W, f_u = 5.4408e+07 Hz, z = 342.5570 bits
+u_1: ||w||^2 = 1.0436 W, ||b||^2 = 0.0000 W, f_u = 4.4806e+07 Hz, z = 309.1559 bits
+u_2: ||w||^2 = 5.9330 W, ||b||^2 = 0.0004 W, f_u = 4.4553e+07 Hz, z = 354.5817 bits
+u_3: ||w||^2 = 5.1152 W, ||b||^2 = 0.0000 W, f_u = 5.5772e+07 Hz, z = 302.3101 bits
+c_0: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_1: D^off = 0.0025 s, f_c = 2.8452e+08 Hz
+c_2: D^off = 0.0021 s, f_c = 2.8434e+08 Hz
+c_3: D^off = 0.1613 s, f_c = 3.8751e+08 Hz
+c_4: D^off = 0.0020 s, f_c = 2.8428e+08 Hz
+c_5: D^off = 0.0030 s, f_c = 2.8474e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8404e+08 Hz
+c_7: D^off = 0.1823 s, f_c = 4.0701e+08 Hz
+c_8: D^off = 0.1885 s, f_c = 4.1313e+08 Hz
+c_9: D^off = 0.1709 s, f_c = 3.9614e+08 Hz
+
+样本 9/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.301 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：19.776089 J
+秩一间隙：4.814e-07
+u_0: ||w||^2 = 3.3083 W, ||b||^2 = 0.0000 W, f_u = 1.9363e+07 Hz, z = 442.4156 bits
+u_1: ||w||^2 = 1.6233 W, ||b||^2 = 0.0004 W, f_u = 1.6341e+07 Hz, z = 714.7367 bits
+u_2: ||w||^2 = 1.7710 W, ||b||^2 = 0.0017 W, f_u = 1.6743e+07 Hz, z = 693.9527 bits
+u_3: ||w||^2 = 1.6181 W, ||b||^2 = 0.0000 W, f_u = 3.1911e+07 Hz, z = 341.7784 bits
+c_0: D^off = 0.0016 s, f_c = 2.8408e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8422e+08 Hz
+c_2: D^off = 0.1211 s, f_c = 3.5498e+08 Hz
+c_3: D^off = 0.1611 s, f_c = 3.8730e+08 Hz
+c_4: D^off = 0.0020 s, f_c = 2.8430e+08 Hz
+c_5: D^off = 0.1116 s, f_c = 3.4811e+08 Hz
+c_6: D^off = 0.0017 s, f_c = 2.8415e+08 Hz
+c_7: D^off = 0.0022 s, f_c = 2.8438e+08 Hz
+c_8: D^off = 0.0013 s, f_c = 2.8394e+08 Hz
+c_9: D^off = 0.1877 s, f_c = 4.1229e+08 Hz
+
+样本 10/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.296 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：14.867221 J
+秩一间隙：3.718e-06
+u_0: ||w||^2 = 0.3212 W, ||b||^2 = 0.0000 W, f_u = 3.4549e+07 Hz, z = 602.8074 bits
+u_1: ||w||^2 = 0.5144 W, ||b||^2 = 0.0019 W, f_u = 3.5526e+07 Hz, z = 715.0777 bits
+u_2: ||w||^2 = 1.1311 W, ||b||^2 = 0.0007 W, f_u = 3.3101e+07 Hz, z = 903.6511 bits
+u_3: ||w||^2 = 0.2031 W, ||b||^2 = 0.0001 W, f_u = 2.9370e+07 Hz, z = 304.0892 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.0021 s, f_c = 2.8432e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.1564 s, f_c = 3.8325e+08 Hz
+c_4: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_5: D^off = 0.1702 s, f_c = 3.9551e+08 Hz
+c_6: D^off = 0.0014 s, f_c = 2.8401e+08 Hz
+c_7: D^off = 0.1711 s, f_c = 3.9634e+08 Hz
+c_8: D^off = 0.1497 s, f_c = 3.7749e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8404e+08 Hz
+
+样本 11/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.301 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：21.047627 J
+秩一间隙：6.532e-07
+u_0: ||w||^2 = 3.5145 W, ||b||^2 = 0.0000 W, f_u = 2.1001e+07 Hz, z = 508.0630 bits
+u_1: ||w||^2 = 2.3106 W, ||b||^2 = 0.0009 W, f_u = 2.2340e+07 Hz, z = 532.8995 bits
+u_2: ||w||^2 = 3.1004 W, ||b||^2 = 0.0000 W, f_u = 1.8078e+07 Hz, z = 570.6895 bits
+u_3: ||w||^2 = 0.1706 W, ||b||^2 = 0.0000 W, f_u = 2.0131e+07 Hz, z = 584.0311 bits
+c_0: D^off = 0.1310 s, f_c = 3.6251e+08 Hz
+c_1: D^off = 0.0023 s, f_c = 2.8440e+08 Hz
+c_2: D^off = 0.1659 s, f_c = 3.9162e+08 Hz
+c_3: D^off = 0.1525 s, f_c = 3.7993e+08 Hz
+c_4: D^off = 0.0020 s, f_c = 2.8430e+08 Hz
+c_5: D^off = 0.0021 s, f_c = 2.8433e+08 Hz
+c_6: D^off = 0.0014 s, f_c = 2.8400e+08 Hz
+c_7: D^off = 0.1619 s, f_c = 3.8805e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8386e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8403e+08 Hz
+
+样本 12/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.394 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：35.646066 J
+秩一间隙：3.696e-07
+u_0: ||w||^2 = 1.5743 W, ||b||^2 = 0.0000 W, f_u = 1.5723e+07 Hz, z = 334.3401 bits
+u_1: ||w||^2 = 2.9587 W, ||b||^2 = 0.0000 W, f_u = 1.6113e+07 Hz, z = 315.8164 bits
+u_2: ||w||^2 = 4.4136 W, ||b||^2 = 0.0017 W, f_u = 2.0928e+07 Hz, z = 476.2840 bits
+u_3: ||w||^2 = 0.2612 W, ||b||^2 = 0.0000 W, f_u = 1.7539e+07 Hz, z = 482.8224 bits
+c_0: D^off = 0.1212 s, f_c = 3.5503e+08 Hz
+c_1: D^off = 0.1676 s, f_c = 3.9316e+08 Hz
+c_2: D^off = 0.0019 s, f_c = 2.8425e+08 Hz
+c_3: D^off = 0.1104 s, f_c = 3.4721e+08 Hz
+c_4: D^off = 0.0018 s, f_c = 2.8420e+08 Hz
+c_5: D^off = 0.0022 s, f_c = 2.8438e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8404e+08 Hz
+c_7: D^off = 0.1494 s, f_c = 3.7730e+08 Hz
+c_8: D^off = 0.0010 s, f_c = 2.8383e+08 Hz
+c_9: D^off = 0.0016 s, f_c = 2.8409e+08 Hz
+
+样本 13/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.316 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：57.561454 J
+秩一间隙：2.423e-06
+u_0: ||w||^2 = 4.0570 W, ||b||^2 = 0.0000 W, f_u = 2.4934e+07 Hz, z = 377.5874 bits
+u_1: ||w||^2 = 3.4299 W, ||b||^2 = 0.0000 W, f_u = 2.4489e+07 Hz, z = 853.6920 bits
+u_2: ||w||^2 = 2.0271 W, ||b||^2 = 0.0026 W, f_u = 2.5065e+07 Hz, z = 1097.7965 bits
+u_3: ||w||^2 = 6.9019 W, ||b||^2 = 0.0003 W, f_u = 2.5111e+07 Hz, z = 301.6191 bits
+c_0: D^off = 0.0018 s, f_c = 2.8419e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8423e+08 Hz
+c_2: D^off = 0.0021 s, f_c = 2.8435e+08 Hz
+c_3: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_4: D^off = 0.1263 s, f_c = 3.5888e+08 Hz
+c_5: D^off = 0.1207 s, f_c = 3.5467e+08 Hz
+c_6: D^off = 0.1274 s, f_c = 3.5968e+08 Hz
+c_7: D^off = 0.0021 s, f_c = 2.8433e+08 Hz
+c_8: D^off = 0.1306 s, f_c = 3.6218e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8402e+08 Hz
+
+样本 14/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.337 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：15.733831 J
+秩一间隙：2.814e-06
+u_0: ||w||^2 = 2.3587 W, ||b||^2 = 0.0000 W, f_u = 2.9169e+07 Hz, z = 740.4158 bits
+u_1: ||w||^2 = 6.4106 W, ||b||^2 = 0.0000 W, f_u = 2.8075e+07 Hz, z = 479.9556 bits
+u_2: ||w||^2 = 1.9265 W, ||b||^2 = 0.0012 W, f_u = 3.3651e+07 Hz, z = 842.0570 bits
+u_3: ||w||^2 = 0.3859 W, ||b||^2 = 0.0000 W, f_u = 3.6177e+07 Hz, z = 574.8356 bits
+c_0: D^off = 0.1291 s, f_c = 3.6099e+08 Hz
+c_1: D^off = 0.0022 s, f_c = 2.8439e+08 Hz
+c_2: D^off = 0.1630 s, f_c = 3.8905e+08 Hz
+c_3: D^off = 0.1765 s, f_c = 4.0145e+08 Hz
+c_4: D^off = 0.1322 s, f_c = 3.6340e+08 Hz
+c_5: D^off = 0.0032 s, f_c = 2.8484e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8405e+08 Hz
+c_7: D^off = 0.0018 s, f_c = 2.8419e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8385e+08 Hz
+c_9: D^off = 0.0016 s, f_c = 2.8408e+08 Hz
+
+样本 15/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.316 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：26.221433 J
+秩一间隙：5.088e-06
+u_0: ||w||^2 = 5.3339 W, ||b||^2 = 0.0000 W, f_u = 3.1203e+07 Hz, z = 643.6699 bits
+u_1: ||w||^2 = 0.9546 W, ||b||^2 = 0.0000 W, f_u = 3.4860e+07 Hz, z = 1324.0993 bits
+u_2: ||w||^2 = 4.9444 W, ||b||^2 = 0.0000 W, f_u = 3.7785e+07 Hz, z = 651.3997 bits
+u_3: ||w||^2 = 7.4101 W, ||b||^2 = 0.0001 W, f_u = 3.0439e+07 Hz, z = 307.5116 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8423e+08 Hz
+c_2: D^off = 0.0024 s, f_c = 2.8445e+08 Hz
+c_3: D^off = 0.1106 s, f_c = 3.4736e+08 Hz
+c_4: D^off = 0.0018 s, f_c = 2.8420e+08 Hz
+c_5: D^off = 0.0028 s, f_c = 2.8465e+08 Hz
+c_6: D^off = 0.1118 s, f_c = 3.4820e+08 Hz
+c_7: D^off = 0.1302 s, f_c = 3.6188e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8386e+08 Hz
+c_9: D^off = 0.1717 s, f_c = 3.9694e+08 Hz
+
+样本 16/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.299 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：21.238023 J
+秩一间隙：1.448e-06
+u_0: ||w||^2 = 0.1457 W, ||b||^2 = 0.0001 W, f_u = 2.1810e+07 Hz, z = 301.9123 bits
+u_1: ||w||^2 = 0.7223 W, ||b||^2 = 0.0000 W, f_u = 2.0628e+07 Hz, z = 553.0156 bits
+u_2: ||w||^2 = 4.2953 W, ||b||^2 = 0.0000 W, f_u = 3.2256e+07 Hz, z = 414.3822 bits
+u_3: ||w||^2 = 0.2284 W, ||b||^2 = 0.0000 W, f_u = 2.2635e+07 Hz, z = 584.5558 bits
+c_0: D^off = 0.0017 s, f_c = 2.8414e+08 Hz
+c_1: D^off = 0.1141 s, f_c = 3.4990e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.1831 s, f_c = 4.0777e+08 Hz
+c_4: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_5: D^off = 0.0021 s, f_c = 2.8435e+08 Hz
+c_6: D^off = 0.1308 s, f_c = 3.6231e+08 Hz
+c_7: D^off = 0.0019 s, f_c = 2.8422e+08 Hz
+c_8: D^off = 0.1286 s, f_c = 3.6065e+08 Hz
+c_9: D^off = 0.0014 s, f_c = 2.8402e+08 Hz
+
+样本 17/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.400 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：17.020495 J
+秩一间隙：-2.522e-07
+u_0: ||w||^2 = 3.8158 W, ||b||^2 = 0.0000 W, f_u = 2.9890e+07 Hz, z = 303.8957 bits
+u_1: ||w||^2 = 0.0889 W, ||b||^2 = 0.0000 W, f_u = 1.7908e+07 Hz, z = 304.1218 bits
+u_2: ||w||^2 = 3.2144 W, ||b||^2 = 0.0000 W, f_u = 3.8426e+07 Hz, z = 303.6095 bits
+u_3: ||w||^2 = 1.2804 W, ||b||^2 = 0.0000 W, f_u = 2.8203e+07 Hz, z = 304.7792 bits
+c_0: D^off = 0.1440 s, f_c = 3.7282e+08 Hz
+c_1: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_2: D^off = 0.1122 s, f_c = 3.4852e+08 Hz
+c_3: D^off = 0.0019 s, f_c = 2.8421e+08 Hz
+c_4: D^off = 0.0018 s, f_c = 2.8419e+08 Hz
+c_5: D^off = 0.0026 s, f_c = 2.8457e+08 Hz
+c_6: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_7: D^off = 0.1408 s, f_c = 3.7023e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8385e+08 Hz
+c_9: D^off = 0.1741 s, f_c = 3.9912e+08 Hz
+
+样本 18/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.302 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：22.915722 J
+秩一间隙：1.145e-06
+u_0: ||w||^2 = 2.3464 W, ||b||^2 = 0.0000 W, f_u = 3.0222e+07 Hz, z = 310.2769 bits
+u_1: ||w||^2 = 4.0755 W, ||b||^2 = 0.0000 W, f_u = 2.2252e+07 Hz, z = 359.7559 bits
+u_2: ||w||^2 = 2.4822 W, ||b||^2 = 0.0000 W, f_u = 2.4763e+07 Hz, z = 326.5580 bits
+u_3: ||w||^2 = 2.3553 W, ||b||^2 = 0.0000 W, f_u = 2.4311e+07 Hz, z = 336.2744 bits
+c_0: D^off = 0.0016 s, f_c = 2.8410e+08 Hz
+c_1: D^off = 0.0024 s, f_c = 2.8447e+08 Hz
+c_2: D^off = 0.0023 s, f_c = 2.8442e+08 Hz
+c_3: D^off = 0.1183 s, f_c = 3.5289e+08 Hz
+c_4: D^off = 0.1290 s, f_c = 3.6094e+08 Hz
+c_5: D^off = 0.0033 s, f_c = 2.8488e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8402e+08 Hz
+c_7: D^off = 0.0017 s, f_c = 2.8416e+08 Hz
+c_8: D^off = 0.1685 s, f_c = 3.9398e+08 Hz
+c_9: D^off = 0.1164 s, f_c = 3.5156e+08 Hz
+
+样本 19/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.245 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：21.497529 J
+秩一间隙：4.322e-07
+u_0: ||w||^2 = 1.7495 W, ||b||^2 = 0.0000 W, f_u = 1.9328e+07 Hz, z = 499.2720 bits
+u_1: ||w||^2 = 0.8175 W, ||b||^2 = 0.0017 W, f_u = 2.5697e+07 Hz, z = 398.8975 bits
+u_2: ||w||^2 = 2.5580 W, ||b||^2 = 0.0017 W, f_u = 2.3388e+07 Hz, z = 443.4763 bits
+u_3: ||w||^2 = 1.9106 W, ||b||^2 = 0.0000 W, f_u = 1.8774e+07 Hz, z = 515.7562 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.1747 s, f_c = 3.9971e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.0021 s, f_c = 2.8435e+08 Hz
+c_4: D^off = 0.1517 s, f_c = 3.7924e+08 Hz
+c_5: D^off = 0.1811 s, f_c = 4.0582e+08 Hz
+c_6: D^off = 0.0017 s, f_c = 2.8415e+08 Hz
+c_7: D^off = 0.1566 s, f_c = 3.8342e+08 Hz
+c_8: D^off = 0.0013 s, f_c = 2.8393e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8403e+08 Hz
+
+样本 20/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.308 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：50.516421 J
+秩一间隙：7.409e-07
+u_0: ||w||^2 = 1.1489 W, ||b||^2 = 0.0000 W, f_u = 1.7420e+07 Hz, z = 450.3751 bits
+u_1: ||w||^2 = 0.7297 W, ||b||^2 = 0.0000 W, f_u = 2.7516e+07 Hz, z = 382.2764 bits
+u_2: ||w||^2 = 0.1457 W, ||b||^2 = 0.0018 W, f_u = 3.0380e+07 Hz, z = 368.7020 bits
+u_3: ||w||^2 = 1.7183 W, ||b||^2 = 0.0000 W, f_u = 1.9122e+07 Hz, z = 544.4847 bits
+c_0: D^off = 0.1830 s, f_c = 4.0766e+08 Hz
+c_1: D^off = 0.1452 s, f_c = 3.7380e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_4: D^off = 0.0024 s, f_c = 2.8445e+08 Hz
+c_5: D^off = 0.1888 s, f_c = 4.1339e+08 Hz
+c_6: D^off = 0.0014 s, f_c = 2.8401e+08 Hz
+c_7: D^off = 0.1232 s, f_c = 3.5654e+08 Hz
+c_8: D^off = 0.0012 s, f_c = 2.8390e+08 Hz
+c_9: D^off = 0.0016 s, f_c = 2.8410e+08 Hz
+
+样本 21/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.643 s
+迭代次数：5，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：32.936596 J
+秩一间隙：-3.135e-08
+u_0: ||w||^2 = 2.2814 W, ||b||^2 = 0.0000 W, f_u = 5.8122e+07 Hz, z = 301.1434 bits
+u_1: ||w||^2 = 1.6367 W, ||b||^2 = 0.0000 W, f_u = 6.8182e+07 Hz, z = 300.7608 bits
+u_2: ||w||^2 = 5.2096 W, ||b||^2 = 0.0000 W, f_u = 6.3578e+07 Hz, z = 300.6105 bits
+u_3: ||w||^2 = 0.0241 W, ||b||^2 = 0.0000 W, f_u = 5.1069e+07 Hz, z = 300.7450 bits
+c_0: D^off = 0.0019 s, f_c = 2.8421e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8422e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_3: D^off = 0.1186 s, f_c = 3.5311e+08 Hz
+c_4: D^off = 0.1532 s, f_c = 3.8051e+08 Hz
+c_5: D^off = 0.0023 s, f_c = 2.8444e+08 Hz
+c_6: D^off = 0.0019 s, f_c = 2.8421e+08 Hz
+c_7: D^off = 0.0023 s, f_c = 2.8441e+08 Hz
+c_8: D^off = 0.1736 s, f_c = 3.9872e+08 Hz
+c_9: D^off = 0.1871 s, f_c = 4.1169e+08 Hz
+
+样本 22/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.295 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：39.801266 J
+秩一间隙：1.191e-06
+u_0: ||w||^2 = 3.0380 W, ||b||^2 = 0.0018 W, f_u = 3.7646e+07 Hz, z = 397.3751 bits
+u_1: ||w||^2 = 1.4769 W, ||b||^2 = 0.0000 W, f_u = 2.6844e+07 Hz, z = 405.9956 bits
+u_2: ||w||^2 = 1.0253 W, ||b||^2 = 0.0000 W, f_u = 1.9359e+07 Hz, z = 373.7140 bits
+u_3: ||w||^2 = 3.9314 W, ||b||^2 = 0.0014 W, f_u = 2.4143e+07 Hz, z = 301.0307 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.0021 s, f_c = 2.8432e+08 Hz
+c_2: D^off = 0.0019 s, f_c = 2.8425e+08 Hz
+c_3: D^off = 0.0022 s, f_c = 2.8437e+08 Hz
+c_4: D^off = 0.1115 s, f_c = 3.4803e+08 Hz
+c_5: D^off = 0.1864 s, f_c = 4.1098e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8402e+08 Hz
+c_7: D^off = 0.0018 s, f_c = 2.8420e+08 Hz
+c_8: D^off = 0.1102 s, f_c = 3.4711e+08 Hz
+c_9: D^off = 0.1653 s, f_c = 3.9104e+08 Hz
+
+样本 23/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.425 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：31.090920 J
+秩一间隙：6.808e-07
+u_0: ||w||^2 = 5.6218 W, ||b||^2 = 0.0000 W, f_u = 4.7796e+07 Hz, z = 316.2252 bits
+u_1: ||w||^2 = 0.0704 W, ||b||^2 = 0.0000 W, f_u = 3.9094e+07 Hz, z = 321.1724 bits
+u_2: ||w||^2 = 0.5851 W, ||b||^2 = 0.0000 W, f_u = 3.5727e+07 Hz, z = 358.2416 bits
+u_3: ||w||^2 = 8.8899 W, ||b||^2 = 0.0003 W, f_u = 3.6517e+07 Hz, z = 301.0901 bits
+c_0: D^off = 0.1792 s, f_c = 4.0397e+08 Hz
+c_1: D^off = 0.1492 s, f_c = 3.7710e+08 Hz
+c_2: D^off = 0.0028 s, f_c = 2.8465e+08 Hz
+c_3: D^off = 0.1624 s, f_c = 3.8848e+08 Hz
+c_4: D^off = 0.0018 s, f_c = 2.8420e+08 Hz
+c_5: D^off = 0.0024 s, f_c = 2.8448e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8406e+08 Hz
+c_7: D^off = 0.0020 s, f_c = 2.8430e+08 Hz
+c_8: D^off = 0.1233 s, f_c = 3.5658e+08 Hz
+c_9: D^off = 0.0019 s, f_c = 2.8423e+08 Hz
+
+样本 24/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.279 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：34.982652 J
+秩一间隙：1.101e-06
+u_0: ||w||^2 = 5.5341 W, ||b||^2 = 0.0000 W, f_u = 3.1219e+07 Hz, z = 394.7037 bits
+u_1: ||w||^2 = 6.8504 W, ||b||^2 = 0.0003 W, f_u = 2.2289e+07 Hz, z = 742.4733 bits
+u_2: ||w||^2 = 4.0216 W, ||b||^2 = 0.0000 W, f_u = 2.0697e+07 Hz, z = 620.5229 bits
+u_3: ||w||^2 = 5.1059 W, ||b||^2 = 0.0000 W, f_u = 2.7060e+07 Hz, z = 430.6573 bits
+c_0: D^off = 0.0017 s, f_c = 2.8415e+08 Hz
+c_1: D^off = 0.0024 s, f_c = 2.8447e+08 Hz
+c_2: D^off = 0.1425 s, f_c = 3.7155e+08 Hz
+c_3: D^off = 0.1370 s, f_c = 3.6719e+08 Hz
+c_4: D^off = 0.0021 s, f_c = 2.8431e+08 Hz
+c_5: D^off = 0.0025 s, f_c = 2.8451e+08 Hz
+c_6: D^off = 0.1831 s, f_c = 4.0779e+08 Hz
+c_7: D^off = 0.1757 s, f_c = 4.0063e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8386e+08 Hz
+c_9: D^off = 0.0016 s, f_c = 2.8409e+08 Hz
+
+样本 25/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.306 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：17.490261 J
+秩一间隙：1.982e-07
+u_0: ||w||^2 = 0.2360 W, ||b||^2 = 0.0000 W, f_u = 1.8914e+07 Hz, z = 318.6782 bits
+u_1: ||w||^2 = 0.4367 W, ||b||^2 = 0.0006 W, f_u = 3.8843e+07 Hz, z = 339.5715 bits
+u_2: ||w||^2 = 3.7724 W, ||b||^2 = 0.0000 W, f_u = 2.0994e+07 Hz, z = 320.5527 bits
+u_3: ||w||^2 = 1.2251 W, ||b||^2 = 0.0000 W, f_u = 2.1658e+07 Hz, z = 321.6109 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.0027 s, f_c = 2.8463e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8426e+08 Hz
+c_3: D^off = 0.0022 s, f_c = 2.8439e+08 Hz
+c_4: D^off = 0.1877 s, f_c = 4.1233e+08 Hz
+c_5: D^off = 0.0022 s, f_c = 2.8436e+08 Hz
+c_6: D^off = 0.1479 s, f_c = 3.7604e+08 Hz
+c_7: D^off = 0.1288 s, f_c = 3.6076e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8385e+08 Hz
+c_9: D^off = 0.1415 s, f_c = 3.7078e+08 Hz
+
+样本 26/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.402 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：9.390578 J
+秩一间隙：3.120e-07
+u_0: ||w||^2 = 0.0512 W, ||b||^2 = 0.0000 W, f_u = 1.7533e+07 Hz, z = 444.4962 bits
+u_1: ||w||^2 = 4.3334 W, ||b||^2 = 0.0000 W, f_u = 1.4805e+07 Hz, z = 446.5077 bits
+u_2: ||w||^2 = 4.0993 W, ||b||^2 = 0.0009 W, f_u = 1.6353e+07 Hz, z = 520.2340 bits
+u_3: ||w||^2 = 4.4168 W, ||b||^2 = 0.0000 W, f_u = 2.1146e+07 Hz, z = 386.2392 bits
+c_0: D^off = 0.0017 s, f_c = 2.8412e+08 Hz
+c_1: D^off = 0.1434 s, f_c = 3.7229e+08 Hz
+c_2: D^off = 0.1519 s, f_c = 3.7942e+08 Hz
+c_3: D^off = 0.1633 s, f_c = 3.8925e+08 Hz
+c_4: D^off = 0.0019 s, f_c = 2.8422e+08 Hz
+c_5: D^off = 0.1768 s, f_c = 4.0167e+08 Hz
+c_6: D^off = 0.0018 s, f_c = 2.8417e+08 Hz
+c_7: D^off = 0.0022 s, f_c = 2.8435e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8386e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8407e+08 Hz
+
+样本 27/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.298 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：26.814371 J
+秩一间隙：1.440e-06
+u_0: ||w||^2 = 0.0886 W, ||b||^2 = 0.0000 W, f_u = 2.3023e+07 Hz, z = 647.6888 bits
+u_1: ||w||^2 = 0.6824 W, ||b||^2 = 0.0000 W, f_u = 2.3451e+07 Hz, z = 570.8775 bits
+u_2: ||w||^2 = 0.0187 W, ||b||^2 = 0.0001 W, f_u = 3.0320e+07 Hz, z = 706.1585 bits
+u_3: ||w||^2 = 0.9040 W, ||b||^2 = 0.0001 W, f_u = 2.6782e+07 Hz, z = 301.6365 bits
+c_0: D^off = 0.0021 s, f_c = 2.8432e+08 Hz
+c_1: D^off = 0.1245 s, f_c = 3.5755e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8428e+08 Hz
+c_3: D^off = 0.0019 s, f_c = 2.8425e+08 Hz
+c_4: D^off = 0.1623 s, f_c = 3.8836e+08 Hz
+c_5: D^off = 0.1173 s, f_c = 3.5216e+08 Hz
+c_6: D^off = 0.0016 s, f_c = 2.8407e+08 Hz
+c_7: D^off = 0.0017 s, f_c = 2.8414e+08 Hz
+c_8: D^off = 0.1422 s, f_c = 3.7137e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8405e+08 Hz
+
+样本 28/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.346 s
+迭代次数：4，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：14.411115 J
+秩一间隙：4.043e-07
+u_0: ||w||^2 = 0.2203 W, ||b||^2 = 0.0000 W, f_u = 1.5120e+07 Hz, z = 459.5630 bits
+u_1: ||w||^2 = 4.8939 W, ||b||^2 = 0.0000 W, f_u = 1.4070e+07 Hz, z = 429.9998 bits
+u_2: ||w||^2 = 4.4729 W, ||b||^2 = 0.0000 W, f_u = 1.5291e+07 Hz, z = 342.8445 bits
+u_3: ||w||^2 = 1.8560 W, ||b||^2 = 0.0000 W, f_u = 2.4336e+07 Hz, z = 371.7448 bits
+c_0: D^off = 0.1804 s, f_c = 4.0511e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8423e+08 Hz
+c_2: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_3: D^off = 0.0018 s, f_c = 2.8417e+08 Hz
+c_4: D^off = 0.1193 s, f_c = 3.5362e+08 Hz
+c_5: D^off = 0.1204 s, f_c = 3.5446e+08 Hz
+c_6: D^off = 0.0015 s, f_c = 2.8405e+08 Hz
+c_7: D^off = 0.1252 s, f_c = 3.5801e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8385e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8403e+08 Hz
+
+样本 29/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.318 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：46.814046 J
+秩一间隙：1.120e-06
+u_0: ||w||^2 = 5.9921 W, ||b||^2 = 0.0001 W, f_u = 3.3720e+07 Hz, z = 540.0890 bits
+u_1: ||w||^2 = 2.1387 W, ||b||^2 = 0.0000 W, f_u = 4.3355e+07 Hz, z = 376.2218 bits
+u_2: ||w||^2 = 1.7134 W, ||b||^2 = 0.0016 W, f_u = 2.4168e+07 Hz, z = 863.0900 bits
+u_3: ||w||^2 = 3.6185 W, ||b||^2 = 0.0000 W, f_u = 3.0116e+07 Hz, z = 310.3564 bits
+c_0: D^off = 0.0017 s, f_c = 2.8413e+08 Hz
+c_1: D^off = 0.0019 s, f_c = 2.8426e+08 Hz
+c_2: D^off = 0.1187 s, f_c = 3.5322e+08 Hz
+c_3: D^off = 0.1659 s, f_c = 3.9159e+08 Hz
+c_4: D^off = 0.0019 s, f_c = 2.8422e+08 Hz
+c_5: D^off = 0.0022 s, f_c = 2.8437e+08 Hz
+c_6: D^off = 0.1269 s, f_c = 3.5935e+08 Hz
+c_7: D^off = 0.0018 s, f_c = 2.8416e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8387e+08 Hz
+c_9: D^off = 0.1861 s, f_c = 4.1075e+08 Hz
+
+样本 30/30：求解状态：ProblemStatus.PrimalAndDualFeasible（已返回最优/可行解），求解耗时：0.279 s
+迭代次数：3，是否收敛：True，罚因子 ρ：1
+P4 目标值 E^sum：38.716273 J
+秩一间隙：2.734e-07
+u_0: ||w||^2 = 2.9077 W, ||b||^2 = 0.0003 W, f_u = 2.2570e+07 Hz, z = 410.2335 bits
+u_1: ||w||^2 = 0.5580 W, ||b||^2 = 0.0000 W, f_u = 2.7298e+07 Hz, z = 354.9845 bits
+u_2: ||w||^2 = 0.9685 W, ||b||^2 = 0.0013 W, f_u = 1.8131e+07 Hz, z = 528.8133 bits
+u_3: ||w||^2 = 3.9947 W, ||b||^2 = 0.0000 W, f_u = 2.1154e+07 Hz, z = 388.3877 bits
+c_0: D^off = 0.0016 s, f_c = 2.8409e+08 Hz
+c_1: D^off = 0.1562 s, f_c = 3.8302e+08 Hz
+c_2: D^off = 0.0025 s, f_c = 2.8452e+08 Hz
+c_3: D^off = 0.1758 s, f_c = 4.0071e+08 Hz
+c_4: D^off = 0.1840 s, f_c = 4.0866e+08 Hz
+c_5: D^off = 0.0022 s, f_c = 2.8440e+08 Hz
+c_6: D^off = 0.1735 s, f_c = 3.9864e+08 Hz
+c_7: D^off = 0.0020 s, f_c = 2.8427e+08 Hz
+c_8: D^off = 0.0011 s, f_c = 2.8386e+08 Hz
+c_9: D^off = 0.0015 s, f_c = 2.8406e+08 Hz
+
+全部 30 组样本求解总耗时：10.847 s
+状态汇总（共 30 组）：
+  optimal        30 组    （已返回最优/可行解）
+  infeasible      0 组    （模型判定为不可行）
+  unknown         0 组    （求解器未能判定（数值失败，并非真的不可行））
+  error           0 组    （求解器内部异常）
+  other           0 组    （其他状态）
+各 case 的迭代次数统计已保存到：D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\src\inner\convergence_iterations.csv
+迭代 5 次的求解（case_id = 21）的逐轮迭代历史已保存到：D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\src\inner\first_sample_cccp_history.csv
+各 case 的完整求解统计已保存到：D:\Desktop\Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks\src\inner\convergence_iterations_details.csv

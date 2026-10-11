@@ -1,0 +1,819 @@
+{
+  "criterion": "optimal only",
+  "cutoff": 16736,
+  "range": [
+    16237,
+    16736
+  ],
+  "n": 20000,
+  "optimal": 48.21,
+  "sourceHashes": [
+    {
+      "path": "src/outer/algorithms/MHBPPO/MHBPPO_agent.py",
+      "sha256": "da1c4b1bd56c8f8545607dac962e740ee79b4cf9efd4e30ca47fc25852dcb57f",
+      "matchesRun": true
+    },
+    {
+      "path": "src/outer/algorithms/MHBPPO/MHBPPO_sampler.py",
+      "sha256": "bd472398682664faa4d45ddc98cf4ed759ccea5f41521f970e25344019433575",
+      "matchesRun": true
+    },
+    {
+      "path": "src/outer/reward/my_reward.py",
+      "sha256": "dcd8783bc37720dba21ac62243d50d00a6ca0ffa75674e288d6b3a9fac9ae8ca",
+      "matchesRun": true
+    },
+    {
+      "path": "src/outer/environment/my_env.py",
+      "sha256": "a87fb2ad5108791f75432df9f19dbc7d9eb0262efd174d8f3e36994a5941f374",
+      "matchesRun": true
+    },
+    {
+      "path": "src/outer/environment/observation.py",
+      "sha256": "f9ced76fd5135ac6914d6a090f3c56ec5be2b69e179aa1bb8e86926e78cb2501",
+      "matchesRun": true
+    },
+    {
+      "path": "src/outer/algorithms/MHBPPO/MHBPPO_main.py",
+      "sha256": "6cba1d59fed679ae26ccc411c9f7339d8b883eb562f684c57242649977e06de2",
+      "matchesRun": true
+    }
+  ],
+  "runConfiguration": {
+    "actor_lr": 0.0003,
+    "critic_lr": 0.0003,
+    "lmbda": 0.95,
+    "eps": 0.2,
+    "gamma": 0.99,
+    "epochs": 5,
+    "total_time_slots": 40,
+    "hidden_dim": 128,
+    "episodes": 10000,
+    "sample_queue_maxsize": 1,
+    "num_samplers": 1,
+    "sync_training": true,
+    "structured_beam_alpha": 0,
+    "bc_dataset": "",
+    "bc_epochs": 20,
+    "bc_batch_size": 128,
+    "bc_lr": 0.0001,
+    "checkpoint_interval": 1000,
+    "log_file": "logs/MHBPPO/mhbppo_train.log",
+    "env_diagnostics": true,
+    "diagnostic_candidate_interval": 1,
+    "diagnostic_snapshot_limit": 1,
+    "randomize_layout_per_episode": false,
+    "randomize_cu_traj_per_episode": false,
+    "randomize_nlos_per_episode": false,
+    "debug_topology": false
+  },
+  "geometry": [
+    {
+      "from": 1,
+      "to": 2,
+      "distances": [
+        150.53738728068734,
+        124.7788059097988,
+        142.6765840083347,
+        98.99525259375665
+      ]
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "distances": [
+        61.822624495233136,
+        147.92576178907828,
+        168.91106932385017,
+        130.46687056391636
+      ]
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "distances": [
+        56.19411001686568,
+        210.53965396440591,
+        155.2285541521126,
+        51.45554177160663
+      ]
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "distances": [
+        150.43156708565556,
+        24.318995406812103,
+        88.79500127607453,
+        32.059248746775786
+      ]
+    },
+    {
+      "from": 5,
+      "to": 6,
+      "distances": [
+        40.65043229542141,
+        36.37255793291665,
+        98.2913811696941,
+        255.79566171367665
+      ]
+    },
+    {
+      "from": 6,
+      "to": 7,
+      "distances": [
+        113.76985396323575,
+        110.25429720182854,
+        109.77799939010413,
+        260.40038542851664
+      ]
+    },
+    {
+      "from": 7,
+      "to": 8,
+      "distances": [
+        177.37437066346726,
+        99.94691946124675,
+        230.71488425990864,
+        223.70207749685457
+      ]
+    },
+    {
+      "from": 8,
+      "to": 9,
+      "distances": [
+        58.13027031777872,
+        181.43640055965696,
+        44.90076104913867,
+        96.35413203915682
+      ]
+    },
+    {
+      "from": 9,
+      "to": 10,
+      "distances": [
+        289.7573870264154,
+        302.1340845745113,
+        326.334093150864,
+        34.24808207130665
+      ]
+    }
+  ],
+  "windows": [
+    {
+      "window": 1,
+      "n": 2000,
+      "optimal": 98.55,
+      "bad": 1.2,
+      "noMin": 0,
+      "currentMatching": 100,
+      "minMatching": 100,
+      "noiseImpossible": 0,
+      "failUav": [
+        0.55,
+        0.05,
+        0.05,
+        0.55
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "distUav": [
+        54.99987069848842,
+        54.31864507243754,
+        56.618194991900545,
+        55.35376975233442
+      ],
+      "reward": 0.8636728779341935,
+      "rewardSD": 0.23109692487669045,
+      "negativeOnePct": 1.45,
+      "solverSeconds": 0.35877790090016787,
+      "movement": {
+        "move": 14.522653484445048,
+        "currentProgress": -11.67295375434298,
+        "nextProgress": 8.522064933015344,
+        "cosCur": -0.4520619985848495,
+        "cosNext": 0.6208261032359409,
+        "positiveCur": 0.043125,
+        "positiveNext": 0.874625
+      },
+      "beamRawSD": 0.2865520985417403,
+      "offRawSD": 0.2842956844515395
+    },
+    {
+      "window": 2,
+      "n": 2000,
+      "optimal": 98.65,
+      "bad": 1.35,
+      "noMin": 0,
+      "currentMatching": 100,
+      "minMatching": 100,
+      "noiseImpossible": 0,
+      "failUav": [
+        0.1,
+        0.2,
+        0.5,
+        0.55
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "distUav": [
+        108.19120018429459,
+        105.63618380923795,
+        120.15553214024236,
+        71.10648366792111
+      ],
+      "reward": 0.8797174044399186,
+      "rewardSD": 0.22344231752141427,
+      "negativeOnePct": 1.35,
+      "solverSeconds": 0.27776764275023014,
+      "movement": {
+        "move": 13.496916944424425,
+        "currentProgress": 4.584072610287373,
+        "nextProgress": 9.1357909472316,
+        "cosCur": 0.4202953368946662,
+        "cosNext": 0.6886707487965943,
+        "positiveCur": 0.733875,
+        "positiveNext": 0.929125
+      },
+      "beamRawSD": 0.2862671351868116,
+      "offRawSD": 0.287116705659977
+    },
+    {
+      "window": 3,
+      "n": 2000,
+      "optimal": 93.6,
+      "bad": 6.4,
+      "noMin": 0,
+      "currentMatching": 99.55,
+      "minMatching": 100,
+      "noiseImpossible": 0,
+      "failUav": [
+        0.65,
+        3.6,
+        0.3,
+        1.85
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "distUav": [
+        132.44519789796374,
+        209.49660901716786,
+        124.24007644557283,
+        133.9700456715401
+      ],
+      "reward": 0.8020386765653001,
+      "rewardSD": 0.4726359521873225,
+      "negativeOnePct": 6.4,
+      "solverSeconds": 0.26935172800018337,
+      "movement": {
+        "move": 11.823202806573482,
+        "currentProgress": 5.568414768041585,
+        "nextProgress": 6.808281743803276,
+        "cosCur": 0.4871949630360732,
+        "cosNext": 0.5813066686873717,
+        "positiveCur": 0.79025,
+        "positiveNext": 0.85925
+      },
+      "beamRawSD": 0.2864187862910289,
+      "offRawSD": 0.2870914742817958
+    },
+    {
+      "window": 4,
+      "n": 2000,
+      "optimal": 92.2,
+      "bad": 7.75,
+      "noMin": 0,
+      "currentMatching": 99.6,
+      "minMatching": 100,
+      "noiseImpossible": 0,
+      "failUav": [
+        2.95,
+        0.9,
+        3.2,
+        1.1
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "distUav": [
+        146.64194362625483,
+        145.66410281959386,
+        143.8016306233794,
+        121.1659668015049
+      ],
+      "reward": 0.7752364603107186,
+      "rewardSD": 0.5177524611608512,
+      "negativeOnePct": 7.8,
+      "solverSeconds": 0.2711663381497492,
+      "movement": {
+        "move": 11.711945701220404,
+        "currentProgress": 4.467623502699296,
+        "nextProgress": 5.414061786941189,
+        "cosCur": 0.38046903263922904,
+        "cosNext": 0.4642484633274671,
+        "positiveCur": 0.736375,
+        "positiveNext": 0.781
+      },
+      "beamRawSD": 0.2866895953548184,
+      "offRawSD": 0.287670570758219
+    },
+    {
+      "window": 5,
+      "n": 2000,
+      "optimal": 87.9,
+      "bad": 11.9,
+      "noMin": 0,
+      "currentMatching": 99.95,
+      "minMatching": 100,
+      "noiseImpossible": 0,
+      "failUav": [
+        4.05,
+        1.2,
+        3.65,
+        4.1
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "distUav": [
+        130.5116713235939,
+        127.50441747606764,
+        148.1671591836671,
+        126.9674237908752
+      ],
+      "reward": 0.6862508363987603,
+      "rewardSD": 0.6272432191360633,
+      "negativeOnePct": 12.1,
+      "solverSeconds": 0.2785114677497331,
+      "movement": {
+        "move": 12.198387935506371,
+        "currentProgress": 3.7127825241239485,
+        "nextProgress": 3.589157880962975,
+        "cosCur": 0.31964213521744156,
+        "cosNext": 0.30704398706802327,
+        "positiveCur": 0.69,
+        "positiveNext": 0.674625
+      },
+      "beamRawSD": 0.2880027246118874,
+      "offRawSD": 0.28809738292049775
+    },
+    {
+      "window": 6,
+      "n": 2000,
+      "optimal": 11.2,
+      "bad": 88.8,
+      "noMin": 0.15,
+      "currentMatching": 88.95,
+      "minMatching": 99.85,
+      "noiseImpossible": 0,
+      "failUav": [
+        41.35,
+        21.6,
+        37.35,
+        61.05
+      ],
+      "noMinUav": [
+        0,
+        0,
+        0,
+        0.15
+      ],
+      "distUav": [
+        158.81852908932058,
+        132.69426247587674,
+        151.45468049408777,
+        238.43855936805014
+      ],
+      "reward": -0.7897904237536286,
+      "rewardSD": 0.6021211466467256,
+      "negativeOnePct": 88.55,
+      "solverSeconds": 0.1891556036502443,
+      "movement": {
+        "move": 13.263639218797811,
+        "currentProgress": 0.04782505049854737,
+        "nextProgress": 0.21903965124491553,
+        "cosCur": 0.03323335070878953,
+        "cosNext": 0.036199482773884996,
+        "positiveCur": 0.506125,
+        "positiveNext": 0.515625
+      },
+      "beamRawSD": 0.2874081702598682,
+      "offRawSD": 0.2884399705844543
+    },
+    {
+      "window": 7,
+      "n": 2000,
+      "optimal": 0,
+      "bad": 100,
+      "noMin": 41.25,
+      "currentMatching": 12.2,
+      "minMatching": 58.75,
+      "noiseImpossible": 0,
+      "failUav": [
+        57.7,
+        74.75,
+        92.3,
+        97.25
+      ],
+      "noMinUav": [
+        0.15,
+        0.1,
+        4.9,
+        37.95
+      ],
+      "distUav": [
+        145.87300030928793,
+        221.9287582174356,
+        237.1513198559761,
+        420.13886068804544
+      ],
+      "reward": -1.007,
+      "rewardSD": 0.08337265738837975,
+      "negativeOnePct": 99.3,
+      "solverSeconds": 0.16705224960012127,
+      "movement": {
+        "move": 13.347644459195047,
+        "currentProgress": -0.01148067089117934,
+        "nextProgress": -0.25177680834066934,
+        "cosCur": 0.01319601298736458,
+        "cosNext": -0.009818701436160837,
+        "positiveCur": 0.49425,
+        "positiveNext": 0.486375
+      },
+      "beamRawSD": 0.28723108528983526,
+      "offRawSD": 0.28792417712988816
+    },
+    {
+      "window": 8,
+      "n": 2000,
+      "optimal": 0,
+      "bad": 100,
+      "noMin": 91.65,
+      "currentMatching": 0.4,
+      "minMatching": 8.35,
+      "noiseImpossible": 0,
+      "failUav": [
+        97.05,
+        80.8,
+        56.6,
+        99.95
+      ],
+      "noMinUav": [
+        50.6,
+        0.3,
+        0.05,
+        78.35
+      ],
+      "distUav": [
+        314.2889293797097,
+        257.0638810562593,
+        249.7070517971444,
+        509.5800772794102
+      ],
+      "reward": -1.004,
+      "rewardSD": 0.0631189353522379,
+      "negativeOnePct": 99.6,
+      "solverSeconds": 0.1483138004499051,
+      "movement": {
+        "move": 13.402418409644337,
+        "currentProgress": -0.3378215471261757,
+        "nextProgress": -0.34525682886305514,
+        "cosCur": -0.014131825755231973,
+        "cosNext": -0.017212945846732178,
+        "positiveCur": 0.481625,
+        "positiveNext": 0.47975
+      },
+      "beamRawSD": 0.286718383332492,
+      "offRawSD": 0.2876444146453305
+    },
+    {
+      "window": 9,
+      "n": 2000,
+      "optimal": 0,
+      "bad": 100,
+      "noMin": 92.3,
+      "currentMatching": 0.15,
+      "minMatching": 7.7,
+      "noiseImpossible": 0,
+      "failUav": [
+        96.85,
+        96.7,
+        70.95,
+        99.75
+      ],
+      "noMinUav": [
+        48.95,
+        30.6,
+        0.35,
+        70.45
+      ],
+      "distUav": [
+        349.61956394796124,
+        397.7152097926769,
+        295.19378719425686,
+        507.7216563690043
+      ],
+      "reward": -1.0065,
+      "rewardSD": 0.08635826538322867,
+      "negativeOnePct": 99.4,
+      "solverSeconds": 0.14181331350040272,
+      "movement": {
+        "move": 13.3946092832245,
+        "currentProgress": -0.31074996618283496,
+        "nextProgress": -0.43051909861896026,
+        "cosCur": -0.014809087821323714,
+        "cosNext": -0.02067731355445797,
+        "positiveCur": 0.48775,
+        "positiveNext": 0.4845
+      },
+      "beamRawSD": 0.2867572633341073,
+      "offRawSD": 0.2864650140910786
+    },
+    {
+      "window": 10,
+      "n": 2000,
+      "optimal": 0,
+      "bad": 100,
+      "noMin": 90.2,
+      "currentMatching": 0.1,
+      "minMatching": 9.8,
+      "noiseImpossible": 0,
+      "failUav": [
+        94.25,
+        97.3,
+        96.45,
+        99.9
+      ],
+      "noMinUav": [
+        33.5,
+        33,
+        30.4,
+        61.7
+      ],
+      "distUav": [
+        330.5868003586324,
+        416.6695672182617,
+        369.6896527183849,
+        474.9461547432323
+      ],
+      "reward": -1.0075,
+      "rewardSD": 0.08627716963368554,
+      "negativeOnePct": 99.25,
+      "solverSeconds": 0.14643786805003764,
+      "movement": {
+        "move": 13.451757690191979,
+        "currentProgress": -0.3091093180510863,
+        "nextProgress": -0.3091093180510863,
+        "cosCur": -0.016055101705816026,
+        "cosNext": -0.016055101705816026,
+        "positiveCur": 0.481625,
+        "positiveNext": 0.481625
+      },
+      "beamRawSD": 0.2867016675314938,
+      "offRawSD": 0.28718062659256266
+    }
+  ],
+  "tensorboardFile": "D:/Desktop/Dynamic-EE-Resource-Allocation-in-Multi-UAV-Assisted-ISCC-Systems-With-Heterogeneous-Tasks/src/outer/runs/beta-hppo/2026-10-09_18-43-56_beta-hppo_sync_result/events.out.tfevents.1791542636.DESKTOP-0I8SIRB.16348.0",
+  "tensorboardScalarSummary": {
+    "BS/Actor_Loss": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": 0.15960188660013955,
+        "min": -0.2547492980957031,
+        "max": 0.4043060839176178
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": 0.10320230064878706,
+        "min": -0.23660215735435486,
+        "max": 0.41413867473602295
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": 0.09434048045123927,
+        "min": -0.23975397646427155,
+        "max": 0.4940152168273926
+      }
+    ],
+    "BS/Critic_Loss": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": 7.68787649512291,
+        "min": 0.5596832633018494,
+        "max": 215.45130920410156
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": 2.0930065851062536,
+        "min": 0.10282512754201889,
+        "max": 36.84322738647461
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": 1.3788252618461847,
+        "min": 0.04460911452770233,
+        "max": 20.459440231323242
+      }
+    ],
+    "BS/Continuous_LogProb": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": 8.017112250328063,
+        "min": 6.655677318572998,
+        "max": 9.231554985046387
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": 2.573111154794693,
+        "min": 1.810399055480957,
+        "max": 3.5518720149993896
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": 2.4955902078151704,
+        "min": 1.624685525894165,
+        "max": 6.625861644744873
+      }
+    ],
+    "BS/Discrete_LogProb": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": -9.00062665939331,
+        "min": -9.296242713928223,
+        "max": -8.551636695861816
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": -1.2230705345869064,
+        "min": -2.044649362564087,
+        "max": -0.41154468059539795
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": -1.2925511257648468,
+        "min": -2.0431149005889893,
+        "max": -0.727057933807373
+      }
+    ],
+    "BS/continuous_entropy": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": -8.092335104942322,
+        "min": -8.626110076904297,
+        "max": -7.638030052185059
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": -2.5805934081077577,
+        "min": -3.2590599060058594,
+        "max": -1.9754648208618164
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": -2.4681972312927245,
+        "min": -6.373945236206055,
+        "max": -1.8439764976501465
+      }
+    ],
+    "BS/discrete_entropy": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": 9.00173300743103,
+        "min": 8.566360473632812,
+        "max": 9.20972728729248
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": 1.2102683951854707,
+        "min": 0.7164404392242432,
+        "max": 1.5480663776397705
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": 1.2804592206478118,
+        "min": 0.9277772903442383,
+        "max": 1.6902252435684204
+      }
+    ],
+    "BS/KL_Divergence": [
+      {
+        "lo": 0,
+        "hi": 99,
+        "n": 100,
+        "mean": 0.03992079254239798,
+        "min": -0.11612073332071304,
+        "max": 0.30378493666648865
+      },
+      {
+        "lo": 10090,
+        "hi": 10589,
+        "n": 500,
+        "mean": 0.0024550646225579838,
+        "min": -0.04357331246137619,
+        "max": 0.08072657883167267
+      },
+      {
+        "lo": 16236,
+        "hi": 16735,
+        "n": 500,
+        "mean": 0.0016301169016951463,
+        "min": -0.05168846249580383,
+        "max": 0.35591158270835876
+      }
+    ]
+  },
+  "timing": {
+    "start": "2026-10-09T18:43:56.390330+08:00",
+    "end": "2026-10-11 09:30:15",
+    "hours": 38.771836111111114,
+    "steps": 669440,
+    "updateSeconds": 3141.137999999854,
+    "updatePercent": 2.2504436747148104
+  },
+  "gaeWeights": [
+    {
+      "lag": 4,
+      "weight": 0.7824114538700625
+    },
+    {
+      "lag": 8,
+      "weight": 0.6121676831470649
+    },
+    {
+      "lag": 16,
+      "weight": 0.37474927228964533
+    },
+    {
+      "lag": 24,
+      "weight": 0.22940939377860076
+    },
+    {
+      "lag": 32,
+      "weight": 0.14043701708161874
+    }
+  ],
+  "byteBounds": {
+    "env": 12665069955,
+    "actions": 8850922139
+  },
+  "caveats": [
+    "candidate matching checks sensing necessary condition only, does not certify optimal for full inner model",
+    "KL is sampled signed estimate and aggregate, not exact per-head KL",
+    "current repeated scene and recent policy positions do not establish global impossibility",
+    "remaining wall time includes environment/solver/queue/logging/overhead, cannot attribute solely to solver"
+  ]
+}

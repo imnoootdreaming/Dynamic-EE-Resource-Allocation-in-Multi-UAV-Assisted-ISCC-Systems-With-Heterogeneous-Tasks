@@ -29,6 +29,12 @@ class Parameters:
     J: int = 10                         # CU 数量
     K: int = 40                         # target 数量
 
+    # ── 目标布局：每扇区独立圆周，半径随区域、扇区和移动预算自适应 ─────────
+    target_layout: str = "sector_ring"  # sector_ring / random_sector
+    target_ring_space_ratio: float = 1.0 / 3.0  # 整圆可容纳半径的比例
+    target_ring_move_ratio: float = 0.85        # 参考窗口移动预算的比例
+    target_ring_direction: str = "clockwise"   # clockwise / counterclockwise
+
     # ── UAV 飞行参数 ──────────────────────────────────────────────────────
     uav_height: float = 50.0            # H，UAV 固定飞行高度 (m) (修改前:100)
     uav_max_speed: float = 40.0         # V_max (m/s)
@@ -97,9 +103,22 @@ class Parameters:
     # 故保持 MOSEK 默认的 1e-8，不再放宽（实测收紧到 1e-9 亦可消除 Unknown，但
     # 单次求解更慢，1e-8 是精度与耗时的平衡点）。
     mosek_tol_feas: float = 1e-8
+    # S01测试的加速候选：仅放宽最优性间隙，原始/对偶可行性容差不变。
+    mosek_tol_rel_gap: float = 1e-7
 
     # ── 随机种子  ─────────────
     seed: int = 1208
+
+    @property
+    def target_hold_slots(self):
+        """Readable layout/schedule alias for the physical window length varkappa."""
+        return self.varkappa
+
+    @target_hold_slots.setter
+    def target_hold_slots(self, value):
+        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)) or value <= 0:
+            raise ValueError("target_hold_slots must be a positive integer")
+        self.varkappa = int(value)
 
     def __post_init__(self):
         # ρ 的初值快照：PC3P 迭代中会把 rho_penalty 逐步放大（P1）并原地写回 params，

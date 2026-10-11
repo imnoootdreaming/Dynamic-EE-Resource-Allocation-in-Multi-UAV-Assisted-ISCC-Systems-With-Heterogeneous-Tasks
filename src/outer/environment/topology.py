@@ -18,8 +18,26 @@
 """
 
 import warnings
+import importlib.util
+from pathlib import Path
 
 import numpy as np
+
+
+
+_RING_GENERATOR = None
+
+
+def generate_ring_targets(*args, **kwargs):
+    """Load the shared inner/outer geometry without relying on sys.path order."""
+    global _RING_GENERATOR
+    if _RING_GENERATOR is None:
+        path = Path(__file__).resolve().parents[2] / "inner" / "target_layout.py"
+        spec = importlib.util.spec_from_file_location("_iscc_target_layout", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _RING_GENERATOR = module.generate_sector_ring_targets
+    return _RING_GENERATOR(*args, **kwargs)
 
 
 # ── 扇区划分工具（对齐 src/inner/environment.py 的分区责任制语义） ─────────────
@@ -136,7 +154,7 @@ def assign_targets_for_window(reference_positions, candidate_target_indices, uav
 def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targets_pos,
                                  total_time_slots, hold_slots,
                                  center=(0.0, 0.0), target_sector=None,
-                                 initial_reference_positions=None):
+                                 initial_reference_positions=None, target_layout="random_sector"):
     """预计算每个时隙的 UAV→目标分配调度及其规划转移距离（扇区内链式）。
 
     :param center: 部署区域中心（x, y），用于 `target_sector` 未给定时的扇区推导。
@@ -151,6 +169,29 @@ def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targ
         return schedule, schedule_distances
 
     validate_target_schedule_requirements(uavs_num, targets_num, total_time_slots, hold_slots)
+    if target_layout not in ("random_sector", "sector_ring"):
+        raise ValueError("Unknown target_layout: " + str(target_layout))
+    if target_layout == "sector_ring":
+        sectors = np.asarray(target_sector if target_sector is not None else
+                             sector_of(init_targets_pos, center, uavs_num), dtype=int)
+        per_sector = targets_num // uavs_num
+        by_sector = [np.flatnonzero(sectors == i) for i in range(uavs_num)]
+        if any(len(indices) != per_sector for indices in by_sector):
+            raise ValueError("sector_ring requires equal target counts in every sector")
+        reference = np.asarray(init_uavs_pos if initial_reference_positions is None else
+                               initial_reference_positions, dtype=float).copy()
+        for window_idx in range(get_num_target_windows(total_time_slots, hold_slots)):
+            assigned = np.array([indices[window_idx] for indices in by_sector], dtype=np.int64)
+            distance = np.linalg.norm(init_targets_pos[assigned] - reference, axis=1)
+            start = window_idx * hold_slots
+            end = min(start + hold_slots, total_time_slots)
+            schedule[start:end] = assigned
+            schedule_distances[start:end] = distance
+            reference = init_targets_pos[assigned].copy()
+        schedule[total_time_slots] = schedule[total_time_slots - 1]
+        schedule_distances[total_time_slots] = schedule_distances[total_time_slots - 1]
+        return schedule, schedule_distances
+
     if target_sector is None:
         target_sector = sector_of(init_targets_pos, center, uavs_num)
     else:
@@ -210,7 +251,12 @@ def print_precomputed_target_schedule(uavs_num, schedule, schedule_distances, ho
     print("==================================================")
 
 
-def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng=None):
+def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng=None,
+                 *, target_layout="random_sector", target_hold_slots=4,
+                 time_slot_duration=0.6, uav_min_speed=5.0, uav_max_speed=40.0,
+                 target_ring_space_ratio=1.0 / 3.0, target_ring_move_ratio=0.85,
+                 target_ring_direction="clockwise", uav_safe_distance=0.0,
+                 return_layout_info=False):
     """扇区分区部署（对齐 inner 语义）：目标均分到 I 个等角扇区，UAV 各负责一个扇区。
 
     - CU：全区域圆盘均匀（r = R·sqrt(U)），z = 0；
@@ -232,6 +278,31 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
     cus_pos = np.zeros((cus_num, 3))
     cus_pos[:, 0] = center[0] + r_cu * np.cos(theta_cu)
     cus_pos[:, 1] = center[1] + r_cu * np.sin(theta_cu)
+
+    if target_layout not in ("random_sector", "sector_ring"):
+        raise ValueError("Unknown target_layout: " + str(target_layout))
+    if target_layout == "sector_ring":
+        targets_pos, target_sector, layout_info = generate_ring_targets(
+            uavs_num, targets_num, center, radius,
+            hold_slots=target_hold_slots, time_slot_duration=time_slot_duration,
+            min_speed=uav_min_speed, max_speed=uav_max_speed,
+            space_ratio=target_ring_space_ratio, move_ratio=target_ring_move_ratio,
+            direction=target_ring_direction)
+        # Preserve subsequent trajectory/NLoS random draws for layout-only comparisons.
+        # These old draws are discarded; the actual ring targets are deterministic.
+        for i in range(uavs_num):
+            sample_in_sector(rng, targets_num // uavs_num, i, center, radius, uavs_num, 0.0)
+        uavs_pos = targets_pos[np.arange(uavs_num) * (targets_num // uavs_num)].copy()
+        uavs_pos[:, 2] = uav_height
+        if uavs_num > 1:
+            distances = np.linalg.norm(uavs_pos[:, None, :] - uavs_pos[None, :, :], axis=2)
+            distances[np.diag_indices(uavs_num)] = np.inf
+            if np.min(distances) < uav_safe_distance:
+                raise ValueError("sector_ring initial UAV spacing violates uav_safe_distance; "
+                                 "increase deploy_radius or reduce UAV count")
+        layout_info["target_rng_semantics"] = "deterministic_ring_preserves_legacy_draws"
+        result = (uavs_pos, cus_pos, targets_pos, target_sector)
+        return result + (layout_info,) if return_layout_info else result
 
     # ── 目标：均分到各扇区并在扇区内均匀采样 ──────────────────────────────
     counts = [targets_num // uavs_num] * uavs_num
@@ -271,7 +342,10 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
         uavs_pos[i, 2] = uav_height
         used_target_indices.add(nearest_global)
 
-    return uavs_pos, cus_pos, targets_pos, target_sector
+    result = (uavs_pos, cus_pos, targets_pos, target_sector)
+    layout_info = {"layout": "random_sector", "deploy_radius": float(radius),
+                   "direction": "nearest_neighbor", "target_rng_semantics": "random_sector"}
+    return result + (layout_info,) if return_layout_info else result
 
 
 def generate_cu_trajectory(init_cus_pos, cus_num, total_time_slots,

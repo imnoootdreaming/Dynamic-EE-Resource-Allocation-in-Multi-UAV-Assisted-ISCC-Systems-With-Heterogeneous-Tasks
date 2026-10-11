@@ -1,0 +1,226 @@
+[
+  {
+    "threshold_db": 5,
+    "required_ratio": 3.1622776601683795,
+    "margin_multiplier": 1,
+    "c06_pass_percent": 17.35,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 97.55
+      },
+      {
+        "window": 1,
+        "pass": 73.3
+      },
+      {
+        "window": 2,
+        "pass": 2.15
+      },
+      {
+        "window": 6,
+        "pass": 0
+      },
+      {
+        "window": 8,
+        "pass": 0
+      }
+    ]
+  },
+  {
+    "threshold_db": 4,
+    "required_ratio": 2.51188643150958,
+    "margin_multiplier": 1.2589254117941673,
+    "c06_pass_percent": 18.33,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 98.85
+      },
+      {
+        "window": 1,
+        "pass": 80.05
+      },
+      {
+        "window": 2,
+        "pass": 3.65
+      },
+      {
+        "window": 6,
+        "pass": 0
+      },
+      {
+        "window": 8,
+        "pass": 0
+      }
+    ]
+  },
+  {
+    "threshold_db": 3,
+    "required_ratio": 1.9952623149688795,
+    "margin_multiplier": 1.5848931924611136,
+    "c06_pass_percent": 19.305,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 99.4
+      },
+      {
+        "window": 1,
+        "pass": 86.5
+      },
+      {
+        "window": 2,
+        "pass": 5.5
+      },
+      {
+        "window": 6,
+        "pass": 0
+      },
+      {
+        "window": 8,
+        "pass": 0
+      }
+    ]
+  },
+  {
+    "threshold_db": 2,
+    "required_ratio": 1.5848931924611136,
+    "margin_multiplier": 1.9952623149688795,
+    "c06_pass_percent": 20.155,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 99.8
+      },
+      {
+        "window": 1,
+        "pass": 91.15
+      },
+      {
+        "window": 2,
+        "pass": 7.65
+      },
+      {
+        "window": 6,
+        "pass": 0.05
+      },
+      {
+        "window": 8,
+        "pass": 0
+      }
+    ]
+  },
+  {
+    "threshold_db": 1,
+    "required_ratio": 1.2589254117941673,
+    "margin_multiplier": 2.51188643150958,
+    "c06_pass_percent": 21.23,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 99.9
+      },
+      {
+        "window": 1,
+        "pass": 94.35
+      },
+      {
+        "window": 2,
+        "pass": 12.65
+      },
+      {
+        "window": 6,
+        "pass": 0.05
+      },
+      {
+        "window": 8,
+        "pass": 0.05
+      }
+    ]
+  },
+  {
+    "threshold_db": 0,
+    "required_ratio": 1,
+    "margin_multiplier": 3.1622776601683795,
+    "c06_pass_percent": 22.33,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 99.95
+      },
+      {
+        "window": 1,
+        "pass": 95.9
+      },
+      {
+        "window": 2,
+        "pass": 19.15
+      },
+      {
+        "window": 6,
+        "pass": 0.1
+      },
+      {
+        "window": 8,
+        "pass": 0.05
+      }
+    ]
+  },
+  {
+    "threshold_db": -5,
+    "required_ratio": 0.31622776601683794,
+    "margin_multiplier": 10,
+    "c06_pass_percent": 32.28,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 100
+      },
+      {
+        "window": 1,
+        "pass": 99.5
+      },
+      {
+        "window": 2,
+        "pass": 60.75
+      },
+      {
+        "window": 6,
+        "pass": 2.8
+      },
+      {
+        "window": 8,
+        "pass": 0.2
+      }
+    ]
+  },
+  {
+    "threshold_db": -10,
+    "required_ratio": 0.1,
+    "margin_multiplier": 31.622776601683793,
+    "c06_pass_percent": 47.095,
+    "windows": [
+      {
+        "window": 0,
+        "pass": 100
+      },
+      {
+        "window": 1,
+        "pass": 99.95
+      },
+      {
+        "window": 2,
+        "pass": 88.55
+      },
+      {
+        "window": 6,
+        "pass": 17.3
+      },
+      {
+        "window": 8,
+        "pass": 2.25
+      }
+    ]
+  }
+]

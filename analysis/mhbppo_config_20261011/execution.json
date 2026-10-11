@@ -1,0 +1,31 @@
+{
+  "task": "S09_hyperparameters_json",
+  "status": "complete",
+  "date": "2026-10-11",
+  "plan_file_missing": true,
+  "changes": [
+    "main startup writes output_dir/hyperparameters.json before workers",
+    "get_madrl_args supports --config and explicit CLI precedence",
+    "PPO uses configured batch_size and entropy weights/lr_min_ratio"
+  ],
+  "tests": {
+    "new_count": 5,
+    "regression_count": 48,
+    "regression_exitcode": 0,
+    "syntax_exitcode": 0,
+    "diff_exitcode": 0,
+    "default_json_exitcode": 0
+  },
+  "example": "analysis/mhbppo_config_20261011/default/hyperparameters.json",
+  "defaults": {
+    "batch_size": 32,
+    "continuous_entropy_coef": 0.05,
+    "discrete_entropy_coef": 0.01,
+    "lr_min_ratio": 0.1
+  },
+  "limitations": [
+    "effective runtime/physical sections are snapshots; reload uses only hyperparameters",
+    "batch_size is mini-batch size, capped at rollout length; rollout length is total_time_slots",
+    "no long training started"
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "checks": {
+    "max_initial_position_error": 0.0,
+    "max_matched_beam_projection_error": 6.661338147750939e-16,
+    "schedule_errors": 0
+  },
+  "early": {
+    "n": 4000,
+    "success": 0.05575,
+    "mean_distance": 244.83178605658253,
+    "median_worst_distance": 297.88814672177523,
+    "c06_bad": 0.89075,
+    "cpu_bad": 0.0,
+    "noise_bad": 0.0,
+    "matching_current": 0.36775,
+    "matching_low": 0.70075,
+    "matching_free": 1.0,
+    "by_status": {
+      "optimal": {
+        "n": 436,
+        "c06_bad": 0,
+        "cpu_bad": 0
+      },
+      "infeasible": {
+        "n": 3171,
+        "c06_bad": 3171,
+        "cpu_bad": 0
+      },
+      "unknown": {
+        "n": 393,
+        "c06_bad": 392,
+        "cpu_bad": 0
+      }
+    }
+  },
+  "late": {
+    "n": 20000,
+    "success": 0.17305,
+    "mean_distance": 243.16348836841368,
+    "median_worst_distance": 308.2706449009627,
+    "c06_bad": 0.8265,
+    "cpu_bad": 0.0,
+    "noise_bad": 0.0,
+    "matching_current": 0.37815,
+    "matching_low": 0.68795,
+    "matching_free": 1.0,
+    "by_status": {
+      "optimal": {
+        "n": 3466,
+        "c06_bad": 0,
+        "cpu_bad": 0
+      },
+      "infeasible": {
+        "n": 14019,
+        "c06_bad": 14019,
+        "cpu_bad": 0
+      },
+      "unknown": {
+        "n": 2515,
+        "c06_bad": 2511,
+        "cpu_bad": 0
+      }
+    }
+  },
+  "windows": [
+    {
+      "window": 0,
+      "n": 2000,
+      "success": 0.973,
+      "mean_distance": 53.04911692182449,
+      "median_worst_distance": 54.69086715686342,
+      "c06_bad": 0.0245,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 1.0,
+      "matching_low": 1.0,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 1948,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1,
+          "c06_bad": 1,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 51,
+          "c06_bad": 48,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 1,
+      "n": 2000,
+      "success": 0.731,
+      "mean_distance": 125.16225632771533,
+      "median_worst_distance": 151.97597839249357,
+      "c06_bad": 0.267,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.9995,
+      "matching_low": 1.0,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 1465,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 50,
+          "c06_bad": 50,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 485,
+          "c06_bad": 484,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 2,
+      "n": 2000,
+      "success": 0.0215,
+      "mean_distance": 216.34895118521075,
+      "median_worst_distance": 251.75995331449377,
+      "c06_bad": 0.9785,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.721,
+      "matching_low": 0.999,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 43,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1233,
+          "c06_bad": 1233,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 724,
+          "c06_bad": 724,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 3,
+      "n": 2000,
+      "success": 0.002,
+      "mean_distance": 231.97740815862826,
+      "median_worst_distance": 271.4911963415853,
+      "c06_bad": 0.998,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.365,
+      "matching_low": 0.9375,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 4,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1669,
+          "c06_bad": 1669,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 327,
+          "c06_bad": 327,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 4,
+      "n": 2000,
+      "success": 0.0025,
+      "mean_distance": 235.92954178639496,
+      "median_worst_distance": 293.05330702507445,
+      "c06_bad": 0.9975,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.3615,
+      "matching_low": 0.9055,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 5,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1709,
+          "c06_bad": 1709,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 286,
+          "c06_bad": 286,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 5,
+      "n": 2000,
+      "success": 0.0005,
+      "mean_distance": 248.0933077997925,
+      "median_worst_distance": 313.84733256481627,
+      "c06_bad": 0.9995,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.2295,
+      "matching_low": 0.837,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 1,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1746,
+          "c06_bad": 1746,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 253,
+          "c06_bad": 253,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 6,
+      "n": 2000,
+      "success": 0.0,
+      "mean_distance": 302.93816269683737,
+      "median_worst_distance": 398.16448547850763,
+      "c06_bad": 1.0,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.0675,
+      "matching_low": 0.5395,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 0,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1873,
+          "c06_bad": 1873,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 127,
+          "c06_bad": 127,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 7,
+      "n": 2000,
+      "success": 0.0,
+      "mean_distance": 330.60302813651515,
+      "median_worst_distance": 414.87589058421656,
+      "c06_bad": 1.0,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.0145,
+      "matching_low": 0.264,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 0,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1922,
+          "c06_bad": 1922,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 78,
+          "c06_bad": 78,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 8,
+      "n": 2000,
+      "success": 0.0,
+      "mean_distance": 370.96858262267443,
+      "median_worst_distance": 462.0880310021389,
+      "c06_bad": 1.0,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.004,
+      "matching_low": 0.121,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 0,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1925,
+          "c06_bad": 1925,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 75,
+          "c06_bad": 75,
+          "cpu_bad": 0
+        }
+      }
+    },
+    {
+      "window": 9,
+      "n": 2000,
+      "success": 0.0,
+      "mean_distance": 316.5645280485434,
+      "median_worst_distance": 429.5449429991685,
+      "c06_bad": 1.0,
+      "cpu_bad": 0.0,
+      "noise_bad": 0.0,
+      "matching_current": 0.019,
+      "matching_low": 0.276,
+      "matching_free": 1.0,
+      "by_status": {
+        "optimal": {
+          "n": 0,
+          "c06_bad": 0,
+          "cpu_bad": 0
+        },
+        "infeasible": {
+          "n": 1891,
+          "c06_bad": 1891,
+          "cpu_bad": 0
+        },
+        "unknown": {
+          "n": 109,
+          "c06_bad": 109,
+          "cpu_bad": 0
+        }
+      }
+    }
+  ]
+}

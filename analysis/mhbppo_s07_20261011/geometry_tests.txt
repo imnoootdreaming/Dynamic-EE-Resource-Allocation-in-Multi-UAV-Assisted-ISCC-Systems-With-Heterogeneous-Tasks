@@ -1,0 +1,14 @@
+test_default_radius_and_adaptation (__main__.SectorRingLayoutTests) ... ok
+test_direction_reverses_visit_order_without_changing_points (__main__.SectorRingLayoutTests) ... ok
+test_geometry_and_budget_across_sizes_and_boundary_cases (__main__.SectorRingLayoutTests) ... ok
+test_inner_environment_builds_finite_channels (__main__.SectorRingLayoutTests) ... ok
+test_inner_initialization_uses_first_targets_and_preserves_rng_draws (__main__.SectorRingLayoutTests) ... ok
+test_inner_rejects_invalid_ring_and_unsafe_initial_separation (__main__.SectorRingLayoutTests) ... ok
+test_invalid_configuration_is_rejected (__main__.SectorRingLayoutTests) ... ok
+test_one_sector_uses_deployment_center_and_fixed_first_angle (__main__.SectorRingLayoutTests) ... ok
+test_window_alias_has_one_serialized_source (__main__.SectorRingLayoutTests) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.106s
+
+OK

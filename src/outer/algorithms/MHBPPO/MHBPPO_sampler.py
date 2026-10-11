@@ -14,6 +14,10 @@ IMPALA 式 actor-learner 架构中的采样端：
 - sample_queue 元素（本进程 -> 学习进程）:
     {
         "transition_dict": dict,     # 与原 transition_dict_bs 结构完全一致
+        "action_traces": list,       # 各时隙 env.step 实际变换后的动作快照
+        "sampler_id": int,           # 0-based worker 编号
+        "seed_offset": int,
+        "episode_idx": int,          # 本 worker 内 0-based episode 序号
         "avg_total_reward": float,
         "avg_obj_fun": float,
         "avg_bs_reward": float,
@@ -109,6 +113,37 @@ def _load_latest_weights(weight_queue, actor):
     return latest_version, latest_mean, latest_std
 
 
+def _load_weights_until(weight_queue, actor, target_version, stop_event, timeout=1.0):
+    """同步模式：阻塞等到 version >= target_version 的权重到达后加载。
+
+    不能用 _load_latest_weights 的非阻塞读法：learner 下发的 actor state_dict 是 MB 级
+    对象，由 feeder 线程异步写入管道；采样端拿到许可令牌后立刻 get_nowait() 会读到空
+    队列，而 learner 下一次 broadcast 的 drain-then-put 又会把这份权重清掉，采样端将
+    永远停留在初始版本（表现为 wv 恒为 0、策略从不更新，症状与「内层恒不可行」一致）。
+    """
+    latest_state_dict = None
+    latest_version = None
+    latest_mean = None
+    latest_std = None
+    while not stop_event.is_set():
+        try:
+            payload = weight_queue.get(timeout=timeout)
+        except queue_module.Empty:
+            continue
+        if payload is None:
+            continue
+        latest_state_dict = payload["actor_state_dict"]
+        latest_version = payload.get("weights_version")
+        latest_mean = payload.get("state_norm_mean")
+        latest_std = payload.get("state_norm_std")
+        # 同步模式下每份许可对应一次广播，版本号应精确相等；用 >= 兼顾重复下发。
+        if latest_version is not None and target_version is not None and latest_version >= target_version:
+            break
+    if latest_state_dict is not None:
+        actor.load_state_dict(latest_state_dict)
+    return latest_version, latest_mean, latest_std
+
+
 def _put_with_stop(sample_queue, item, stop_event, timeout=1.0):
     """向有界队列 put，等待期间周期性检查 stop_event。返回 False 表示收到停止信号。"""
     while not stop_event.is_set():
@@ -164,6 +199,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             continuous_action_splits=env.bs_continuous_action_splits,
             discrete_action_dims=bs_discrete_action_space.nvec,
             continuous_dist_type="beta",
+            structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
         ).to(device)
 
         # 状态归一化统计量由 learner 统一维护；sampler 在一个 episode 内固定快照。
@@ -180,16 +216,22 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             # 同步模式下由 learner 发放一次性许可；worker 采完一个 episode
             # 后必须等待 learner 完成 PPO 更新并广播新权重。
             if control_queue is not None:
+                target_version = None
                 while not stop_event.is_set():
                     try:
-                        control_queue.get(timeout=1.0)
+                        # 许可令牌携带本 episode 应使用的参数版本号
+                        target_version = control_queue.get(timeout=1.0)
                         break
                     except queue_module.Empty:
                         continue
                 if stop_event.is_set():
                     break
-            # episode 边界：加载学习端最新下发的 actor 权重，本 episode 全程使用该版本
-            loaded_version, loaded_mean, loaded_std = _load_latest_weights(weight_queue, actor)
+                # episode 边界：阻塞等到该版本权重到手后加载，本 episode 全程使用该版本
+                loaded_version, loaded_mean, loaded_std = _load_weights_until(
+                    weight_queue, actor, target_version, stop_event)
+            else:
+                # 异步模式：非阻塞取最新一份（允许落后若干版本，stale 由队列容量限制）
+                loaded_version, loaded_mean, loaded_std = _load_latest_weights(weight_queue, actor)
             if loaded_version is not None:
                 current_weights_version = loaded_version
                 # 用**本进程 actor 加载后**的参数计算指纹，证明权重确实落到了网络上
@@ -207,6 +249,8 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             collision_slots = 0
             spectrum_penalty_slots = 0
             solver_status_counts = {k: 0 for k in ("optimal", "infeasible", "unknown", "error", "other")}
+            action_traces = []
+            diagnostic_traces = []
             action_min = float("inf")
             action_max = float("-inf")
 
@@ -225,6 +269,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             }
 
             s = env.reset(episode_idx)
+            diagnostic_scene = env.get_diagnostic_scene()
             raw_state_bs = np.asarray(s["bs"], dtype=np.float32)
             state_bs_norm = (raw_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
             terminal = False
@@ -233,6 +278,22 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 action_bs, old_con_log_probs_bs, old_dis_log_probs_bs = _choose_action(actor, state_bs_norm)
 
                 next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
+                if env.last_action_trace is None:
+                    raise RuntimeError("env.step 未产生动作诊断快照")
+                action_traces.append({
+                    **env.last_action_trace,
+                    "outcome": {
+                        "total_reward": float(total_reward),
+                        "obj_fun": float(obj_fun),
+                        "success": int(success_flag),
+                        "done": bool(done),
+                        "solver_status_kind": str(r_dict.get("components", {}).get("solver_status_kind", "other")),
+                    },
+                })
+                if env.env_diagnostics:
+                    if env.last_env_diagnostic is None:
+                        raise RuntimeError("env.step 未产生已启用的环境诊断")
+                    diagnostic_traces.append(env.last_env_diagnostic)
                 success_slots += success_flag
                 finite_obj_slots += int(np.isfinite(obj_fun))
                 no_solution_slots += int(r_dict.get("components", {}).get("no_solution_penalty", 0) > 0)
@@ -272,6 +333,13 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
 
             sample_result = {
                 "transition_dict": transition_dict_bs,
+                "action_traces": action_traces,
+                "diagnostic_traces": diagnostic_traces,
+                "diagnostic_scene": diagnostic_scene,
+                "diagnostics_enabled": env.env_diagnostics,
+                "sampler_id": int(seed_offset - 1),
+                "seed_offset": int(seed_offset),
+                "episode_idx": int(episode_idx),
                 "avg_total_reward": avg_total_reward,
                 "avg_obj_fun": float(np.mean(obj_fun_total)),
                 "avg_bs_reward": episode_reward_bs / len(episode_rewards_total),
@@ -289,6 +357,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 # ── 探针字段：本 episode 实际使用的参数版本 / 指纹 ──
                 "weights_version": current_weights_version,
                 "weights_checksum": current_weights_checksum,
+                "action_probability_metadata": actor.action_probability_metadata(),
             }
 
             # 有界队列：队列满时阻塞在此（背压 => staleness 上限 = maxsize 个参数版本）

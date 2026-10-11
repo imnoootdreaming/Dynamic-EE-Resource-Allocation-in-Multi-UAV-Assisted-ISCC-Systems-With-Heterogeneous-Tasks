@@ -10,9 +10,10 @@ IMPALA 式 actor-learner 架构：
   "0~当前全部"的训练 CSV 与 actor/critic checkpoint；Ctrl+C / SIGTERM 优雅退出
   并保存最终结果。
 
-日志约定：采样进程全程静默，所有控制台日志 / tqdm / TensorBoard 均由本进程输出。
+日志约定：采样进程全程静默；训练摘要写入带时间前缀的 .log，逐时隙动作写入同目录的 _actions.jsonl，所有控制台日志 / tqdm / TensorBoard 均由本进程输出。
 """
 
+import json
 import logging
 import os
 import queue as queue_module
@@ -43,8 +44,13 @@ while not os.path.isdir(os.path.join(_OUTER_ROOT, "algorithms")):
 if _OUTER_ROOT not in sys.path:
     sys.path.insert(0, _OUTER_ROOT)
 
+from algorithms.MHBPPO.action_logging import (
+    ActionLogWriter, EnvDiagnosticLogWriter, build_run_log_paths,
+    diagnostic_log_path, diagnostic_run_metadata, summarize_diagnostics,
+)
 from algorithms.MHBPPO.MHBPPO_agent import HPPO
 from algorithms.MHBPPO.MHBPPO_sampler import sampler_worker
+from algorithms.MHBPPO.behavior_cloning import load_behavior_cloning_dataset
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
@@ -66,7 +72,7 @@ def get_tensorboard_writer(log_dir):
 
 
 def setup_logger(log_path):
-    """实时日志：同时输出到控制台与固定 .log 文件。
+    """实时日志：训练摘要输出到控制台与本次运行的 .log 文件。
 
     - logging 的 FileHandler 在每条记录 emit 后立即 flush，因此 `tail -f` 可实时看到
       最新日志，无需缓冲到进程结束。
@@ -80,6 +86,7 @@ def setup_logger(log_path):
     logger.propagate = False
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
+        handler.close()
     class LayerFormatter(logging.Formatter):
         def format(self, record):
             message = record.getMessage()
@@ -98,7 +105,7 @@ def setup_logger(log_path):
             return f"{self.formatTime(record, self.datefmt)} | [{layer}] | {message}"
 
     fmt = LayerFormatter(datefmt="%Y-%m-%d %H:%M:%S")
-    file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+    file_handler = logging.FileHandler(log_path, mode="x", encoding="utf-8")
     file_handler.setFormatter(fmt)
     logger.addHandler(file_handler)
     stream_handler = logging.StreamHandler(sys.stdout)
@@ -126,12 +133,19 @@ _TRANSITION_KEYS = (
 )
 
 
-def validate_sample(item):
+def validate_sample(item, expected_probability_metadata=None):
     """校验从队列取出元素的自洽性，防止训练错位。返回该 episode 的 transition 条数。
 
     错位风险主要来自各字段长度不一致（会导致 PPO 用错位的 old_log_probs / next_states
     参与 ratio 与 GAE 计算），因此在消费前强制检查 9 个字段等长且非空。
     """
+    if expected_probability_metadata is not None:
+        actual = item.get("action_probability_metadata")
+        if actual != expected_probability_metadata:
+            raise RuntimeError(
+                f"采样端/学习端动作概率契约不一致: sampler={actual}, "
+                f"learner={expected_probability_metadata}; 不可混用旧 rollout"
+            )
     transition_dict = item.get("transition_dict", {})
     missing = [k for k in _TRANSITION_KEYS if k not in transition_dict]
     if missing:
@@ -141,6 +155,10 @@ def validate_sample(item):
         raise RuntimeError(f"采样数据错位，各字段长度不一致: {lengths}")
     if lengths["states"] == 0:
         raise RuntimeError("采样到空 episode（0 条 transition）")
+    if len(item.get("action_traces", [])) != lengths["states"]:
+        raise RuntimeError("动作诊断与 transition 数量不一致")
+    if item.get("diagnostics_enabled") and len(item.get("diagnostic_traces", [])) != lengths["states"]:
+        raise RuntimeError("环境诊断与 transition 数量不一致")
     return lengths["states"]
 
 
@@ -260,8 +278,132 @@ def save_reward_plot(output_dir, reward_res):
         return None
 
 
+def _configuration_json_default(value):
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(f"Unsupported configuration value: {type(value).__name__}")
+
+
+def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at=None,
+                         num_samplers=None, sample_queue_maxsize=None, initial_scene=None):
+    """Save an editable recipe plus the effective runtime/physical configuration."""
+    configured = {key: value for key, value in vars(madrl_args).items() if key != "config"}
+    effective = {
+        "actor_lr": agent.actor_optimizer.defaults["lr"],
+        "critic_lr": agent.critic_optimizer.defaults["lr"],
+        "hidden_dim": agent.actor.fc1.out_features,
+        "batch_size": agent.batch_size,
+        "mini_batch_size_first_rollout": min(agent.batch_size, madrl_args.total_time_slots),
+        "epochs": agent.epochs,
+        "gamma": agent.gamma,
+        "lmbda": agent.lmbda,
+        "eps": agent.eps,
+        "continuous_entropy_coef": agent.continuous_entropy_coef,
+        "discrete_entropy_coef": agent.discrete_entropy_coef,
+        "lr_min_ratio": agent.lr_min_ratio,
+        "lr_decay_horizon": agent.num_episodes,
+        "continuous_dist_type": agent.actor.continuous_dist_type,
+        "optimizer": "Adam",
+        "optimizer_eps": agent.actor_optimizer.defaults["eps"],
+        "max_grad_norm": 1.0,
+        "num_samplers": num_samplers if num_samplers is not None else
+            (1 if madrl_args.sync_training else max(1, madrl_args.num_samplers)),
+        "sample_queue_maxsize": sample_queue_maxsize if sample_queue_maxsize is not None
+            else max(1, madrl_args.sample_queue_maxsize),
+        **agent.actor.action_probability_metadata(),
+    }
+    params = getattr(base_args, "_params", None)
+    payload = {
+        "schema_version": 1,
+        "hyperparameters": configured,
+        "effective": effective,
+        "environment": {
+            "base_args": base_args.as_dict(),
+            "inner_parameters": None if params is None else vars(params).copy(),
+            "initial_target_layout": None if initial_scene is None else initial_scene["target_layout"],
+        },
+        "run": {
+            "started_at": None if started_at is None else started_at.isoformat(),
+            "seed": int(base_args.seed),
+            "device": str(agent.device),
+            "output_dir": os.path.abspath(output_dir),
+            "config_source": str(getattr(madrl_args, "config", "") or ""),
+            "command": [sys.executable, *sys.argv],
+        },
+        "usage": "Edit hyperparameters; load with --config <this-file>. Explicit CLI arguments override JSON.",
+    }
+    os.makedirs(output_dir, exist_ok=True)
+    path = os.path.join(output_dir, "hyperparameters.json")
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as stream:
+        json.dump(payload, stream, ensure_ascii=False, indent=2,
+                  default=_configuration_json_default, allow_nan=False)
+        stream.write("\n")
+    os.replace(temporary, path)
+    return path
+
+
+def save_environment_plot(output_dir, scene):
+    """Save the first sampler's initial horizontal layout without running a rollout."""
+    targets = np.asarray(scene["target_positions"], dtype=float)
+    uavs = np.asarray(scene["uav_positions"], dtype=float)
+    sectors = np.asarray(scene["target_sector"], dtype=int)
+    center = np.asarray(scene["center"], dtype=float)[:2]
+    radius = float(scene["deploy_radius"])
+    colors = plt.get_cmap("tab10" if len(uavs) <= 10 else "tab20")
+    fig, ax = plt.subplots(figsize=(8, 8))
+    try:
+        ax.add_patch(plt.Circle(center, radius, fill=False, color="0.55",
+                                linewidth=1.2, linestyle="--"))
+        for sector in range(len(uavs)):
+            color = colors(sector % colors.N)
+            mask = sectors == sector
+            ax.scatter(targets[mask, 0], targets[mask, 1], s=32, color=color,
+                       label=f"Sector {sector + 1} targets", zorder=3)
+            if len(uavs) > 1:
+                angle = sector * 2.0 * np.pi / len(uavs)
+                ax.plot([center[0], center[0] + radius * np.cos(angle)],
+                        [center[1], center[1] + radius * np.sin(angle)],
+                        color="0.8", linewidth=0.7, linestyle=":", zorder=1)
+            layout = scene.get("target_layout", {})
+            if layout.get("layout") == "sector_ring":
+                ring_center = np.asarray(layout["centers"][sector])[:2]
+                ax.add_patch(plt.Circle(ring_center, layout["ring_radius"], fill=False,
+                                        color=color, linewidth=0.8, alpha=0.5))
+            ax.scatter(uavs[sector, 0], uavs[sector, 1], marker="^", s=140,
+                       facecolors="white", edgecolors=color, linewidths=2, zorder=5,
+                       label="Initial UAV position" if sector == 0 else None)
+            ax.annotate(f"UAV {sector + 1}", uavs[sector, :2], xytext=(7, 8),
+                        textcoords="offset points", fontsize=9, zorder=6,
+                        bbox=dict(facecolor="white", edgecolor="none", alpha=0.8, pad=1))
+        bs = np.asarray(scene["bs_position"], dtype=float)[:2]
+        ax.scatter(bs[0], bs[1], marker="*", s=170, color="black", label="BS", zorder=5)
+        ax.set_aspect("equal", adjustable="box")
+        all_xy = np.vstack((targets[:, :2], uavs[:, :2], bs[None, :]))
+        padding = max(radius * 0.08, 1.0)
+        lower = np.minimum(center - radius, all_xy.min(axis=0)) - padding
+        upper = np.maximum(center + radius, all_xy.max(axis=0)) + padding
+        ax.set_xlim(lower[0], upper[0])
+        ax.set_ylim(lower[1], upper[1])
+        ax.set_xlabel("x (m)")
+        ax.set_ylabel("y (m)")
+        ax.set_title(f"Initial environment | UAVs: {len(uavs)}, targets: {len(targets)}")
+        ax.grid(alpha=0.15)
+        ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+        fig.tight_layout()
+        os.makedirs(output_dir, exist_ok=True)
+        path = os.path.join(output_dir, "env.png")
+        fig.savefig(path, dpi=180, bbox_inches="tight")
+        return path
+    finally:
+        plt.close(fig)
+
+
 if __name__ == "__main__":
-    current_time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    started_at = datetime.now().astimezone()
+    current_time_str = started_at.strftime("%Y-%m-%d_%H-%M-%S")
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     base_args = get_base_args()
@@ -273,12 +415,38 @@ if __name__ == "__main__":
     ))
     setSeed(seed=base_args.seed)
 
-    # env 仅用于获取观测/动作空间维度（采样在子进程内自建 env）
-    env = MyEnv(base_args=base_args, madrl_args=madrl_args)
+    # Use sampler-0's episode-0 scene for dimensions and the startup diagram.
+    env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=1)
     state_dim_bs = env.observation_space["bs"].shape[0]
     bs_continuous_action_splits = env.bs_continuous_action_splits
     bs_continuous_action_space = env.action_space["bs"]["continuous"]
     bs_discrete_action_space = env.action_space["bs"]["discrete"]
+    action_log_metadata = {
+        "algorithm": "MHBPPO",
+        "started_at": started_at.isoformat(timespec="microseconds"),
+        "seed": int(base_args.seed),
+        "continuous_action_splits": bs_continuous_action_splits,
+        "continuous_low": bs_continuous_action_space.low.tolist(),
+        "continuous_high": bs_continuous_action_space.high.tolist(),
+        "discrete_action_dims": bs_discrete_action_space.nvec.tolist(),
+        "structured_beam_alpha_configured": float(madrl_args.structured_beam_alpha),
+        "physical_units": {"uav_angles": "rad", "uav_distances": "m",
+                           "uav_off_durations": "s", "cu_off_powers": "W"},
+        "continuous_mapping": "env.step uses continuous_low + clip(raw, 0, 1) * (continuous_high - continuous_low)",
+        "index_convention": "iteration: 1-based intended update; sampler/episode/step/time_slot/CU/target: 0-based",
+        "capture_semantics": "Actual env.step values before reward_compute; learner logs consumed episodes before update",
+        "non_finite_encoding": "NaN/Inf diagnostics are strings: nan, inf, -inf",
+    }
+    initial_scene = {
+        "target_positions": env.init_targets_pos.copy(),
+        "uav_positions": env.init_uavs_pos.copy(),
+        "target_sector": env.target_sector.copy(),
+        "target_layout": env.target_layout_info,
+        "center": np.asarray(base_args.center, dtype=float).copy(),
+        "deploy_radius": float(base_args.radius),
+        "bs_position": np.asarray(base_args.bs_pos, dtype=float).copy(),
+        "seed_offset": 1,
+    }
     del env  # 主进程不需要环境实例，尽早释放
 
     agent_bs = HPPO(
@@ -297,14 +465,30 @@ if __name__ == "__main__":
         num_episodes=madrl_args.episodes,  # lr 衰减 horizon
         device=device,
         entropy_coef=0.01,
+        batch_size=madrl_args.batch_size,
+        continuous_entropy_coef=madrl_args.continuous_entropy_coef,
+        discrete_entropy_coef=madrl_args.discrete_entropy_coef,
+        lr_min_ratio=madrl_args.lr_min_ratio,
+        structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
     )
+    probability_metadata = agent_bs.actor.action_probability_metadata()
+    action_log_metadata.update(probability_metadata)
 
-    output_dir = os.path.join(_OUTER_ROOT, f"{current_time_str}_mhbppo_seed_{base_args.seed}")
+    output_dir = os.path.join(
+        _OUTER_ROOT, "ckpt", "MHBPPO", f"{current_time_str}_mhbppo_seed_{base_args.seed}",
+    )
+    os.makedirs(output_dir, exist_ok=True)
+    env_plot_path = save_environment_plot(output_dir, initial_scene)
     checkpoint_interval = max(1, int(madrl_args.checkpoint_interval))
     queue_maxsize = max(1, int(madrl_args.sample_queue_maxsize))
     num_samplers = max(1, int(madrl_args.num_samplers))
     if sync_training:
         num_samplers = 1
+
+    hyperparameters_path = save_hyperparameters(
+        output_dir, base_args, madrl_args, agent_bs, started_at=started_at,
+        num_samplers=num_samplers, sample_queue_maxsize=queue_maxsize,
+        initial_scene=initial_scene)
 
     # ── 异步架构：队列 + 停止事件 + 采样进程 ──────────────────────────────
     ctx = mp.get_context("spawn")  # Linux 服务器与 Windows 行为一致，且 CUDA 安全
@@ -315,14 +499,63 @@ if __name__ == "__main__":
     # 多采样进程：每个 sampler 一条独立 weight_queue，互不争抢（详见 broadcast_weights 文档）
     weight_queues = [ctx.Queue(maxsize=1) for _ in range(num_samplers)]
 
-    log_path = os.path.join(_OUTER_ROOT, madrl_args.log_file)
+    log_path, action_log_path = build_run_log_paths(_OUTER_ROOT, madrl_args.log_file, started_at)
     logger = setup_logger(log_path)
+    run_id = os.path.basename(log_path).rsplit(".", 1)[0]
+    env_log_path = diagnostic_log_path(action_log_path)
+    metadata = {**action_log_metadata, "run_id": run_id, "training_log_path": log_path}
+    action_writer = ActionLogWriter(action_log_path, metadata)
+    env_writer = None
+    if bool(getattr(madrl_args, "env_diagnostics", True)):
+        env_writer = EnvDiagnosticLogWriter(env_log_path, {
+            **metadata, "action_log_path": action_log_path,
+            **diagnostic_run_metadata(_OUTER_ROOT, base_args, madrl_args),
+        })
 
     # 关键契约：启动采样进程前先下发初始 actor 权重，
     # 保证各采样端与学习端从同一份初始参数出发（PPO ratio 语义要求）。
     checksum_by_version = {}  # version -> 该版本广播时的 actor 指纹，用于与采样端回传值比对
     state_norm_stats = StateNormStats(state_dim_bs)
     reward_norm_stats = StateNormStats(1)
+
+    # ── BC 暖机（可选）：必须在首次权重广播之前完成，使 v0 即为预热后的策略 ──
+    # 采样端只在 episode 边界加载权重，第一份 payload 就是 version=0，因此晚于此处
+    # 预热会让第一个 episode 仍用随机策略采样。
+    bc_dataset_path = str(getattr(madrl_args, "bc_dataset", "") or "")
+    if bc_dataset_path:
+        bc_data = load_behavior_cloning_dataset(bc_dataset_path)
+        if bc_data["state_norm_mean"] is not None and bc_data["state_norm_mean"].size != state_dim_bs:
+            raise RuntimeError(
+                f"BC 数据集状态维度 {bc_data['state_norm_mean'].size} 与环境观测维度 {state_dim_bs} 不一致"
+            )
+        if bc_data["continuous_actions"].shape[1] != int(
+                np.sum([v for v in bs_continuous_action_splits.values()])):
+            raise RuntimeError(
+                f"BC 数据集连续动作维度 {bc_data['continuous_actions'].shape[1]} 与动作空间不一致"
+            )
+        bc_info = agent_bs.behavior_clone(
+            bc_data["states"], bc_data["continuous_actions"], bc_data["discrete_actions"],
+            epochs=int(getattr(madrl_args, "bc_epochs", 20)),
+            batch_size=int(getattr(madrl_args, "bc_batch_size", 128)),
+            learning_rate=float(getattr(madrl_args, "bc_lr", 1e-4)),
+            writer=writer, step_prefix="BC",
+        )
+        # 关键：用数据集自带的归一化统计量初始化 learner 的 Welford 统计。
+        # 否则采样端用的是 mean=0 / std=1（即原始量纲），而 BC 是在 (s-mean)/std 上训练的，
+        # 二者分布错位会让预热完全失效。
+        if bc_data["state_norm_mean"] is not None and bc_data["state_norm_std"] is not None:
+            bc_count = float(bc_data["state_norm_count"] or len(bc_data["states"]))
+            state_norm_stats.mean = np.asarray(bc_data["state_norm_mean"], dtype=np.float64).copy()
+            state_norm_stats.m2 = (np.asarray(bc_data["state_norm_std"], dtype=np.float64) ** 2) * bc_count
+            state_norm_stats.count = bc_count
+        bc_actor_path = os.path.join(output_dir, "mhbppo_actor_bc_init.pth")
+        torch.save(agent_bs.actor.state_dict(), bc_actor_path)
+        logger.info(
+            f"[learner] BC 预热完成: dataset={bc_dataset_path} samples={bc_info['samples']} "
+            f"epochs={bc_info['epochs']} final_nll={bc_info['final_nll']:.4f} "
+            f"mean_nll={bc_info['mean_nll']:.4f} | ck={actor_checksum(agent_bs.actor)} | {bc_actor_path}"
+        )
+
     checksum_by_version[0] = broadcast_weights(
         weight_queues, agent_bs, version=0, state_norm_stats=state_norm_stats
     )
@@ -343,7 +576,8 @@ if __name__ == "__main__":
         sampler_procs.append(proc)
 
     if sync_training:
-        control_queue.put(1)
+        # 许可令牌携带版本号：采样端据此阻塞等待对应版本的权重，避免非阻塞读空队列
+        control_queue.put(0)
 
     cpu_count = os.cpu_count() or 1
     if num_samplers > cpu_count:
@@ -355,8 +589,14 @@ if __name__ == "__main__":
 
     logger.info(f"[learner] device={device} | num_samplers={num_samplers} | sample_queue_maxsize={queue_maxsize} | "
                 f"checkpoint_interval={checkpoint_interval} | lr_decay_horizon={madrl_args.episodes} | cpu={cpu_count}")
+    logger.info(f"[learner] 动作概率契约: {probability_metadata}")
     logger.info(f"[learner] 输出目录: {output_dir}")
+    logger.info(f"[learner] 超参数配置: {hyperparameters_path}")
+    logger.info(f"[learner] 初始环境图: {env_plot_path}（sampler-0 / episode-0，二维）")
     logger.info(f"[learner] 实时日志: {log_path}")
+    logger.info(f"[learner] 动作日志: {action_log_path}（每条 transition 包含原始与环境处理后的动作）")
+    if env_writer is not None:
+        logger.info(f"[learner] 环境诊断日志: {env_log_path}（原始约束/恢复波束逐步复核；不改变 completion）")
 
     # 信号 -> KeyboardInterrupt：SIGTERM 覆盖 Linux 服务器 kill；SIGBREAK 覆盖 Windows Ctrl+Break
     # （Windows 的 Ctrl+C 本身即触发 KeyboardInterrupt）
@@ -414,8 +654,13 @@ if __name__ == "__main__":
 
             # ── 消费：一次 update = 一次 iteration ──
             # 消费前校验该 episode 的 9 个字段等长自洽，避免错位数据参与 PPO 更新
-            n_transitions = validate_sample(item)
+            n_transitions = validate_sample(item, probability_metadata)
 
+            # 先落盘实际动作与原始奖励；即使 PPO 更新失败，也保留该批诊断。
+            action_writer.write_episode(item, iteration=iteration + 1)
+            if env_writer is not None:
+                env_writer.write_episode(item, iteration=iteration + 1)
+            diag_summary = summarize_diagnostics(item.get("diagnostic_traces", []))
             transition_dict = item["transition_dict"]
             raw_rewards = np.asarray(transition_dict["rewards"], dtype=np.float64).reshape(-1, 1)
             # reward 也在 learner 统一归一化，避免不同 sampler 各自维护 RewardScaling。
@@ -444,7 +689,13 @@ if __name__ == "__main__":
                 state_norm_stats=state_norm_stats,
             )
             if sync_training:
-                control_queue.put(1)
+                # 令牌 = 本轮广播的版本号；带超时是防御性的：采样进程若已被 kill 而未发
+                # error 哨兵，无超时的 put 会让 learner 永久阻塞（连 stop_event 都发不出去）。
+                try:
+                    control_queue.put(iteration, timeout=5.0)
+                except queue_module.Full:
+                    logger.warning("[learner] 许可下发超时（采样进程可能已退出），停止发放")
+                    break
             # 只保留最近若干版本的指纹，避免长时训练下字典无限增长
             if len(checksum_by_version) > 512:
                 for stale_version in sorted(checksum_by_version)[:-512]:
@@ -462,6 +713,15 @@ if __name__ == "__main__":
                 and abs(expected_checksum - used_checksum) < 1e-3
             )
             stale = iteration - used_version if used_version >= 0 else -1
+
+            # 同步握手自检：严格同步下第 N 个样本必须由 version N-1 的参数采集。
+            # 若 wv 长期停在 0 / 落后于 iteration，说明权重广播或许可握手失效 ——
+            # 症状与「内层恒不可行」完全一致，必须先排除此项。
+            if sync_training and used_version >= 0 and used_version != iteration - 1:
+                logger.error(
+                    f"[learner] 同步握手错位: iter={iteration} 期望 wv={iteration - 1} 实际 wv={used_version}"
+                    " —— 采样端未加载最新权重，应先排除此项再判断可行域问题"
+                )
 
             if not weights_sync_warned:
                 if used_version < 0:
@@ -495,7 +755,10 @@ if __name__ == "__main__":
                 f"spectrum={item.get('spectrum_penalty_rate', float('nan')):.1f}% "
                 f"action_range=[{item.get('action_min', float('nan')):.3f},{item.get('action_max', float('nan')):.3f}] "
                 f"solver_status={solver_status_rate} "
-                f"norm_count={state_norm_stats.count:.0f}"
+                f"norm_count={state_norm_stats.count:.0f} "
+                f"diag_c06_bad={diag_summary['sensing_infeasible_rate']:.1f}% "
+                f"diag_cov_valid={diag_summary['covariance_pass_rate']:.1f}% "
+                f"diag_beam_valid={diag_summary['recovered_beam_pass_rate']:.1f}%"
             )
             # ── 2. 队列个数日志：样本队列水位 / 有多少条权重队列积压待取（-1 表示平台不支持 qsize） ──
             pending_weights = sum(1 for q in weight_queues if safe_qsize(q) > 0)
@@ -551,6 +814,9 @@ if __name__ == "__main__":
         else:
             logger.info("[learner] 未完成任何 iteration，无产物保存。")
 
+        action_writer.close()
+        if env_writer is not None:
+            env_writer.close()
         writer.close()
         pbar.close()
         sample_queue.close()

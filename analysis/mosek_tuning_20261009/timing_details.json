@@ -1,0 +1,102 @@
+[
+  {
+    "config": "baseline",
+    "paired_sample_median_ratio": 1.0,
+    "bootstrap95_ratio": [
+      1.0,
+      1.0
+    ],
+    "median_seconds": 0.32760340021923184,
+    "p95_seconds": 0.7309372300049284
+  },
+  {
+    "config": "threads_2",
+    "paired_sample_median_ratio": 1.0763206118080921,
+    "bootstrap95_ratio": [
+      1.0513393001968745,
+      1.1180930444521207
+    ],
+    "median_seconds": 0.3543875499162823,
+    "p95_seconds": 0.6722339751431718
+  },
+  {
+    "config": "joint_1e-07",
+    "paired_sample_median_ratio": 0.8996649193183104,
+    "bootstrap95_ratio": [
+      0.8839201387718892,
+      0.9943543479237882
+    ],
+    "median_seconds": 0.29561749985441566,
+    "p95_seconds": 0.9225294201169157
+  },
+  {
+    "config": "gap_threads_2",
+    "paired_sample_median_ratio": 0.9910923892321959,
+    "bootstrap95_ratio": [
+      0.9396142073704838,
+      1.0792058183459976
+    ],
+    "median_seconds": 0.3154551999177784,
+    "p95_seconds": 0.5384696800727397
+  },
+  {
+    "config": "threads_4",
+    "paired_sample_median_ratio": 1.0331165522385497,
+    "bootstrap95_ratio": [
+      0.987550172176006,
+      1.0456049364550777
+    ],
+    "median_seconds": 0.3263488500379026,
+    "p95_seconds": 0.6377970449626444
+  },
+  {
+    "config": "threads_1",
+    "paired_sample_median_ratio": 1.2437802268186355,
+    "bootstrap95_ratio": [
+      1.1993579308782856,
+      1.2935483273987498
+    ],
+    "median_seconds": 0.3957247498910874,
+    "p95_seconds": 0.6195564248599111
+  },
+  {
+    "config": "intpntCoTolRelGap_1e-07",
+    "paired_sample_median_ratio": 0.8952505448110502,
+    "bootstrap95_ratio": [
+      0.8834410397959696,
+      0.9423616630896006
+    ],
+    "median_seconds": 0.2925721500068903,
+    "p95_seconds": 0.5945796298561615
+  },
+  {
+    "config": "threads_8",
+    "paired_sample_median_ratio": 0.9936975991406246,
+    "bootstrap95_ratio": [
+      0.9735852084289303,
+      1.0198283177234835
+    ],
+    "median_seconds": 0.32692839996889234,
+    "p95_seconds": 0.6686753449030218
+  },
+  {
+    "config": "iterations_50",
+    "paired_sample_median_ratio": 1.0116445751941807,
+    "bootstrap95_ratio": [
+      0.9754579370031145,
+      1.0409659245884435
+    ],
+    "median_seconds": 0.32802665000781417,
+    "p95_seconds": 1.0954274050425732
+  },
+  {
+    "config": "gap_threads_1",
+    "paired_sample_median_ratio": 1.1119515773302484,
+    "bootstrap95_ratio": [
+      1.076077534954886,
+      1.1823626840609984
+    ],
+    "median_seconds": 0.3586876499466598,
+    "p95_seconds": 0.5205177198396995
+  }
+]

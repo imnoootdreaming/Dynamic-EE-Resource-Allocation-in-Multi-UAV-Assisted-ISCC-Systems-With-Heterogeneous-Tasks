@@ -75,6 +75,7 @@ def solver_mosek_params(ctx):
     return {
         "MSK_DPAR_INTPNT_CO_TOL_PFEAS": ctx.mosek_tol_feas,
         "MSK_DPAR_INTPNT_CO_TOL_DFEAS": ctx.mosek_tol_feas,
+        "MSK_DPAR_INTPNT_CO_TOL_REL_GAP": ctx.mosek_tol_rel_gap,
     }
 
 
@@ -399,6 +400,7 @@ def _relaxation_cccp_fusion(ctx, result):
     # MSK_DPAR_INTPNT_CO_TOL_PFEAS/DFEAS 等价，保证两后端容差一致
     model.setSolverParam("intpntCoTolPfeas", ctx.mosek_tol_feas)
     model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
+    model.setSolverParam("intpntCoTolRelGap", ctx.mosek_tol_rel_gap)
 
     x_prev = compute_pure_energy(ctx, ctx.W_sen_beam_prev, ctx.B_off_beam_prev,
                                  ctx.f_uav_freq_prev, ctx.z_aux_rate_prev,

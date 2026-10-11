@@ -674,7 +674,7 @@ _MODEL_CACHE = {}
 def get_fusion_model(ctx):
     """返回按 (I, J, N) 复用的 (model, fp, fv)；缓存未命中时才构建。
 
-    求解器容差与模型结构无关，首次建模型时设置一次即可，后续复用无需重复设置。
+    求解器容差与模型结构无关；每次获取时刷新，允许缓存模型用于不同精度的对照。
     """
     key = (int(ctx.I), int(ctx.J), int(ctx.N))
     cached = _MODEL_CACHE.get(key)
@@ -686,6 +686,10 @@ def get_fusion_model(ctx):
         model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
         cached = (model, fp, fv)
         _MODEL_CACHE[key] = cached
+    model = cached[0]
+    model.setSolverParam("intpntCoTolPfeas", ctx.mosek_tol_feas)
+    model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
+    model.setSolverParam("intpntCoTolRelGap", ctx.mosek_tol_rel_gap)
     return cached
 
 
@@ -702,6 +706,25 @@ def _hermitian_from(x_level, y_level, n):
 REUSE_MODEL = True
 
 
+def _read_solver_diagnostics(model):
+    """Read-only Fusion status/termination info; absent fields remain explicit."""
+    info = {}
+    for key, read in (
+        ("problem_status", model.getProblemStatus),
+        ("primal_solution_status", model.getPrimalSolutionStatus),
+        ("dual_solution_status", model.getDualSolutionStatus),
+        ("optimizer_response_code", lambda: model.getSolverIntInfo("optimizeResponse")),
+        ("interior_point_iterations", lambda: model.getSolverIntInfo("intpntIter")),
+    ):
+        try:
+            value = read()
+            info[key] = int(value) if key.endswith("code") or key.endswith("iterations") else str(value)
+        except Exception as exc:
+            info[key] = None
+            info.setdefault("unavailable_fields", {})[key] = type(exc).__name__
+    return info
+
+
 def run_pc3p_fusion(ctx):
     """MOSEK Fusion 版 PC3P：迭代结构与 run_pc3p 完全一致，仅求解后端不同。"""
     # ρ 复位：ctx.params 可能被 main 的循环复用，必须回到初值，否则会跨样本累积
@@ -714,6 +737,8 @@ def run_pc3p_fusion(ctx):
         "status": None,
         "iterations": 0,
         "converged": False,
+        "solver_diagnostics": {},
+        "last_solved_iteration": 0,
         "objective_p4": x_prev,
         "rank1_gap": None,
         "W_sen_beam": None,
@@ -737,6 +762,7 @@ def run_pc3p_fusion(ctx):
         model, fp, fv = build_fusion_model(ctx)
         model.setSolverParam("intpntCoTolPfeas", ctx.mosek_tol_feas)
         model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
+        model.setSolverParam("intpntCoTolRelGap", ctx.mosek_tol_rel_gap)
 
     try:
         # 先按 x^(0) 写参数，之后每轮只 flushParameters 复用同一模型
@@ -747,11 +773,14 @@ def run_pc3p_fusion(ctx):
             try:
                 model.solve()
             except Exception as exc:                              # noqa: BLE001
+                result["solver_diagnostics"] = _read_solver_diagnostics(model)
+                result["solver_diagnostics"]["solve_exception"] = str(exc)
                 result["status"] = "error: %s" % exc
                 result["iterations"] = n
                 return result
 
             status = model.getProblemStatus()
+            result["solver_diagnostics"] = _read_solver_diagnostics(model)
             result["status"] = str(status)
             result["iterations"] = n
             # 与 run_pc3p 的控制流一致：非最优即返回
@@ -776,6 +805,7 @@ def run_pc3p_fusion(ctx):
                 result["status"] = "error: non-finite solution"
                 return result
 
+            result["last_solved_iteration"] = n
             ctx.W_sen_beam_prev[:] = W_val
             ctx.B_off_beam_prev[:] = B_val
             ctx.f_uav_freq_prev[:] = f_val

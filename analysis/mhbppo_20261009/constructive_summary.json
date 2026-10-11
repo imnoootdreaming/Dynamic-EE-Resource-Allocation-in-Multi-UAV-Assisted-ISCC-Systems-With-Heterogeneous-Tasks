@@ -1,0 +1,58 @@
+{
+  "n": 20000,
+  "feasible": 13759,
+  "feasible_rate": 0.68795,
+  "repaired_failures": 10298,
+  "windows": [
+    {
+      "window": 0,
+      "n": 2000,
+      "feasible": 2000
+    },
+    {
+      "window": 1,
+      "n": 2000,
+      "feasible": 2000
+    },
+    {
+      "window": 2,
+      "n": 2000,
+      "feasible": 1998
+    },
+    {
+      "window": 3,
+      "n": 2000,
+      "feasible": 1875
+    },
+    {
+      "window": 4,
+      "n": 2000,
+      "feasible": 1811
+    },
+    {
+      "window": 5,
+      "n": 2000,
+      "feasible": 1674
+    },
+    {
+      "window": 6,
+      "n": 2000,
+      "feasible": 1079
+    },
+    {
+      "window": 7,
+      "n": 2000,
+      "feasible": 528
+    },
+    {
+      "window": 8,
+      "n": 2000,
+      "feasible": 242
+    },
+    {
+      "window": 9,
+      "n": 2000,
+      "feasible": 552
+    }
+  ]
+}

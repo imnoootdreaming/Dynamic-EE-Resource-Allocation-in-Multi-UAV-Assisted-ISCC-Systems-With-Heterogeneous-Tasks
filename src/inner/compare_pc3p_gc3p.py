@@ -13,7 +13,7 @@
 GC3P 的候选解个数由 --candidates 控制（默认 50）：
     候选解 = 1 个主特征方向 + (candidates - 1) 个高斯随机方向，
 每个候选都固定波束方向后重新优化功率，取真实能量最低的可行候选。
---candidates 50 表示「共 50 个候选可行解」；若要「50 个高斯方向 + 主特征方向」
+--candidates 50 表示共 50 个候选方向，不保证全部可行；若要「50 个高斯方向 + 主特征方向」
 （共 51 个候选），传 --candidates 51。
 
 输出：
@@ -40,6 +40,7 @@ from outer_sampler import _p1_constraint_violations, load_outer_samples
 from parameters import Parameters
 from pc3p import compute_pure_energy
 from variables import InnerContext, InnerVariables
+from solution_checks import CHECK_FIELDS, solution_checks
 
 # 输出 CSV 的列名与顺序对齐论文绘图脚本所需的格式
 # （simulation_result/inner_problem/plot_compare_penalty_gaussian_obj_from_csv.py）：
@@ -61,8 +62,8 @@ DETAIL_CSV_FIELDS = [
     "gc3p_relaxed_energy", "gc3p_relaxed_rank1_gap",
     "gc3p_recovery_source", "gc3p_num_candidates", "gc3p_feasible_candidates",
     "pc3p_max_violation", "gc3p_max_violation",
-    "pc3p_status", "gc3p_status",
-]
+    "pc3p_status", "gc3p_status", "mosek_rel_gap",
+] + [prefix + key for prefix in ("pc3p_", "gc3p_") for key in CHECK_FIELDS]
 
 
 def _pure_energy(ctx, result):
@@ -137,6 +138,9 @@ def _run_case(params, environment, case_index, num_candidates, seed):
                                if gc3p_ok else float("nan")),
         "pc3p_status": pc3p_result["status"],
         "gc3p_status": gc3p_result["status"],
+        "mosek_rel_gap": params.mosek_tol_rel_gap,
+        **{"pc3p_" + k: v for k, v in solution_checks(pc3p_ctx, pc3p_result).items()},
+        **{"gc3p_" + k: v for k, v in solution_checks(gc3p_ctx, gc3p_result).items()},
     }
 
 
@@ -275,12 +279,20 @@ def parse_args():
                         help="完整逐 case 指标输出路径（留空则不写）")
     parser.add_argument("--seed", type=int, default=None,
                         help="GC3P 高斯采样随机种子（默认取 params.seed）")
-    return parser.parse_args()
+    parser.add_argument("--mosek-rel-gap", type=float, default=None,
+                        help="PC3P/GC3P 统一的 MOSEK 相对间隙容差")
+    args = parser.parse_args()
+    if args.mosek_rel_gap is not None and not 0 < args.mosek_rel_gap <= 1:
+        parser.error("--mosek-rel-gap 必须在 (0, 1] 内")
+    return args
 
 
 def main():
     args = parse_args()
     params = Parameters()
+    if args.mosek_rel_gap is not None:
+        params.mosek_tol_rel_gap = args.mosek_rel_gap
+    print("MOSEK RelGap={:.1e}".format(params.mosek_tol_rel_gap))
     samples = load_outer_samples(args.csv, params)
     if args.cases and args.cases > 0:
         samples = samples[:args.cases]
@@ -290,9 +302,8 @@ def main():
     print("开始对比：%d 个 case，GC3P 候选解个数 = %d" % (len(samples), args.candidates))
     rows = run_comparison(params, samples, num_candidates=args.candidates, seed=args.seed)
     save_csv(rows, args.output)
-    # details 文件无需保存，此处直接注释掉（save_detail_csv 与 --detail-output 保留备用）
-    # if args.detail_output:
-    #     save_detail_csv(rows, args.detail_output)
+    if args.detail_output:
+        save_detail_csv(rows, args.detail_output)
     print_summary(_summary(rows))
 
 

@@ -1,0 +1,29 @@
+{
+  "tasks": [
+    "T02",
+    "T03"
+  ],
+  "unit_tests": {
+    "count": 19,
+    "passed": 19,
+    "interpreter": "D:/anaconda3/envs/cvx_new/python.exe"
+  },
+  "integration_summary": "integration_summary.json",
+  "compiled_files": [
+    "src/outer/reward/feasibility_diagnostics.py",
+    "src/outer/reward/cccp_bridge.py",
+    "src/outer/reward/my_reward.py",
+    "src/outer/environment/my_env.py",
+    "src/outer/algorithms/MHBPPO/action_logging.py",
+    "src/outer/algorithms/MHBPPO/MHBPPO_main.py",
+    "src/outer/algorithms/MHBPPO/MHBPPO_sampler.py",
+    "src/outer/configs/madrl_args.py",
+    "src/inner/fusion_pc3p.py"
+  ],
+  "syntax_check": "passed",
+  "patch_whitespace_check": "passed",
+  "docs_links_broken": [],
+  "legacy_semantics": "reward/success/physical_parameters/solver_tolerances unchanged",
+  "next_task": "T04",
+  "T01": "deferred per explicit user instruction"
+}

@@ -1,0 +1,24 @@
+test_diagnostic_summary_is_separate_from_legacy_success (test_feasibility_diagnostics.LogContractTests.test_diagnostic_summary_is_separate_from_legacy_success) ... ok
+test_list_of_complex_recovered_beams_is_portable_json (test_feasibility_diagnostics.LogContractTests.test_list_of_complex_recovered_beams_is_portable_json) ... ok
+test_misaligned_slots_are_rejected_before_writing (test_feasibility_diagnostics.LogContractTests.test_misaligned_slots_are_rejected_before_writing) ... ok
+test_scene_deduplication_ids_nonfinite_encoding_and_close (test_feasibility_diagnostics.LogContractTests.test_scene_deduplication_ids_nonfinite_encoding_and_close) ... ok
+test_analytic_feasible_rank_one_solution (test_feasibility_diagnostics.OriginalConstraintTests.test_analytic_feasible_rank_one_solution) ... ok
+test_deadline_zero_compute_time_is_rejected_even_below_tolerance (test_feasibility_diagnostics.OriginalConstraintTests.test_deadline_zero_compute_time_is_rejected_even_below_tolerance) ... ok
+test_high_rank_is_not_accepted_as_physical_solution (test_feasibility_diagnostics.OriginalConstraintTests.test_high_rank_is_not_accepted_as_physical_solution) ... ok
+test_indefinite_tiny_offloading_matrix_is_detected_relative_to_matrix (test_feasibility_diagnostics.OriginalConstraintTests.test_indefinite_tiny_offloading_matrix_is_detected_relative_to_matrix) ... ok
+test_nonfinite_missing_and_bad_shape_are_not_evaluated_as_pass (test_feasibility_diagnostics.OriginalConstraintTests.test_nonfinite_missing_and_bad_shape_are_not_evaluated_as_pass) ... ok
+test_offloading_shortfall_is_detected (test_feasibility_diagnostics.OriginalConstraintTests.test_offloading_shortfall_is_detected) ... ok
+test_original_cu_data_and_sensing_auxiliary_are_checked (test_feasibility_diagnostics.OriginalConstraintTests.test_original_cu_data_and_sensing_auxiliary_are_checked) ... ok
+test_recovered_beam_cannot_inherit_covariance_feasibility (test_feasibility_diagnostics.OriginalConstraintTests.test_recovered_beam_cannot_inherit_covariance_feasibility) ... ok
+test_sinr_boundary_uses_normalized_tolerance (test_feasibility_diagnostics.OriginalConstraintTests.test_sinr_boundary_uses_normalized_tolerance) ... ok
+test_tiny_watt_sinr_violation_is_not_hidden_by_absolute_tolerance (test_feasibility_diagnostics.OriginalConstraintTests.test_tiny_watt_sinr_violation_is_not_hidden_by_absolute_tolerance) ... ok
+test_validation_is_read_only (test_feasibility_diagnostics.OriginalConstraintTests.test_validation_is_read_only) ... ok
+test_candidate_sampling_is_explicit (test_feasibility_diagnostics.SensingTests.test_candidate_sampling_is_explicit) ... ok
+test_matching_checks_column_conflicts (test_feasibility_diagnostics.SensingTests.test_matching_checks_column_conflicts) ... ok
+test_projection_matches_actual_complex_dot_convention (test_feasibility_diagnostics.SensingTests.test_projection_matches_actual_complex_dot_convention) ... ok
+test_zero_sensing_channel_certifies_fixed_beam_impossibility (test_feasibility_diagnostics.SensingTests.test_zero_sensing_channel_certifies_fixed_beam_impossibility) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 0.114s
+
+OK
