@@ -42,3 +42,9 @@ Thumbs.db
 /ref
 
 /.codebuddy
+
+/analysis
+
+/src/outer/runs
+
+/src/outer/logs

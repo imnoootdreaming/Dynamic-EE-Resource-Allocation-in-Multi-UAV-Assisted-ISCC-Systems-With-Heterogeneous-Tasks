@@ -54,6 +54,9 @@ while not os.path.isdir(os.path.join(_OUTER_ROOT, "algorithms")):
 if _OUTER_ROOT not in sys.path:
     sys.path.insert(0, _OUTER_ROOT)
 
+from algorithms.MHBPPO.policy_diagnostics import (
+    single_state_policy_distribution, summarize_policy_distribution,
+)
 from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
 from environment.my_env import MyEnv
 
@@ -64,16 +67,20 @@ def _set_seed(seed):
     torch.manual_seed(seed)
 
 
-def _choose_action(actor, state_norm):
+def _choose_action(actor, state_norm, *, return_distribution_stats=False):
     """CPU 版动作采样，返回与 HPPO.choose_action 等价的结果（标量 log_prob）。"""
     s = torch.tensor(state_norm, dtype=torch.float32).unsqueeze(0)
     with torch.no_grad():
-        continuous_actions, discrete_actions, _, con_log_prob, dis_log_prob = actor.sample(s)
+        result = actor.sample(s, return_distribution_stats=return_distribution_stats)
+        continuous_actions, discrete_actions, _, con_log_prob, dis_log_prob = result[:5]
     action = {
         "continuous": continuous_actions.squeeze(0).cpu().numpy().astype(np.float32),
         "discrete": discrete_actions.squeeze(0).cpu().numpy().astype(np.int64),
     }
-    return action, float(np.asarray(con_log_prob).item()), float(np.asarray(dis_log_prob).item())
+    result_base = (action, float(np.asarray(con_log_prob).item()), float(np.asarray(dis_log_prob).item()))
+    if return_distribution_stats:
+        return (*result_base, single_state_policy_distribution(result[5]))
+    return result_base
 
 
 def _actor_checksum(actor):
@@ -269,25 +276,43 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             }
 
             s = env.reset(episode_idx)
+            # Independent of env_diagnostics; pair this episode's layout with its action traces.
+            trajectory_scene = {
+                "target_positions": env.init_targets_pos.tolist(),
+                "uav_positions": env.init_uavs_pos.tolist(),
+                "target_sector": env.target_sector.tolist(),
+                "target_layout": env.target_layout_info,
+                "center": np.asarray(base_args.center, dtype=float).tolist(),
+                "deploy_radius": float(base_args.radius),
+                "bs_position": np.asarray(base_args.bs_pos, dtype=float).tolist(),
+            }
             diagnostic_scene = env.get_diagnostic_scene()
             raw_state_bs = np.asarray(s["bs"], dtype=np.float32)
             state_bs_norm = (raw_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
             terminal = False
 
             while not terminal:
-                action_bs, old_con_log_probs_bs, old_dis_log_probs_bs = _choose_action(actor, state_bs_norm)
+                action_bs, old_con_log_probs_bs, old_dis_log_probs_bs, policy_stats = _choose_action(
+                    actor, state_bs_norm, return_distribution_stats=True,
+                )
 
                 next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
                 if env.last_action_trace is None:
                     raise RuntimeError("env.step 未产生动作诊断快照")
                 action_traces.append({
                     **env.last_action_trace,
+                    "policy_distribution": policy_stats,
                     "outcome": {
                         "total_reward": float(total_reward),
                         "obj_fun": float(obj_fun),
                         "success": int(success_flag),
                         "done": bool(done),
                         "solver_status_kind": str(r_dict.get("components", {}).get("solver_status_kind", "other")),
+                        **{key: r_dict["components"][key] for key in (
+                            "solver_status", "raw_solver_status", "raw_solver_status_kind",
+                            "raw_problem_status", "status_source", "optimizer_response_code",
+                            "infeasibility_certificate",
+                        ) if key in r_dict.get("components", {})},
                     },
                 })
                 if env.env_diagnostics:
@@ -334,6 +359,10 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             sample_result = {
                 "transition_dict": transition_dict_bs,
                 "action_traces": action_traces,
+                "policy_distribution_summary": summarize_policy_distribution(
+                    action_traces, actor.continuous_action_splits,
+                ),
+                "trajectory_scene": trajectory_scene,
                 "diagnostic_traces": diagnostic_traces,
                 "diagnostic_scene": diagnostic_scene,
                 "diagnostics_enabled": env.env_diagnostics,

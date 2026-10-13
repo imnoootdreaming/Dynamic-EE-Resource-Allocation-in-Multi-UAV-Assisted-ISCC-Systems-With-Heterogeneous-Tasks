@@ -13,23 +13,25 @@ from datetime import datetime
 
 
 def build_run_log_paths(outer_root, log_file, started_at):
-    """Keep explicit directories; prefix both files with the same run timestamp."""
+    """Reserve one directory per run; keep configured log filenames stable."""
     configured_path = os.path.join(outer_root, log_file)
     directory, filename = os.path.split(configured_path)
     os.makedirs(directory, exist_ok=True)
-    prefix = started_at.strftime("%H-%M-%S_%Y-%m-%d_%f")
+    timestamp = started_at.strftime("%Y-%m-%d_%H-%M-%S")
     stem, extension = os.path.splitext(filename)
     extension = extension or ".log"
     index = 0
     while True:
-        suffix = "" if index == 0 else f"_{index}"
-        run_stem = f"{prefix}_{stem}{suffix}"
-        training_path = os.path.join(directory, run_stem + extension)
-        action_path = os.path.join(directory, run_stem + "_actions.jsonl")
-        env_path = diagnostic_log_path(action_path)
-        if not any(os.path.exists(p) for p in (training_path, action_path, env_path)):
-            return training_path, action_path
-        index += 1
+        suffix = "" if index == 0 else f"_{index:02d}"
+        run_directory = os.path.join(directory, timestamp + suffix)
+        try:
+            # Atomic reservation also isolates concurrent starts in the same second.
+            os.mkdir(run_directory)
+        except FileExistsError:
+            index += 1
+            continue
+        return (os.path.join(run_directory, stem + extension),
+                os.path.join(run_directory, stem + "_actions.jsonl"))
 
 
 def _json_value(value):
@@ -122,6 +124,9 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
         "environment/my_env.py", "environment/channel_models.py", "environment/topology.py",
         "environment/observation.py", "environment/mapping.py",
         "reward/my_reward.py", "reward/cccp_bridge.py", "reward/feasibility_diagnostics.py",
+        "reward/solver_status.py",
+        "algorithms/MHBPPO/checkpoint.py",
+        "algorithms/MHBPPO/policy_diagnostics.py",
         "../inner/parameters.py", "../inner/environment.py", "../inner/target_layout.py", "../inner/pc3p.py",
         "../inner/fusion_pc3p.py", "../inner/variables.py", "../inner/cccp_params.py",
     )
@@ -132,6 +137,7 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
     params = getattr(base_args, "_params", None)
     return {
         "runtime": versions, "source_sha256": fingerprints,
+        "solver_status_contract": "unknown_only_analytic_c03_c05_c06_v1",
         "base_args": base_args.as_dict() if hasattr(base_args, "as_dict") else vars(base_args),
         "inner_parameter_source": None if params is None else vars(params).copy(),
         "madrl_args": vars(madrl_args).copy(),

@@ -640,7 +640,7 @@ class MyEnv(gym.Env):
         """复位环境；开启随机化开关时按 episode_idx 重生成整套场景。
 
         :param episode_idx: episode 序号（0 起）。None 时使用内部计数器自增，
-            保证即使调用方不传也能逐 episode 变化。种子经
+            episode 索引始终推进；仅随机化开启时才重生成场景。种子经
             `scenario_rng(base_seed, seed_offset, episode_idx)` 确定性派生：
             同 (seed, seed_offset, episode_idx) 场景严格可复现，不同
             worker / 不同 episode 互异。

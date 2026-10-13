@@ -35,6 +35,10 @@ from math import log10
 import numpy as np
 from time import perf_counter
 
+from reward.solver_status import (
+    classify_solver_status as _classify_solver_status, resolve_solver_status,
+)
+
 from reward.feasibility_diagnostics import (
     sensing_diagnostics, outer_action_checks, validate_original_solution,
 )
@@ -94,22 +98,6 @@ def _pick(base_args, outer_name, default):
 
 def _watt_2_dbm(watt):
     return 10.0 * log10(watt) + 30.0
-
-
-def _classify_solver_status(status):
-    """将 Fusion/CVXPY 状态压缩为可写入外层日志的稳定类别。"""
-    if status is None:
-        return "other"
-    low = str(status).lower()
-    if low.startswith("error"):
-        return "error"
-    if "infeasible" in low or low.startswith("unbounded"):
-        return "infeasible"
-    if "unknown" in low or "illposed" in low or "ill_posed" in low or "solver_error" in low:
-        return "unknown"
-    if "optimal" in low or "feasible" in low:
-        return "optimal"
-    return "other"
 
 
 def _matched_receive_beam(A):
@@ -307,11 +295,12 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     solver_start = perf_counter()
     result = run_pc3p(ctx)
     solver_seconds = perf_counter() - solver_start
-    solver_status = result.get("status")
-    solver_status_kind = _classify_solver_status(solver_status)
+    # Resolve unknown using actual P5 inputs even when diagnostics are disabled.
+    # Raw MOSEK statuses remain available; optimal is accepted unchanged.
     solver_diagnostic = {
-        "solver_status": str(solver_status),
-        "solver_status_kind": solver_status_kind,
+        **result.get("solver_diagnostics", {}),
+        **resolve_solver_status(result.get("status"), ctx,
+                                result.get("solver_diagnostics")),
         "solver_converged": bool(result.get("converged", False)),
         "solver_iterations": int(result.get("iterations", 0) or 0),
     }

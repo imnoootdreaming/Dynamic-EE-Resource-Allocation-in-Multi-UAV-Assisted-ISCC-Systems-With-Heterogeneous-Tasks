@@ -6,6 +6,8 @@ from torch.distributions import Beta, Categorical, Normal
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 
+from algorithms.MHBPPO.policy_diagnostics import capture_policy_distribution
+
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
     nn.init.constant_(layer.bias, 0)
@@ -165,7 +167,7 @@ class MultiHeadActor(nn.Module):
 
         raise ValueError(f"Unsupported continuous_dist_type: {self.continuous_dist_type}")
 
-    def sample(self, s):
+    def sample(self, s, *, return_distribution_stats=False):
         continuous_dists, discrete_dists = self._get_dists(s)
         batch_size = s.size(0)
         device = s.device
@@ -206,7 +208,15 @@ class MultiHeadActor(nn.Module):
         else:
             discrete_actions = torch.empty((batch_size, 0), dtype=torch.long, device=device)
 
-        return continuous_actions, discrete_actions, total_log_prob, con_log_prob, dis_log_prob
+        result = (continuous_actions, discrete_actions, total_log_prob, con_log_prob, dis_log_prob)
+        if return_distribution_stats:
+            with torch.no_grad():
+                stats = capture_policy_distribution(
+                    continuous_dists, discrete_dists, self.active_continuous_head_names,
+                    self.continuous_dist_type,
+                )
+            return (*result, stats)
+        return result
 
     def evaluate_actions(self, s, continuous_actions, discrete_actions):
         continuous_dists, discrete_dists = self._get_dists(s)

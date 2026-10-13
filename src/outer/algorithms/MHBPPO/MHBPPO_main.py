@@ -7,10 +7,10 @@ IMPALA 式 actor-learner 架构：
   每轮更新后向 weight_queue 广播最新 actor 权重（drain-then-put），采样进程在
   episode 边界加载，下一个 episode 即使用最新参数。
 - 无固定终止条件：训练持续运行，每 checkpoint_interval 次 iteration 保存一次
-  "0~当前全部"的训练 CSV 与 actor/critic checkpoint；Ctrl+C / SIGTERM 优雅退出
-  并保存最终结果。
+  iter_N/ 下的完整训练 CSV、actor/critic checkpoint、状态归一化统计与二维 UAV 轨迹；根 CSV 每轮追加。
+  Ctrl+C / SIGTERM 请求停止，在当前轮结束后保存最终结果。
 
-日志约定：采样进程全程静默；训练摘要写入带时间前缀的 .log，逐时隙动作写入同目录的 _actions.jsonl，所有控制台日志 / tqdm / TensorBoard 均由本进程输出。
+日志约定：采样进程全程静默；训练摘要写入独立时间目录内的固定文件名 .log，逐时隙动作写入同目录的 _actions.jsonl，所有控制台日志 / tqdm / TensorBoard 均由本进程输出。
 """
 
 import json
@@ -47,6 +47,12 @@ if _OUTER_ROOT not in sys.path:
 from algorithms.MHBPPO.action_logging import (
     ActionLogWriter, EnvDiagnosticLogWriter, build_run_log_paths,
     diagnostic_log_path, diagnostic_run_metadata, summarize_diagnostics,
+)
+from algorithms.MHBPPO.checkpoint import (
+    STATE_NORMALIZATION_FILENAME, save_state_normalization,
+)
+from algorithms.MHBPPO.policy_diagnostics import (
+    POLICY_DISTRIBUTION_CONTRACT, log_policy_distribution,
 )
 from algorithms.MHBPPO.MHBPPO_agent import HPPO
 from algorithms.MHBPPO.MHBPPO_sampler import sampler_worker
@@ -235,28 +241,42 @@ def broadcast_weights(weight_queues, agent, version=-1, state_norm_stats=None):
     return checksum
 
 
-def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, completion_rate_res, agent, final=False):
-    """保存训练产物：完整历史 CSV（0~当前）+ actor/critic checkpoint。
+def append_reward_record(csv_path, iteration, item):
+    """每次成功更新后追加原始 episode 指标；episode 沿用 0 起始索引。"""
+    pd.DataFrame([{
+        "episode": iteration - 1,
+        "reward": item["avg_total_reward"],
+        "obj": item["avg_obj_fun"],
+        "completion_rate": item["completion_rate"],
+    }]).to_csv(csv_path, mode="a", header=False, index=False)
 
-    周期保存（final=False）带 iteration 编号，最终保存（final=True）使用 final 后缀。
-    """
-    os.makedirs(output_dir, exist_ok=True)
 
-    episodes_list = np.arange(len(reward_res))
+def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, completion_rate_res, agent, final=False,
+                   *, state_norm_stats):
+    """保存同版本权重与测试归一化到 iter_N；final 保留为兼容参数。"""
+    if state_norm_stats is None:
+        raise ValueError("checkpoint requires corresponding state_norm_stats")
+    snapshot_dir = os.path.join(output_dir, f"iter_{iteration}")
+    os.makedirs(snapshot_dir, exist_ok=True)
     df = pd.DataFrame({
-        "episode": episodes_list,                      # 被消费的第 n 个 episode（与 iteration 一一对应）
+        "episode": np.arange(len(reward_res)),
         "reward": np.array(reward_res),
         "obj": np.array(obj_fun_res),
         "completion_rate": np.array(completion_rate_res),
     })
-    csv_path = os.path.join(output_dir, f"training_rewards_seed_{seed}.csv")
+    csv_name = f"training_rewards_seed_{seed}.csv"
+    csv_path = os.path.join(snapshot_dir, csv_name)
     df.to_csv(csv_path, index=False)
+    df.to_csv(os.path.join(output_dir, csv_name), index=False)
 
-    suffix = "final" if final else f"iter_{iteration}"
-    actor_path = os.path.join(output_dir, f"mhbppo_actor_{suffix}.pth")
-    critic_path = os.path.join(output_dir, f"mhbppo_critic_{suffix}.pth")
+    actor_path = os.path.join(snapshot_dir, "mhbppo_actor.pth")
+    critic_path = os.path.join(snapshot_dir, "mhbppo_critic.pth")
     torch.save(agent.actor.state_dict(), actor_path)
     torch.save(agent.critic.state_dict(), critic_path)
+    save_state_normalization(
+        os.path.join(snapshot_dir, STATE_NORMALIZATION_FILENAME),
+        state_norm_stats, iteration, actor_path=actor_path,
+    )
     return csv_path, actor_path, critic_path
 
 
@@ -345,8 +365,9 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
     return path
 
 
-def save_environment_plot(output_dir, scene):
-    """Save the first sampler's initial horizontal layout without running a rollout."""
+def save_environment_plot(output_dir, scene, *, trajectory=None,
+                          filename="env.png", title=None):
+    """Draw an episode layout and optional UAV paths in the horizontal plane."""
     targets = np.asarray(scene["target_positions"], dtype=float)
     uavs = np.asarray(scene["uav_positions"], dtype=float)
     sectors = np.asarray(scene["target_sector"], dtype=int)
@@ -359,6 +380,13 @@ def save_environment_plot(output_dir, scene):
                                 linewidth=1.2, linestyle="--"))
         for sector in range(len(uavs)):
             color = colors(sector % colors.N)
+            if trajectory is not None:
+                xy = trajectory[:, sector, :2]
+                ax.plot(xy[:, 0], xy[:, 1], color=color, linewidth=1.6,
+                        label=f"UAV {sector + 1} trajectory", zorder=4)
+                ax.scatter(xy[-1, 0], xy[-1, 1], marker="s", s=65,
+                           color=color, label="Final UAV position" if sector == 0 else None,
+                           zorder=5)
             mask = sectors == sector
             ax.scatter(targets[mask, 0], targets[mask, 1], s=32, color=color,
                        label=f"Sector {sector + 1} targets", zorder=3)
@@ -382,6 +410,8 @@ def save_environment_plot(output_dir, scene):
         ax.scatter(bs[0], bs[1], marker="*", s=170, color="black", label="BS", zorder=5)
         ax.set_aspect("equal", adjustable="box")
         all_xy = np.vstack((targets[:, :2], uavs[:, :2], bs[None, :]))
+        if trajectory is not None:
+            all_xy = np.vstack((all_xy, trajectory[..., :2].reshape(-1, 2)))
         padding = max(radius * 0.08, 1.0)
         lower = np.minimum(center - radius, all_xy.min(axis=0)) - padding
         upper = np.maximum(center + radius, all_xy.max(axis=0)) + padding
@@ -389,16 +419,38 @@ def save_environment_plot(output_dir, scene):
         ax.set_ylim(lower[1], upper[1])
         ax.set_xlabel("x (m)")
         ax.set_ylabel("y (m)")
-        ax.set_title(f"Initial environment | UAVs: {len(uavs)}, targets: {len(targets)}")
+        ax.set_title(title or f"Initial environment | UAVs: {len(uavs)}, targets: {len(targets)}")
         ax.grid(alpha=0.15)
-        ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+        if trajectory is None:
+            ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+        else:
+            ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=8,
+                      framealpha=0.9)
         fig.tight_layout()
         os.makedirs(output_dir, exist_ok=True)
-        path = os.path.join(output_dir, "env.png")
+        path = os.path.join(output_dir, filename)
         fig.savefig(path, dpi=180, bbox_inches="tight")
         return path
     finally:
         plt.close(fig)
+
+
+def save_uav_trajectory(output_dir, item, iteration):
+    """Plot the consumed training rollout, labelled with its actual policy version."""
+    try:
+        traces = item["action_traces"]
+        frames = [traces[0]["physical_action"]["uavs_pos_before"]]
+        frames.extend(t["physical_action"]["uavs_pos_after"] for t in traces)
+        trajectory = np.asarray(frames, dtype=float)  # [T+1, UAV, 3]
+        return save_environment_plot(
+            output_dir, item["trajectory_scene"], trajectory=trajectory,
+            filename="uav_trajectory.png",
+            title=(f"Training rollout | update={iteration}, policy v={item['weights_version']}\n"
+                   f"sampler={item['sampler_id']}, episode={item['episode_idx']}"),
+        )
+    except Exception as exc:
+        logging.getLogger("mhbppo").warning(f"UAV轨迹保存失败: {exc}")
+        return None
 
 
 if __name__ == "__main__":
@@ -478,6 +530,10 @@ if __name__ == "__main__":
         _OUTER_ROOT, "ckpt", "MHBPPO", f"{current_time_str}_mhbppo_seed_{base_args.seed}",
     )
     os.makedirs(output_dir, exist_ok=True)
+    root_csv_path = os.path.join(output_dir, f"training_rewards_seed_{base_args.seed}.csv")
+    pd.DataFrame(columns=["episode", "reward", "obj", "completion_rate"]).to_csv(
+        root_csv_path, index=False, mode="x",
+    )
     env_plot_path = save_environment_plot(output_dir, initial_scene)
     checkpoint_interval = max(1, int(madrl_args.checkpoint_interval))
     queue_maxsize = max(1, int(madrl_args.sample_queue_maxsize))
@@ -501,9 +557,11 @@ if __name__ == "__main__":
 
     log_path, action_log_path = build_run_log_paths(_OUTER_ROOT, madrl_args.log_file, started_at)
     logger = setup_logger(log_path)
-    run_id = os.path.basename(log_path).rsplit(".", 1)[0]
+    run_id = os.path.basename(os.path.dirname(log_path))
     env_log_path = diagnostic_log_path(action_log_path)
-    metadata = {**action_log_metadata, "run_id": run_id, "training_log_path": log_path}
+    metadata = {**action_log_metadata, "run_id": run_id, "training_log_path": log_path,
+                "policy_distribution_contract": POLICY_DISTRIBUTION_CONTRACT,
+                "log_directory": os.path.dirname(log_path)}
     action_writer = ActionLogWriter(action_log_path, metadata)
     env_writer = None
     if bool(getattr(madrl_args, "env_diagnostics", True)):
@@ -550,6 +608,10 @@ if __name__ == "__main__":
             state_norm_stats.count = bc_count
         bc_actor_path = os.path.join(output_dir, "mhbppo_actor_bc_init.pth")
         torch.save(agent_bs.actor.state_dict(), bc_actor_path)
+        save_state_normalization(
+            os.path.join(output_dir, "state_normalization_bc_init.npz"),
+            state_norm_stats, 0, actor_path=bc_actor_path,
+        )
         logger.info(
             f"[learner] BC 预热完成: dataset={bc_dataset_path} samples={bc_info['samples']} "
             f"epochs={bc_info['epochs']} final_nll={bc_info['final_nll']:.4f} "
@@ -598,11 +660,14 @@ if __name__ == "__main__":
     if env_writer is not None:
         logger.info(f"[learner] 环境诊断日志: {env_log_path}（原始约束/恢复波束逐步复核；不改变 completion）")
 
-    # 信号 -> KeyboardInterrupt：SIGTERM 覆盖 Linux 服务器 kill；SIGBREAK 覆盖 Windows Ctrl+Break
-    # （Windows 的 Ctrl+C 本身即触发 KeyboardInterrupt）
+    # 停止请求在轮次边界生效，避免信号切断 update 与历史提交。
+    shutdown_requested = False
+
     def _sigterm_handler(signum, frame):
-        raise KeyboardInterrupt
-    for _sig_name in ("SIGTERM", "SIGBREAK"):
+        global shutdown_requested
+        shutdown_requested = True
+
+    for _sig_name in ("SIGINT", "SIGTERM", "SIGBREAK"):
         _sig = getattr(signal, _sig_name, None)
         if _sig is None:
             continue
@@ -614,6 +679,7 @@ if __name__ == "__main__":
     reward_res = []
     obj_fun_res = []
     completion_rate_res = []
+    last_completed_item = None
 
     iteration = 0  # 外层更新次数（每消费一个 episode 并完成一次 update，+1）
     interrupted = False
@@ -622,8 +688,8 @@ if __name__ == "__main__":
 
     pbar = tqdm(total=None, desc="Training Progress", unit="update", dynamic_ncols=True)
     try:
-        while True:
-            # 带超时轮询：保证 Ctrl+C / SIGTERM 能及时打断空队列等待
+        while not shutdown_requested:
+            # 带超时轮询：保证停止请求在空队列等待时也能及时生效
             try:
                 item = sample_queue.get(timeout=1.0)
             except queue_module.Empty:
@@ -647,6 +713,9 @@ if __name__ == "__main__":
                                 f"剩余 {sum(1 for p in sampler_procs if p.is_alive())}/{num_samplers} 个仍在采样，吞吐将下降"
                             )
                     continue
+
+            if shutdown_requested:
+                break
 
             # 采样进程异常哨兵
             if isinstance(item, dict) and "error" in item:
@@ -673,6 +742,12 @@ if __name__ == "__main__":
             agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
             update_cost = time.time() - update_start
             iteration += 1
+            # 先提交本轮历史，再广播/发许可，避免队列超时丢失已完成更新的指标。
+            reward_res.append(item["avg_total_reward"])
+            obj_fun_res.append(item["avg_obj_fun"])
+            completion_rate_res.append(item["completion_rate"])
+            last_completed_item = item
+            append_reward_record(root_csv_path, iteration, item)
 
             # 采样端使用的是本 episode 开始时的归一化快照；新统计量从下一个 episode 生效。
             raw_states = item["transition_dict"].get("raw_states", [])
@@ -688,14 +763,15 @@ if __name__ == "__main__":
                 weight_queues, agent_bs, version=iteration,
                 state_norm_stats=state_norm_stats,
             )
-            if sync_training:
+            stop_after_iteration = False
+            if sync_training and not shutdown_requested:
                 # 令牌 = 本轮广播的版本号；带超时是防御性的：采样进程若已被 kill 而未发
                 # error 哨兵，无超时的 put 会让 learner 永久阻塞（连 stop_event 都发不出去）。
                 try:
                     control_queue.put(iteration, timeout=5.0)
                 except queue_module.Full:
-                    logger.warning("[learner] 许可下发超时（采样进程可能已退出），停止发放")
-                    break
+                    logger.warning("[learner] 许可下发超时（采样进程可能已退出），本轮保存后停止")
+                    stop_after_iteration = True
             # 只保留最近若干版本的指纹，避免长时训练下字典无限增长
             if len(checksum_by_version) > 512:
                 for stale_version in sorted(checksum_by_version)[:-512]:
@@ -760,17 +836,16 @@ if __name__ == "__main__":
                 f"diag_cov_valid={diag_summary['covariance_pass_rate']:.1f}% "
                 f"diag_beam_valid={diag_summary['recovered_beam_pass_rate']:.1f}%"
             )
+            log_policy_distribution(
+                logger, writer, item.get("policy_distribution_summary", {}),
+                iteration, used_version,
+            )
             # ── 2. 队列个数日志：样本队列水位 / 有多少条权重队列积压待取（-1 表示平台不支持 qsize） ──
             pending_weights = sum(1 for q in weight_queues if safe_qsize(q) > 0)
             logger.info(
                 f"iter={iteration} | 队列 | sample_queue={safe_qsize(sample_queue)}/{queue_maxsize} "
                 f"| weight_queues_pending={pending_weights}/{num_samplers}"
             )
-
-            # 统计与日志（x 轴统一为 iteration）
-            reward_res.append(item["avg_total_reward"])
-            obj_fun_res.append(item["avg_obj_fun"])
-            completion_rate_res.append(item["completion_rate"])
 
             writer.add_scalar("Reward/iteration", item["avg_total_reward"], iteration)
             writer.add_scalar("Obj/iteration", item["avg_obj_fun"], iteration)
@@ -784,8 +859,20 @@ if __name__ == "__main__":
                 csv_path, actor_path, _ = save_artifacts(
                     output_dir, base_args.seed, iteration,
                     reward_res, obj_fun_res, completion_rate_res, agent_bs,
+                    state_norm_stats=state_norm_stats,
                 )
-                logger.info(f"iter={iteration} | 已保存 {len(reward_res)} episodes CSV ({csv_path}) + checkpoint ({actor_path})")
+                trajectory_path = save_uav_trajectory(
+                    os.path.dirname(actor_path), last_completed_item, iteration,
+                )
+                logger.info(f"iter={iteration} | 已保存 {len(reward_res)} episodes CSV ({csv_path}) + checkpoint ({actor_path})"
+                            + f" | 状态归一化: {os.path.join(os.path.dirname(actor_path), STATE_NORMALIZATION_FILENAME)}"
+                            + (f" | UAV轨迹: {trajectory_path}" if trajectory_path else ""))
+            if stop_after_iteration:
+                break
+
+        if shutdown_requested:
+            interrupted = True
+            logger.info("[learner] 收到停止请求，本轮已完成，正在保存最终结果并停止采样进程...")
 
     except KeyboardInterrupt:
         interrupted = True
@@ -807,10 +894,17 @@ if __name__ == "__main__":
             csv_path, actor_path, _ = save_artifacts(
                 output_dir, base_args.seed, iteration,
                 reward_res, obj_fun_res, completion_rate_res, agent_bs, final=True,
+                state_norm_stats=state_norm_stats,
+            )
+            trajectory_path = save_uav_trajectory(
+                os.path.dirname(actor_path), last_completed_item, iteration,
             )
             plot_path = save_reward_plot(output_dir, reward_res)
             logger.info(f"[learner] 最终结果已保存: iter={iteration}, best_avg_reward={max(reward_res):.4f}")
-            logger.info(f"[learner] CSV: {csv_path} | checkpoint: {actor_path}" + (f" | 曲线: {plot_path}" if plot_path else ""))
+            logger.info(f"[learner] CSV: {csv_path} | checkpoint: {actor_path}"
+                        + f" | 状态归一化: {os.path.join(os.path.dirname(actor_path), STATE_NORMALIZATION_FILENAME)}"
+                        + (f" | UAV轨迹: {trajectory_path}" if trajectory_path else "")
+                        + (f" | 曲线: {plot_path}" if plot_path else ""))
         else:
             logger.info("[learner] 未完成任何 iteration，无产物保存。")
 

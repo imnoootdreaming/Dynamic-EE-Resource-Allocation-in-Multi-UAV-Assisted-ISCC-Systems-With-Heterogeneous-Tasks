@@ -1,7 +1,7 @@
 """MHBPPO 外层 MADRL 超参数。
 
 统一训练参数入口；支持读取保存的 hyperparameters.json，命令行显式值优先。
-默认训练行为保持不变，batch size、熵项和学习率下限可配置。
+默认复用初始化场景；batch size、熵项和学习率下限可配置。
 """
 
 import argparse
@@ -46,20 +46,21 @@ def get_madrl_args(argv=None):
     madrl_parser.add_argument("--bc_lr", type=float, default=1e-4,
                               help="BC 阶段 actor 学习率（应小于 actor_lr）")
     madrl_parser.add_argument("--checkpoint_interval", type=int, default=1000, help="每隔多少次 iteration (外层更新) 保存一次完整训练 CSV 与 checkpoint")
-    madrl_parser.add_argument("--log_file", type=str, default="logs/MHBPPO/mhbppo_train.log", help="训练日志基础路径（相对 src/outer；自动添加时分秒、日期前缀，同目录另存 _actions.jsonl 动作日志）")
+    madrl_parser.add_argument("--log_file", type=str, default="logs/MHBPPO/mhbppo_train.log", help="训练日志基础路径（相对 src/outer；每次在父目录下建立 YYYY-MM-DD_HH-mm-ss 独立目录，文件名固定，另存 _actions.jsonl 和 _env.jsonl）")
     madrl_parser.add_argument("--env_diagnostics", action=argparse.BooleanOptionalAction, default=True,
                               help="记录独立 _env.jsonl 可行性与原始约束诊断；不改变奖励或 success")
     madrl_parser.add_argument("--diagnostic_candidate_interval", type=int, default=1,
                               help="每隔多少个时隙检查候选 CU 感知匹配；原动作裕量/返回解每步检查")
     madrl_parser.add_argument("--diagnostic_snapshot_limit", type=int, default=1,
                               help="每个 episode 最多保存多少个返回解未通过验证的完整数值快照；0=不保存")
-    # NOTE - 并行 rollout 状态多样性：逐 episode 场景重生成（种子经 SeedManager 确定性派生，可复现）
-    madrl_parser.add_argument("--randomize_layout_per_episode", action=argparse.BooleanOptionalAction, default=True,
-                              help="每个 episode 重新生成 UAV/CU/目标初始布点（扇区分区部署）")
-    madrl_parser.add_argument("--randomize_cu_traj_per_episode", action=argparse.BooleanOptionalAction, default=True,
-                              help="每个 episode 重新生成 CU 马尔可夫轨迹")
-    madrl_parser.add_argument("--randomize_nlos_per_episode", action=argparse.BooleanOptionalAction, default=True,
-                              help="每个 episode 重新生成 NLoS 信道高斯分量")
+    # NOTE - 默认固定场景：reset 复用初始布点、CU 轨迹和逐时隙 NLoS 分量。
+    # 任一随机化开关开启时重生成整套场景（由 SeedManager 确定性派生，可复现）。
+    madrl_parser.add_argument("--randomize_layout_per_episode", action=argparse.BooleanOptionalAction, default=False,
+                              help="默认复用 UAV/CU/目标初始布点；开启后逐 episode 重生成整套场景")
+    madrl_parser.add_argument("--randomize_cu_traj_per_episode", action=argparse.BooleanOptionalAction, default=False,
+                              help="默认复用 CU 马尔可夫轨迹；开启后逐 episode 重生成整套场景")
+    madrl_parser.add_argument("--randomize_nlos_per_episode", action=argparse.BooleanOptionalAction, default=False,
+                              help="默认复用逐时隙 NLoS 分量；开启后逐 episode 重生成整套场景")
     madrl_parser.add_argument("--debug_topology", action="store_true", default=False,
                               help="debug 模式：打印扇区调度表等场景细节（正常训练关闭，避免逐 episode 刷屏）")
     # Load defaults first; normal argparse parsing then applies explicit CLI overrides.

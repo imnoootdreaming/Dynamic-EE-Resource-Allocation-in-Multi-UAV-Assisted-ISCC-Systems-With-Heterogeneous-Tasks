@@ -121,6 +121,10 @@ class MyReward:
                 "avg_bs_cu_freq": avg_bs_cu_freq,
                 "solver_status": str((solution_payload or {}).get("solver_status", "unknown")),
                 "solver_status_kind": str((solution_payload or {}).get("solver_status_kind", "other")),
+                **{key: (solution_payload or {})[key] for key in (
+                    "raw_solver_status", "raw_solver_status_kind", "raw_problem_status",
+                    "status_source", "optimizer_response_code", "infeasibility_certificate",
+                ) if key in (solution_payload or {})},
                 "solver_converged": bool((solution_payload or {}).get("solver_converged", False)),
                 "solver_iterations": int((solution_payload or {}).get("solver_iterations", 0) or 0),
             }
