@@ -166,7 +166,7 @@ def plot_energy_rank1(ax):
         clip_on=False,
     )
     axins.set_xlim(iters_objective[start_idx], iters_objective[-1])
-    axins.set_ylim(objective_values[start_idx:].min() - 0.0028, objective_values[start_idx:].max() + 0.0028)
+    axins.set_ylim(objective_values[start_idx:].min() - 0.0035, objective_values[start_idx:].max() + 0.0035)
     axins.grid(
         True,
         linestyle=(0, (3, 5)),
@@ -214,8 +214,8 @@ def plot_energy_rank1(ax):
     )
     axins2.set_xlim(iters_rank1_off[start_idx], iters_rank1_off[-1])
     axins2.set_ylim(
-        min(rank1_off_values[start_idx:].min() - 0.00001, rank1_sen_values[start_idx:].min() - 0.00001),
-        max(rank1_off_values[start_idx:].max() + 0.00001, rank1_sen_values[start_idx:].max() + 0.00001),
+        min(rank1_off_values[start_idx:].min() - 0.000001, rank1_sen_values[start_idx:].min() - 0.000001),
+        max(rank1_off_values[start_idx:].max() + 0.000001, rank1_sen_values[start_idx:].max() + 0.000001),
     )
     axins2.grid(
         True,
@@ -240,6 +240,7 @@ def plot_energy_rank1(ax):
         bbox_to_anchor=(1.0, 1.0), bbox_transform=ax1.transAxes,
     )
     legend.set_zorder(100)
+    return ax2
 
 
 # ── 下子图：random case 收敛迭代次数 ──
@@ -284,10 +285,18 @@ def main():
         2, 1, figsize=(10, 8), gridspec_kw={"height_ratios": [1.0, 1.0]}
     )
 
-    plot_energy_rank1(ax_top)
+    ax_top_right = plot_energy_rank1(ax_top)
     plot_case_convergence(ax_bottom)
 
     plt.tight_layout()
+    # 按实际文字边界仅下移溢出部分，并保留 1 像素余量。
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for ax in (ax_top, ax_top_right):
+        label = ax.yaxis.label
+        overflow = label.get_window_extent(renderer).y1 - (fig.bbox.y1 - 1)
+        if overflow > 0:
+            label.set_y(label.get_position()[1] - overflow / ax.bbox.height)
     plt.show()
 
 

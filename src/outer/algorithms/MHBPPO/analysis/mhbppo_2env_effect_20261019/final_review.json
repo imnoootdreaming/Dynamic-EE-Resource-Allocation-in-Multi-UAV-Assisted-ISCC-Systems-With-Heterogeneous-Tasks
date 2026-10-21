@@ -1,0 +1,79 @@
+{
+  "reviewer": "trends agent independent final audit",
+  "reviewed_sha256": {
+    "report.md": "5efa516a076476f3be07e5b0d249af1e0940e68bc3167cf1d0e9c55100b18be3",
+    "proposed_changes.md": "b133f1dde3353771999f664a0e0cdeb896295f413a7a065449fbf9dc41712e57",
+    "physical_summary.json": "68609aaec35e46a122a06276ca3765931c9af644c54882c6aa37440ef6e64f96",
+    "trends.json": "d40622e85fb897d6ec42e18f4057bd56711857b098a3ddbb8f592f9b77226dd3",
+    "ppo_audit.md": "651f9e0f29cce801159ba10a158b56b01bbe919688fbaa9867b823b0b3f41608"
+  },
+  "checks": {
+    "npz_hash_bound": true,
+    "M_reconstruction_relative_error_below_1e_12": true,
+    "Q_reconstruction_error_below_1e_12": true,
+    "M_necessary_pass_matches_stored_flag": true,
+    "all_last500_failures_have_necessary_infeasibility": true,
+    "last500_optimal_matches_csv_and_text": true,
+    "last500_completion_matches_text": true,
+    "late32_regression_correct": true,
+    "core_report_links_exist": true
+  },
+  "recomputed": {
+    "M_max_relative_error": 6.623046413090587e-16,
+    "Q_max_absolute_error": 0.0,
+    "previous500_early8_optimal": 2257,
+    "last500_early8_optimal": 2603,
+    "previous500_late32_optimal": 267,
+    "last500_late32_optimal": 233,
+    "last500_gain": 0.10029053614535631,
+    "last500_necessary_fail_count": 37164,
+    "last500_failure_solver_worker_seconds": 8124.986671500432,
+    "last500_pass_solver_worker_seconds": 865.448082199975,
+    "failure_share_worker_solver_seconds_percent": 90.37367929461072
+  },
+  "slot_recomputation": [
+    {
+      "slots": [
+        0,
+        3
+      ],
+      "records": 4000,
+      "optimal_percent": 45.725,
+      "Q": 0.050160950392601836,
+      "distance": 52.149445141238
+    },
+    {
+      "slots": [
+        4,
+        7
+      ],
+      "records": 4000,
+      "optimal_percent": 19.35,
+      "Q": 0.1038600066923297,
+      "distance": 63.29191194332583
+    },
+    {
+      "slots": [
+        8,
+        39
+      ],
+      "records": 32000,
+      "optimal_percent": 0.728125,
+      "Q": 0.3211417660068499,
+      "distance": 105.31842366823996
+    }
+  ],
+  "findings": [],
+  "notes": [
+    "No blocking numerical or scope issue in reviewed report.md/proposed_changes.md.",
+    "Validity is limited to fixed-seed/scene on-policy transition rates; no independent test or whole-episode success claim.",
+    "Early8 optimal grows2257 to2603 (+346), late32 falls267 to233 (-34), total+312: early-slot improvement interpretation is supported.",
+    "93.94% collection wait includes all worker/queue costs; worker max overlaps it. 90.37% is a share of summed worker solver time, not wall speedup.",
+    "Failure of M is a sufficient fixed-action infeasibility certificate; passing or alternate matching is not a full-task feasibility guarantee.",
+    "Entropy values and online auxiliary proposals are explicitly unvalidated experiments; interventions remain separated.",
+    "The code-specific dot(g,h) convention yields R=sigma^2I+sum eta*p*h* h^T and rank-one optimum normalize(R^-1a); no algebraic inconsistency found.",
+    "The parent verified cited primary sources; their limited uses do not imply acceleration on this ISCC system.",
+    "Future frozen-policy/multiple-seed evaluation is still needed; none was run in this analysis."
+  ],
+  "passed": true
+}

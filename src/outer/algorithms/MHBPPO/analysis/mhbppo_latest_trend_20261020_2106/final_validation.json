@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "core": {
+    "continuous_updates": true,
+    "two_workers": true,
+    "versions": true,
+    "optimal_matches_csv": true,
+    "completion_matches_csv": true,
+    "U60_completion_reproduced": true,
+    "batch80": true,
+    "saved_versions": true,
+    "all_checksums_ok": true,
+    "source_files_match": true,
+    "source_matches_U60": true,
+    "same_scene": true,
+    "same_hyperparameters": true,
+    "BS_all_finite": true,
+    "BS_complete": true,
+    "reward_second_csv": true,
+    "completion_second_csv": true,
+    "last500_independent_counts": true,
+    "previous500_independent_counts": true,
+    "last100_independent_counts": true,
+    "U60_window_independent_counts": true
+  },
+  "steps": {
+    "rows40000": true,
+    "unique": true,
+    "complete40": true,
+    "episode_failure_counts": true,
+    "all_completion_count": true,
+    "reward_matches": true,
+    "Q_matches": true,
+    "completion_matches": true,
+    "versions": true,
+    "candidate_match_exhaustive": true
+  },
+  "U61_all_13204_episodes_unchanged": true,
+  "old_frozen_results_sha256": "20571b3abf09934d85236bf03c98a136201267fed708c39bbddc4314b8f7c4ec",
+  "solver_calls": 0,
+  "optimizer_steps": 0,
+  "freeze": {
+    "last_update": 9566,
+    "last_update_time": "2026-10-20 21:07:07",
+    "read_time": "2026-10-20T21:07:30.823057+08:00"
+  }
+}

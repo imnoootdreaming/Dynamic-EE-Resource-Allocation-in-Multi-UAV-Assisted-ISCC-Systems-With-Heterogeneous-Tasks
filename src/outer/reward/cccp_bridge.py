@@ -125,7 +125,8 @@ def build_inner_parameters(base_args, cus_entertaining_task_size=None):
 
     只对齐**物理场景参数**（必须与 my_env 用的一致）；PC3P 求解器超参（gamma_1/2、
     rho_penalty*、max_iterations、freq_scale、mosek_tol_feas）沿用内层论文默认值，
-    因为那是新求解器调好的口径。
+    因为那是新求解器调好的口径。mosek_num_threads 是可选的运行资源设置，
+    只附到本次 Parameters 副本，不改变共用 Parameters 的默认值。
     """
     d = Parameters()
     uav_max_power_w = getattr(base_args, "uav_max_power", None)
@@ -180,6 +181,10 @@ def build_inner_parameters(base_args, cus_entertaining_task_size=None):
         "seed": _pick(base_args, "seed", d.seed),
     }
     params = Parameters(**overrides)
+    threads = getattr(base_args, "mosek_num_threads", 0)
+    if isinstance(threads, bool) or not isinstance(threads, (int, np.integer)) or threads < 0:
+        raise ValueError("mosek_num_threads must be a nonnegative integer")
+    params.mosek_num_threads = int(threads)
     # CU 娱乐任务数据量：外层逐 CU 给出，覆盖 Parameters 中由 L_cu_task_bits 铺平的结果
     if cus_entertaining_task_size is not None:
         params.L_cu_task = np.asarray(cus_entertaining_task_size, dtype=float).reshape(-1)
@@ -215,7 +220,8 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
                        uavs_off_duration, cus_off_power, cus_entertaining_task_size,
                        uavs_rec_beam_vectors=None, return_solution=True, *,
                        collect_diagnostics=True, diagnostic_candidates=True,
-                       diagnostic_cu_min_power=None, capture_failed_solution=False):
+                       diagnostic_cu_min_power=None, capture_failed_solution=False,
+                       collect_sensing_reward=False):
     """外层场景 -> 内层 PC3P 求解 -> 返回与旧 penalty_based_cccp 一致的 12 元组。
 
     :param uavs_rec_beam_vectors: 可选，(I, N) 复数，外层智能体产出的接收波束 g_i
@@ -223,6 +229,8 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     返回 (energy_opt, _, _, _, _, _, _, per_uav_sen_power_list, per_uav_off_power_list,
           per_uav_bs_freq_list, cur_cus_off_duration, solution_payload)；
     无可行解时 energy_opt = inf，各明细为空。
+    collect_sensing_reward 仅回传同源感知裕量，不修改内层输入或求解结果；
+    该轻量计算独立于 collect_diagnostics（诊断日志开关）。
     """
     params = build_inner_parameters(args, cus_entertaining_task_size)
     I, J, N = params.I, params.J, params.N
@@ -291,6 +299,24 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
             "outer_action": outer_action_checks(
                 params, environment, cu_min_power=diagnostic_cu_min_power),
         }
+    sensing_reward_metrics = None
+    if collect_sensing_reward:
+        try:
+            sensing = (env_diagnostic["sensing"] if env_diagnostic is not None else
+                       sensing_diagnostics(params, environment, candidates=False))
+            sensing_reward_metrics = {
+                "status": sensing.get("status", "unavailable"),
+                "scope": "fixed_position_and_receive_beam",
+                "margin": sensing.get("margin"),
+                "required_sensing_power_w": sensing.get("required_sensing_power_w"),
+            }
+        except (ValueError, TypeError, FloatingPointError, np.linalg.LinAlgError) as exc:
+            # New feedback must not stop an otherwise usable legacy solve.
+            sensing_reward_metrics = {
+                "status": "unavailable", "margin": None,
+                "required_sensing_power_w": None,
+                "reason": "{}: {}".format(type(exc).__name__, exc),
+            }
     diagnostic_pre_seconds = perf_counter() - diagnostic_start
     solver_start = perf_counter()
     result = run_pc3p(ctx)
@@ -304,6 +330,8 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
         "solver_converged": bool(result.get("converged", False)),
         "solver_iterations": int(result.get("iterations", 0) or 0),
     }
+    if collect_sensing_reward:
+        solver_diagnostic["sensing_reward_metrics"] = sensing_reward_metrics
 
     if collect_diagnostics:
         validation_start = perf_counter()

@@ -650,6 +650,14 @@ def build_constraints_fusion(ctx, model, fp, fv):
                          mf.Domain.inRotatedQCone())
 
 
+def _configure_mosek_threads(model, ctx):
+    """Apply the current call's resource setting, including resetting cached models to auto."""
+    threads = getattr(ctx.params, "mosek_num_threads", 0)
+    if isinstance(threads, bool) or not isinstance(threads, (int, np.integer)) or threads < 0:
+        raise ValueError("mosek_num_threads must be a nonnegative integer")
+    model.setSolverParam("numThreads", int(threads))
+
+
 def build_fusion_model(ctx):
     """构建并返回 (model, FusionParams, FusionVariables)。
 
@@ -659,6 +667,11 @@ def build_fusion_model(ctx):
     """
     params = ctx.params
     model = mf.Model("P5_fusion")
+    try:
+        _configure_mosek_threads(model, ctx)
+    except Exception:
+        model.dispose()
+        raise
     fp = FusionParams(model, params)
     fv = FusionVariables(model, params)
     build_constraints_fusion(ctx, model, fp, fv)
@@ -674,7 +687,7 @@ _MODEL_CACHE = {}
 def get_fusion_model(ctx):
     """返回按 (I, J, N) 复用的 (model, fp, fv)；缓存未命中时才构建。
 
-    求解器容差与模型结构无关；每次获取时刷新，允许缓存模型用于不同精度的对照。
+    求解器容差和线程设置与模型结构无关；每次获取时刷新，避免缓存沿用上次线程上限。
     """
     key = (int(ctx.I), int(ctx.J), int(ctx.N))
     cached = _MODEL_CACHE.get(key)
@@ -687,6 +700,7 @@ def get_fusion_model(ctx):
         cached = (model, fp, fv)
         _MODEL_CACHE[key] = cached
     model = cached[0]
+    _configure_mosek_threads(model, ctx)
     model.setSolverParam("intpntCoTolPfeas", ctx.mosek_tol_feas)
     model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
     model.setSolverParam("intpntCoTolRelGap", ctx.mosek_tol_rel_gap)

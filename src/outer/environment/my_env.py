@@ -6,6 +6,8 @@ except ImportError:  # pragma: no cover
     from gymnasium import spaces
 import numpy as np
 import hashlib
+import copy
+import json
 from datetime import datetime
 
 # 训练时环境单步诊断由 learner 的 episode 聚合日志承载，避免多进程终端交错输出。
@@ -60,7 +62,17 @@ class MyEnv(gym.Env):
 
     def __init__(self, base_args, madrl_args, seed_offset=0):
         super(MyEnv, self).__init__()
-        self.base_args = base_args
+        # Runtime solver controls belong to this environment's parameter copy;
+        # constructing the learner's probe must not mutate shared Parameters.
+        if hasattr(madrl_args, "mosek_num_threads"):
+            self.base_args = copy.deepcopy(base_args)
+            solver_threads = int(getattr(madrl_args, "mosek_num_threads", 0))
+            self.base_args.mosek_num_threads = solver_threads
+            params = getattr(self.base_args, "_params", None)
+            if params is not None:
+                params.mosek_num_threads = solver_threads
+        else:
+            self.base_args = base_args
         self.madrl_args = madrl_args
         self.epsilon = 1e-4
         self.t = 0
@@ -77,10 +89,9 @@ class MyEnv(gym.Env):
         self.target_hold_slots = int(hold_slots)
         self.target_layout = getattr(self.base_args, "target_layout", "random_sector")
         # ── 场景随机化配置（并行 rollout 状态多样性） ─────────────────────────
-        # seed_offset：采样进程的种子偏移（worker_id + 1）；0 表示基线 seed
-        #（学习进程 / 仅取维度的主进程场景）。逐 episode 种子经
-        # configs.seed_manager.scenario_rng 确定性派生，保证跨 worker / 跨 episode
-        # 互异且同参数可复现。
+        # Scene identity is independent of the worker's action RNG stream.
+        # Shared-scene synchronous workers use the same scene offset (default 0);
+        # legacy asynchronous workers may still use distinct scene offsets.
         self.seed_offset = int(seed_offset)
         self.randomize_layout_per_episode = bool(
             getattr(madrl_args, "randomize_layout_per_episode", False))
@@ -179,7 +190,12 @@ class MyEnv(gym.Env):
             "bs": spaces.Box(low=-np.inf, high=np.inf, shape=(obs_dim_bs,), dtype=np.float32)
         }
 
-        self.reward_calculator = MyReward(self.base_args, enable_diagnostics=self.env_diagnostics)
+        self.reward_calculator = MyReward(
+            self.base_args, enable_diagnostics=self.env_diagnostics,
+            sensing_penalty_coef=getattr(madrl_args, "sensing_penalty_coef", 0.0),
+            sensing_penalty_reference_factor=getattr(
+                madrl_args, "sensing_penalty_reference_factor", 10.0),
+        )
         self._validate_bs_observation_layout()
 
     def _generate_scenario(self, rng):
@@ -403,27 +419,75 @@ class MyEnv(gym.Env):
             )
         )
 
+    def _exogenous_component_hashes(self):
+        """The historical eight scene components, with the unchanged scene-id formula."""
+        digest = hashlib.sha256()
+        components = {"uav_initial": self.init_uavs_pos, "cu_initial": self.init_cus_pos,
+                      "targets": self.init_targets_pos, "cu_trajectory": self.precomputed_cus_traj,
+                      "target_schedule": self.precomputed_uav_target_schedule,
+                      **self.precomputed_nlos_components}
+        hashes = {}
+        for name, values in components.items():
+            values = np.ascontiguousarray(values)
+            fingerprint = hashlib.sha256(values.tobytes()).hexdigest()
+            hashes[name] = fingerprint
+            digest.update((name + str(values.shape) + str(values.dtype) + fingerprint).encode())
+        return digest.hexdigest(), hashes
+
+    def get_exogenous_scene_signature(self):
+        """Identify fixed external time series and physical/task constants, even with diagnostics off.
+
+        UAV positions affected by actions and resulting geometric channels are deliberately
+        absent: equal external scenes need not have equal controlled trajectories.
+        """
+        scene_id, hashes = self._exogenous_component_hashes()
+        physical_keys = (
+            "uavs_num", "cus_num", "targets_num", "antenna_nums", "area_length", "radius",
+            "center", "bs_pos", "uav_height", "uav_min_speed", "uav_max_speed",
+            "uav_safe_distance", "uav_c1", "uav_c2", "bandwidth", "noise_power_density_dbm",
+            "ref_path_loss_db", "rician_factor_db", "alpha_uav_link", "alpha_cu_link", "alpha_2",
+            "frac_d_lambda", "radar_rcs", "sen_sinr", "radar_duty_ratio", "var_range_fluctuation",
+            "radar_impulse_duration", "radar_spectrum_shape", "uav_sen_duration",
+            "bs_cycles_per_bit", "bs_max_freq", "kappa", "cu_max_power_dbm", "uav_max_power",
+            "cu_max_delay", "uav_max_delay", "time_slot_duration", "omega_weight_1",
+            "omega_weight_2", "omega_weight_3", "L_cu_task_bits", "target_layout",
+            "target_ring_space_ratio", "target_ring_move_ratio", "markov_velocity",
+            "markov_memory_level", "markov_asymptotic_mean_of_velocity",
+            "markov_standard_deviation_of_velocity",
+        )
+        constants = {name: getattr(self.base_args, name) for name in physical_keys
+                     if hasattr(self.base_args, name)}
+        constants.update({"total_time_slots": int(self.madrl_args.total_time_slots),
+                          "target_hold_slots": self.target_hold_slots,
+                          "target_layout_info": self.target_layout_info,
+                          "target_sector": self.target_sector,
+                          "task_sizes": self.cus_entertaining_task_size})
+        def serialize(value):
+            if isinstance(value, np.ndarray):
+                return value.tolist()
+            if isinstance(value, np.generic):
+                return value.item()
+            raise TypeError(f"unsupported physical constant: {type(value).__name__}")
+        constant_sha = hashlib.sha256(json.dumps(constants, sort_keys=True, separators=(",", ":"),
+            default=serialize, allow_nan=False).encode()).hexdigest()
+        regenerated = (self.randomize_layout_per_episode or
+                       self.randomize_cu_traj_per_episode or self.randomize_nlos_per_episode)
+        return {"signature": hashlib.sha256((scene_id + constant_sha).encode()).hexdigest(),
+                "scene_id": scene_id, "component_sha256": hashes, "constant_sha256": constant_sha,
+                "master_seed": int(self.base_args.seed), "scene_seed_offset": self.seed_offset,
+                "scenario_episode_idx": int(self._episode_idx if regenerated else 0)}
+
     def get_diagnostic_scene(self):
         """Scenario record cached per generated scene; learner writes it once."""
         if not self.env_diagnostics:
             return None
         if self._diagnostic_scene is None:
-            digest = hashlib.sha256()
-            components = {"uav_initial": self.init_uavs_pos, "cu_initial": self.init_cus_pos,
-                          "targets": self.init_targets_pos, "cu_trajectory": self.precomputed_cus_traj,
-                          "target_schedule": self.precomputed_uav_target_schedule,
-                          **self.precomputed_nlos_components}
-            hashes = {}
-            for name, values in components.items():
-                values = np.ascontiguousarray(values)
-                fingerprint = hashlib.sha256(values.tobytes()).hexdigest()
-                hashes[name] = fingerprint
-                digest.update((name + str(values.shape) + str(values.dtype) + fingerprint).encode())
+            scene_id, hashes = self._exogenous_component_hashes()
             regenerated = (self.randomize_layout_per_episode or
                            self.randomize_cu_traj_per_episode or self.randomize_nlos_per_episode)
             scenario_episode = self._episode_idx if regenerated else 0
             self._diagnostic_scene = {
-                "scene_id": digest.hexdigest(), "base_seed": int(self.base_args.seed),
+                "scene_id": scene_id, "base_seed": int(self.base_args.seed),
                 "seed_offset": self.seed_offset, "scenario_episode_idx": int(scenario_episode),
                 "rng_entropy": int(self.base_args.seed) + self.seed_offset,
                 "rng_spawn_key": [int(scenario_episode)], "rng_bit_generator": "PCG64",
@@ -597,6 +661,8 @@ class MyEnv(gym.Env):
                 "structured_beam_alpha": beam_alpha,
                 "reward_components": reward.get("components", {}),
                 "legacy_reward": float(total_reward), "legacy_energy": float(energy_opt),
+                "base_reward": float(reward.get("components", {}).get("base_reward", total_reward)),
+                "actual_reward": float(total_reward),
             }
         print(
             f"{color_title}Episode {i_episode}, Time Slot {self.t}:{color_reset} "
@@ -611,6 +677,8 @@ class MyEnv(gym.Env):
         print(f"  {color_penalty}bs_alloc_spectrum_penalty{color_reset}: {reward_components.get('bs_alloc_spectrum_penalty', 0.0):.4f}")
         print(f"  {color_penalty}uav_collision_penalty_sum{color_reset}: {reward_components.get('uav_collision_penalty_sum', 0.0):.4f}")
         print(f"  {color_penalty}no_solution_penalty{color_reset}: {reward_components.get('no_solution_penalty', 0.0):.4f}")
+        print(f"  {color_penalty}sensing_penalty_applied{color_reset}: "
+              f"{reward_components.get('sensing_penalty_applied', 0.0):.4f}")
         print(
             f"=================================================="
         )

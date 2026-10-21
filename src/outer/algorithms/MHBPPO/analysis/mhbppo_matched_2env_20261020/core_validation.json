@@ -1,0 +1,16 @@
+{
+  "update_sequence": true,
+  "env_steps": true,
+  "episodes": true,
+  "all_batches_80": true,
+  "collection_version": true,
+  "saved_version": true,
+  "reward_csv": true,
+  "completion_csv": true,
+  "two_workers_each": true,
+  "worker_wv": true,
+  "worker_slots_40": true,
+  "worker_optimal_sum": true,
+  "all_checksums_ok": true,
+  "sources_match": true
+}

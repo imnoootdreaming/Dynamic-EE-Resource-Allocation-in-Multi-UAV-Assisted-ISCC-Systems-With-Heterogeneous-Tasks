@@ -34,6 +34,57 @@ def build_run_log_paths(outer_root, log_file, started_at):
                 os.path.join(run_directory, stem + "_actions.jsonl"))
 
 
+def segment_path(path, index):
+    """Archive name of a finished segment; the configured path always holds the newest one."""
+    stem, extension = os.path.splitext(path)
+    return f"{stem}_part{index:03d}{extension or '.jsonl'}"
+
+
+class JsonlRotation:
+    """Bound detailed JSONL logs by iteration window and/or segment size.
+
+    Both detailed writers are fed in lockstep per update, so a single shared policy
+    rotates them to the same segment index and keeps their records aligned by update.
+    Whichever trigger fires first wins. Retained history therefore never spans more
+    than (keep_segments + 1) windows, i.e. the oldest retained record lags the current
+    update by at most (keep_segments + 1) * iterations updates and no file exceeds
+    max_bytes. Set both triggers to 0 to restore the previous unbounded behaviour.
+    """
+
+    def __init__(self, iterations=0, max_bytes=0, keep_segments=1):
+        self.iterations = max(0, int(iterations))
+        self.max_bytes = max(0, int(max_bytes))
+        self.keep_segments = max(0, int(keep_segments))
+        self.segment = 0
+        self._next_iteration = None
+
+    @property
+    def active(self):
+        return bool(self.iterations or self.max_bytes)
+
+    def due(self, iteration, sizes):
+        """True once per break point; latches the next iteration window."""
+        if not self.active:
+            return False
+        if self._next_iteration is None:
+            self._next_iteration = iteration + self.iterations
+        by_iteration = self.iterations > 0 and iteration >= self._next_iteration
+        by_size = self.max_bytes > 0 and any(size >= self.max_bytes for size in sizes)
+        if not (by_iteration or by_size):
+            return False
+        self.segment += 1
+        self._next_iteration = iteration + self.iterations
+        return True
+
+    def force(self, iteration):
+        """Out-of-band rotation used by the disk guard; keeps the same window bookkeeping."""
+        if not self.active:
+            return 0
+        self.segment += 1
+        self._next_iteration = iteration + self.iterations
+        return self.segment
+
+
 def _json_value(value):
     """Preserve full arrays; encode non-finite diagnostics as strings, not invalid JSON."""
     if hasattr(value, "tolist"):
@@ -49,11 +100,27 @@ def _json_value(value):
     return value
 
 
+def _episode_identity(item):
+    """Additional explicit fields; preserve legacy sampler/seed_offset columns."""
+    return {
+        "worker_id": int(item.get("worker_id", item["sampler_id"])),
+        "collection_round": item.get("collection_round"),
+        "policy_version": int(item["weights_version"]),
+        "scene_seed_offset": item.get("scene_seed_offset", item["seed_offset"]),
+        "action_seed": item.get("action_seed"),
+        "actor_signature": item.get("actor_signature"),
+        "norm_signature": item.get("norm_signature"),
+        "scene_signature": item.get("scene_signature"),
+    }
+
+
 class ActionLogWriter:
     """Learner-only writer: one metadata line, then one line per consumed transition."""
 
     def __init__(self, path, metadata):
         self._file = open(path, "x", encoding="utf-8")
+        self._path = path
+        self._metadata = dict(metadata)
         self.run_id = metadata.get("run_id")
         try:
             self._write({"record_type": "metadata", "schema_version": 1, **metadata})
@@ -62,6 +129,39 @@ class ActionLogWriter:
         except BaseException:
             self._file.close()
             raise
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def size(self):
+        """Size of the current segment in bytes; the file is flushed after each episode."""
+        return self._file.tell()
+
+    def rotate(self, segment_index):
+        """Archive the finished segment and reopen the configured path with fresh metadata.
+
+        Segment boundaries are only taken between episodes, so a 40-slot episode is
+        never split across two files.
+        """
+        self._file.close()
+        archived = segment_path(self._path, segment_index)
+        os.replace(self._path, archived)
+        self._file = open(self._path, "x", encoding="utf-8")
+        self._write({"record_type": "metadata", "schema_version": 1, **self._metadata})
+        self._file.flush()
+        return archived
+
+    def prune(self, earliest_segment):
+        """Delete archived segments older than the window; the current file is never removed."""
+        removed = []
+        for index in range(1, earliest_segment):
+            path = segment_path(self._path, index)
+            if os.path.exists(path):
+                os.remove(path)
+                removed.append(path)
+        return removed
 
     def _write(self, record):
         self._file.write(json.dumps(
@@ -87,6 +187,7 @@ class ActionLogWriter:
                 "episode_idx": int(item["episode_idx"]),
                 "step_idx": step,  # 0-based, as are env time_slot and episode_idx
                 "weights_version": int(item["weights_version"]),
+                **_episode_identity(item),
                 "raw_action": {
                     "continuous": transitions["continuous_actions"][step],
                     "discrete": transitions["discrete_actions"][step],
@@ -124,9 +225,12 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
         "environment/my_env.py", "environment/channel_models.py", "environment/topology.py",
         "environment/observation.py", "environment/mapping.py",
         "reward/my_reward.py", "reward/cccp_bridge.py", "reward/feasibility_diagnostics.py",
-        "reward/solver_status.py",
+        "reward/solver_status.py", "reward/sensing_penalty.py",
         "algorithms/MHBPPO/checkpoint.py",
         "algorithms/MHBPPO/policy_diagnostics.py",
+        "algorithms/MHBPPO/rollout_batch.py",
+        "algorithms/MHBPPO/policy_initialization.py",
+        "algorithms/MHBPPO/beam_branch.py", "algorithms/MHBPPO/beam_pretraining.py",
         "../inner/parameters.py", "../inner/environment.py", "../inner/target_layout.py", "../inner/pc3p.py",
         "../inner/fusion_pc3p.py", "../inner/variables.py", "../inner/cccp_params.py",
     )
@@ -141,7 +245,7 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
         "base_args": base_args.as_dict() if hasattr(base_args, "as_dict") else vars(base_args),
         "inner_parameter_source": None if params is None else vars(params).copy(),
         "madrl_args": vars(madrl_args).copy(),
-        "diagnostic_semantics": "read_only_original_constraints; legacy reward/success unchanged",
+        "diagnostic_semantics": "read_only_original_constraints; diagnostics_do_not_change_reward_or_success",
         "channel_time": "before_move", "collision_time": "after_move",
         "candidate_matching_scope": "sensing_only_fixed_position_and_receive_beam",
     }
@@ -155,6 +259,12 @@ class EnvDiagnosticLogWriter(ActionLogWriter):
         self.last_write_seconds = 0.0
         self.last_write_bytes = 0
         super().__init__(path, metadata)
+
+    def rotate(self, segment_index):
+        archived = super().rotate(segment_index)
+        # Each archived segment restates the scenes it references, so the set restarts.
+        self._scenes.clear()
+        return archived
 
     def write_episode(self, item, iteration):
         traces = item.get("diagnostic_traces", [])
@@ -173,6 +283,7 @@ class EnvDiagnosticLogWriter(ActionLogWriter):
         if key not in self._scenes:
             self._write({"record_type": "scene", "run_id": self.run_id,
                          "sampler_id": int(item["sampler_id"]),
+                         **_episode_identity(item),
                          "first_episode_idx": int(item["episode_idx"]), **scene})
             self._scenes.add(key)
         logged_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
@@ -182,7 +293,8 @@ class EnvDiagnosticLogWriter(ActionLogWriter):
                          "sampler_id": int(item["sampler_id"]),
                          "seed_offset": int(item["seed_offset"]),
                          "episode_idx": int(item["episode_idx"]), "step_idx": step,
-                         "weights_version": int(item["weights_version"]), **trace})
+                         "weights_version": int(item["weights_version"]),
+                         **_episode_identity(item), **trace})
         self._file.flush()
         self.last_write_bytes = self._file.tell() - position
         self.last_write_seconds = perf_counter() - started

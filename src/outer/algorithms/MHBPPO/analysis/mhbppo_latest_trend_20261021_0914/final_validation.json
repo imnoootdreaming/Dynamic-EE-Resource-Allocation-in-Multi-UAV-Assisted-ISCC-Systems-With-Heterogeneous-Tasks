@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "audit": {
+    "continuous_updates": true,
+    "two_workers": true,
+    "versions": true,
+    "optimal_matches_csv": true,
+    "completion_matches_csv": true,
+    "U60_completion_reproduced": true,
+    "batch80": true,
+    "saved_versions": true,
+    "all_checksums_ok": true,
+    "source_files_match": true,
+    "source_matches_U60": true,
+    "same_scene": true,
+    "same_hyperparameters": true,
+    "BS_all_finite": true,
+    "BS_complete": true,
+    "reward_second_csv": true,
+    "completion_second_csv": true,
+    "last500_independent_counts": true,
+    "previous500_independent_counts": true,
+    "last100_independent_counts": true,
+    "U60_window_independent_counts": true
+  },
+  "steps": {
+    "rows40000": true,
+    "unique": true,
+    "complete40": true,
+    "episode_failure_counts": true,
+    "all_completion_count": true,
+    "reward_matches": true,
+    "Q_matches": true,
+    "completion_matches": true,
+    "versions": true,
+    "candidate_match_exhaustive": true
+  },
+  "U62_19132_episodes_unchanged": true,
+  "solver_calls": 0,
+  "optimizer_steps": 0,
+  "freeze": {
+    "last_update": 11967,
+    "last_update_time": "2026-10-21 09:14:25",
+    "read_time": "2026-10-21T09:14:39.764890+08:00"
+  }
+}

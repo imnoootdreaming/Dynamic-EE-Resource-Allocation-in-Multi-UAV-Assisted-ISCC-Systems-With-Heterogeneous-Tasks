@@ -1,0 +1,2692 @@
+{
+  "scope": "Initial full-batch loss gradients at checkpoint5000 for logged on-policy update5001; no optimizer updates",
+  "historical_actual_surrogate_gradient_exactly_identified": false,
+  "reason": "Reward-normalizer std/m2 missing. Results retain this as an unknown interval rather than inventing it; historical minibatch trajectory also unavailable.",
+  "reconstruction": {
+    "batch_records": 80,
+    "actor_norm_identity_match": true,
+    "adjacent_state_exact_match": true,
+    "logged_distribution_max_abs_error": 1.9073486328125e-06,
+    "errors": {
+      "uav_angles/mean": 1.1920928955078125e-07,
+      "uav_angles/std": 5.960464477539063e-08,
+      "uav_angles/concentration": 1.9073486328125e-06,
+      "uav_distances/mean": 5.960464477539063e-08,
+      "uav_distances/std": 5.960464477539063e-08,
+      "uav_distances/concentration": 4.76837158203125e-07,
+      "uav_off_durations/mean": 5.960464477539063e-08,
+      "uav_off_durations/std": 5.960464477539063e-08,
+      "uav_off_durations/concentration": 4.76837158203125e-07,
+      "cu_off_powers/mean": 1.1920928955078125e-07,
+      "cu_off_powers/std": 5.960464477539063e-08,
+      "cu_off_powers/concentration": 1.9073486328125e-06,
+      "uav_rec_beam_dir_real/mean": 1.1920928955078125e-07,
+      "uav_rec_beam_dir_real/std": 8.940696716308594e-08,
+      "uav_rec_beam_dir_real/concentration": 7.152557373046875e-07,
+      "uav_rec_beam_dir_imag/mean": 1.1920928955078125e-07,
+      "uav_rec_beam_dir_imag/std": 5.960464477539063e-08,
+      "uav_rec_beam_dir_imag/concentration": 9.5367431640625e-07,
+      "discrete_0/probabilities": 5.662441253662109e-07,
+      "discrete_1/probabilities": 6.556510925292969e-07,
+      "discrete_2/probabilities": 5.960464477539062e-07,
+      "discrete_3/probabilities": 1.3113021850585938e-06
+    },
+    "raw_reward_csv_match": true,
+    "source_unchanged": true,
+    "model_parameters_unchanged": true,
+    "solver_calls": 0,
+    "optimizer_steps": 0
+  },
+  "reward_normalizer": {
+    "mean_reconstructed_from_400000_rewards_batch_means": -1.2983377597338688,
+    "unknown_std_lower_bound": 0.1969245308972855,
+    "unknown_std_upper_bound": 4.207258149954866,
+    "bound_assumptions": "Current I4 reward lies in [-9,1] for nonnegative energy; total variance >= variance of equal-sized batch means; population moments plus initialization prior1e-8.",
+    "not_an_estimate_of_actual_std": true
+  },
+  "entropy_loss_at_checkpoint_batch": {
+    "beam": 0.025446847081184387,
+    "other": 0.04259458929300308
+  },
+  "parameter_groups": {
+    "beam_heads": [
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.bias"
+    ],
+    "beam_real": [
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.bias"
+    ],
+    "beam_imag": [
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.bias"
+    ],
+    "shared_trunk": [
+      "fc1.weight",
+      "fc1.bias",
+      "fc2.weight",
+      "fc2.bias"
+    ],
+    "all_actor": [
+      "fc1.weight",
+      "fc1.bias",
+      "fc2.weight",
+      "fc2.bias",
+      "continuous_heads.uav_angles.alpha_layer.weight",
+      "continuous_heads.uav_angles.alpha_layer.bias",
+      "continuous_heads.uav_angles.beta_layer.weight",
+      "continuous_heads.uav_angles.beta_layer.bias",
+      "continuous_heads.uav_distances.alpha_layer.weight",
+      "continuous_heads.uav_distances.alpha_layer.bias",
+      "continuous_heads.uav_distances.beta_layer.weight",
+      "continuous_heads.uav_distances.beta_layer.bias",
+      "continuous_heads.uav_off_durations.alpha_layer.weight",
+      "continuous_heads.uav_off_durations.alpha_layer.bias",
+      "continuous_heads.uav_off_durations.beta_layer.weight",
+      "continuous_heads.uav_off_durations.beta_layer.bias",
+      "continuous_heads.cu_off_powers.alpha_layer.weight",
+      "continuous_heads.cu_off_powers.alpha_layer.bias",
+      "continuous_heads.cu_off_powers.beta_layer.weight",
+      "continuous_heads.cu_off_powers.beta_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_real.beta_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.alpha_layer.bias",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.weight",
+      "continuous_heads.uav_rec_beam_dir_imag.beta_layer.bias",
+      "discrete_heads.0.weight",
+      "discrete_heads.0.bias",
+      "discrete_heads.1.weight",
+      "discrete_heads.1.bias",
+      "discrete_heads.2.weight",
+      "discrete_heads.2.bias",
+      "discrete_heads.3.weight",
+      "discrete_heads.3.bias"
+    ]
+  },
+  "results": {
+    "all80": {
+      "beam_heads": {
+        "parameter_count": 20640,
+        "beam_entropy_norm": 0.039215895195765724,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.20025360291598734,
+            "task_grad_norm": 0.8649215957228684,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.045340404713782846,
+            "cosine": -0.1358518382470738,
+            "opposing_projection_fraction": 0.00615957732723369
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.8434724633184673,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.046493391190838555,
+            "cosine": 0.08261147979035882,
+            "opposing_projection_fraction": -0.003840887846747207
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.03683872853910613,
+          "upper": 0.04649348347854872,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8667531636934903
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8666502452799014,
+          "task_grad_norm": 1.0645222719367624,
+          "beam_entropy_grad_norm": 0.039215895195765724,
+          "entropy_over_task_norm": 0.036838961691630374,
+          "cosine": -0.06868382909411,
+          "opposing_projection_fraction": 0.002530240948832406
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.8434724633184673,
+          "beam_entropy_grad_norm": 0.039215895195765724,
+          "entropy_over_task_norm": 0.046493391190838555,
+          "cosine": 0.08261147979035882,
+          "opposing_projection_fraction": -0.003840887846747207
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.8643943054511501,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.045368062871837075,
+            "cosine": -0.13585119776063628,
+            "opposing_projection_fraction": 0.00616330568121892
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.8735776552003477,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.04489113814017128,
+            "cosine": -0.13569341217247136,
+            "opposing_projection_fraction": 0.006091431710545611
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.9459157359704685,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.041458127510197215,
+            "cosine": -0.12660299093224023,
+            "opposing_projection_fraction": 0.005248722941241157
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 1.0467881291298322,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.03746306831771667,
+            "cosine": -0.04088540771951373,
+            "opposing_projection_fraction": 0.0015316928225938434
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.8836806192442146,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.04437790570682188,
+            "cosine": 0.0542151353446757,
+            "opposing_projection_fraction": -0.0024059541642086043
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.8434724633184673,
+            "beam_entropy_grad_norm": 0.039215895195765724,
+            "entropy_over_task_norm": 0.046493391190838555,
+            "cosine": 0.08261147979035882,
+            "opposing_projection_fraction": -0.003840887846747207
+          }
+        ]
+      },
+      "beam_real": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.030816308647965238,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.7050150509312524,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04371014293561543,
+            "cosine": -0.10310074235337527,
+            "opposing_projection_fraction": 0.004506548185034092
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6909880622344393,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04459745447456057,
+            "cosine": 0.10482295547900289,
+            "opposing_projection_fraction": -0.004674836984863722
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.04149099714819574,
+          "upper": 0.04459758809334125,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8081296544239046
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8085004078035667,
+          "task_grad_norm": 0.7427182043189652,
+          "beam_entropy_grad_norm": 0.030816308647965238,
+          "entropy_over_task_norm": 0.04149125262955178,
+          "cosine": -0.021051174795090763,
+          "opposing_projection_fraction": 0.0008734396115719637
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.6909880622344393,
+          "beam_entropy_grad_norm": 0.030816308647965238,
+          "entropy_over_task_norm": 0.04459745447456057,
+          "cosine": 0.10482295547900289,
+          "opposing_projection_fraction": -0.004674836984863722
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.7050150509312524,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04371014293561543,
+            "cosine": -0.10310074235337527,
+            "opposing_projection_fraction": 0.004506548185034092
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.7072222373492173,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04357372692842595,
+            "cosine": -0.10096839995137796,
+            "opposing_projection_fraction": 0.004399569487881439
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.7232199730798237,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.042609869465764824,
+            "cosine": -0.08152816655566958,
+            "opposing_projection_fraction": 0.0034739045347202146
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.7337875934189917,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.0419962246900094,
+            "cosine": 0.023623258529466215,
+            "opposing_projection_fraction": -0.0009920876731136443
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.6967377011879737,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04422942607443496,
+            "cosine": 0.0935015564317903,
+            "opposing_projection_fraction": -0.004135520178044478
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6909880622344393,
+            "beam_entropy_grad_norm": 0.030816308647965238,
+            "entropy_over_task_norm": 0.04459745447456057,
+            "cosine": 0.10482295547900289,
+            "opposing_projection_fraction": -0.004674836984863722
+          }
+        ]
+      },
+      "beam_imag": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.024253691622485526,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.3581802868802274,
+            "task_grad_norm": 0.5465713213634382,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.04437424847316171,
+            "cosine": -0.1985519423631708,
+            "opposing_projection_fraction": 0.008810593225252223
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.4837161297972368,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.050140340849605614,
+            "cosine": 0.04266271623520169,
+            "opposing_projection_fraction": -0.002139123133603016
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.03175447467151037,
+          "upper": 0.05014038570454524,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8783229445646522
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8786812461370743,
+          "task_grad_norm": 0.7637833283406908,
+          "beam_entropy_grad_norm": 0.024253691622485526,
+          "entropy_over_task_norm": 0.031754675341207496,
+          "cosine": -0.14447729614304466,
+          "opposing_projection_fraction": 0.004587829633197873
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.4837161297972368,
+          "beam_entropy_grad_norm": 0.024253691622485526,
+          "entropy_over_task_norm": 0.050140340849605614,
+          "cosine": 0.04266271623520169,
+          "opposing_projection_fraction": -0.002139123133603016
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.5001312760233849,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.048494650875126395,
+            "cosine": -0.19498061636289687,
+            "opposing_projection_fraction": 0.009455516917935641
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.5128105173103455,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.04729562051436543,
+            "cosine": -0.19683134742217456,
+            "opposing_projection_fraction": 0.009309260713010388
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.609679793084018,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.0397810324331074,
+            "cosine": -0.19471944123126037,
+            "opposing_projection_fraction": 0.0077461404069773185
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.7465394530977557,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.03248815788883648,
+            "cosine": -0.12219808906719763,
+            "opposing_projection_fraction": 0.0039699908113292205
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.5435512970926807,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.04462079614603521,
+            "cosine": -0.009767947038385164,
+            "opposing_projection_fraction": 0.0004358535735650528
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.4837161297972368,
+            "beam_entropy_grad_norm": 0.024253691622485526,
+            "entropy_over_task_norm": 0.050140340849605614,
+            "cosine": 0.04266271623520169,
+            "opposing_projection_fraction": -0.002139123133603016
+          }
+        ]
+      },
+      "shared_trunk": {
+        "parameter_count": 146816,
+        "beam_entropy_norm": 0.05523802771210116,
+        "other_entropy_norm": 0.03304093011120637,
+        "entropy_beam_other_cosine": -0.012943913584058131,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.7268146499748775,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.03198839418747391,
+            "cosine": 0.03931653299392548,
+            "opposing_projection_fraction": -0.0012576727554945118
+          },
+          "max": {
+            "reward_std": 1.3361211381203655,
+            "task_grad_norm": 1.7742584533812658,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.031133022140507283,
+            "cosine": 0.2352611228127063,
+            "opposing_projection_fraction": -0.007324389745328589
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.02415137734856756,
+          "upper": 0.03915727095551819,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.7930421579490882
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.7924590733273362,
+          "task_grad_norm": 2.287143997788074,
+          "beam_entropy_grad_norm": 0.05523802771210116,
+          "entropy_over_task_norm": 0.024151530365172705,
+          "cosine": 0.18371852770997352,
+          "opposing_projection_fraction": -0.004437083600632249
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 1.4106727401564962,
+          "beam_entropy_grad_norm": 0.05523802771210116,
+          "entropy_over_task_norm": 0.03915722345777604,
+          "cosine": 0.18125316762689797,
+          "opposing_projection_fraction": -0.007097370787196181
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.7268146499748775,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.03198839418747391,
+            "cosine": 0.03931653299392548,
+            "opposing_projection_fraction": -0.0012576727554945118
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.7665005220676688,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.03126974887471059,
+            "cosine": 0.05004686756177816,
+            "opposing_projection_fraction": -0.0015649529806227025
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 2.027599436254688,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.027243067207660576,
+            "cosine": 0.1097006431927921,
+            "opposing_projection_fraction": -0.002988581995224828
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 2.1369558896960696,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.025848932108728476,
+            "cosine": 0.21875081520829695,
+            "opposing_projection_fraction": -0.005654474971048277
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.5136634821053645,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.036492938070534824,
+            "cosine": 0.21855363068650158,
+            "opposing_projection_fraction": -0.00797566410973304
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.4106727401564962,
+            "beam_entropy_grad_norm": 0.05523802771210116,
+            "entropy_over_task_norm": 0.03915722345777604,
+            "cosine": 0.18125316762689797,
+            "opposing_projection_fraction": -0.007097370787196181
+          }
+        ]
+      },
+      "all_actor": {
+        "parameter_count": 178292,
+        "beam_entropy_norm": 0.06774308925291302,
+        "other_entropy_norm": 0.07362066787735713,
+        "entropy_beam_other_cosine": -0.004736867994359521,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 2.3908696558620406,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.028334078809699015,
+            "cosine": -0.005277952786559992,
+            "opposing_projection_fraction": 0.00014954593020826134
+          },
+          "max": {
+            "reward_std": 1.3878628652165725,
+            "task_grad_norm": 2.366183075095423,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.028629690561953275,
+            "cosine": 0.14453806957095547,
+            "opposing_projection_fraction": -0.0041380802062385294
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.02327796854859187,
+          "upper": 0.032409305932560965,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.784714511216696
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.7844384060892211,
+          "task_grad_norm": 2.9101634499738207,
+          "beam_entropy_grad_norm": 0.06774308925291302,
+          "entropy_over_task_norm": 0.02327810462107289,
+          "cosine": 0.0985705949457807,
+          "opposing_projection_fraction": -0.002294536621709282
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 2.090239492664716,
+          "beam_entropy_grad_norm": 0.06774308925291302,
+          "entropy_over_task_norm": 0.032409247596097986,
+          "cosine": 0.11904251308082876,
+          "opposing_projection_fraction": -0.0038580782808983125
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 2.3908696558620406,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.028334078809699015,
+            "cosine": -0.005277952786559992,
+            "opposing_projection_fraction": 0.00014954593020826134
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 2.427568039405429,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.0279057427653006,
+            "cosine": 0.0014282127736448334,
+            "opposing_projection_fraction": -3.9855338275449214e-05
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 2.6717562374347312,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.025355265687694657,
+            "cosine": 0.04193646663633437,
+            "opposing_projection_fraction": -0.0010633102535674006
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 2.750258370781077,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.024631536430402313,
+            "cosine": 0.1295856886617426,
+            "opposing_projection_fraction": -0.003191894611130485
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 2.1718477380454,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.031191454201057314,
+            "cosine": 0.13697251888950315,
+            "opposing_projection_fraction": -0.004272372049745396
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 2.090239492664716,
+            "beam_entropy_grad_norm": 0.06774308925291302,
+            "entropy_over_task_norm": 0.032409247596097986,
+            "cosine": 0.11904251308082876,
+            "opposing_projection_fraction": -0.0038580782808983125
+          }
+        ]
+      }
+    },
+    "worker0_contribution": {
+      "beam_heads": {
+        "parameter_count": 20640,
+        "beam_entropy_norm": 0.027835131172976618,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.7084925017926534,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.039287827468247244,
+            "cosine": -0.020894415048774005,
+            "opposing_projection_fraction": 0.000820896173486182
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6594395340719669,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.04221028575750946,
+            "cosine": 0.02228418611962866,
+            "opposing_projection_fraction": -0.0009406218639830515
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.02832046616678735,
+          "upper": 0.04221033763455226,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8538712013312213
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8546192444227287,
+          "task_grad_norm": 0.9828558324889155,
+          "beam_entropy_grad_norm": 0.027835131172976618,
+          "entropy_over_task_norm": 0.028320665404700174,
+          "cosine": -0.001550234033204832,
+          "opposing_projection_fraction": 4.390365935337291e-05
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.6594395340719669,
+          "beam_entropy_grad_norm": 0.027835131172976618,
+          "entropy_over_task_norm": 0.04221028575750946,
+          "cosine": 0.02228418611962866,
+          "opposing_projection_fraction": -0.0009406218639830515
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.7084925017926534,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.039287827468247244,
+            "cosine": -0.020894415048774005,
+            "opposing_projection_fraction": 0.000820896173486182
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.7229438282627239,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.03850248122301018,
+            "cosine": -0.0201212514039385,
+            "opposing_projection_fraction": 0.0007747181043636094
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.8298075851220692,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.033544078979323766,
+            "cosine": -0.014506359713301244,
+            "opposing_projection_fraction": 0.0004866024759254574
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.9537986707134125,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.02918344513120026,
+            "cosine": 0.0036130572441257685,
+            "opposing_projection_fraction": -0.00010544145783982998
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.7180900297999796,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.03876273171586849,
+            "cosine": 0.018381323814041325,
+            "opposing_projection_fraction": -0.0007125103235861884
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6594395340719669,
+            "beam_entropy_grad_norm": 0.027835131172976618,
+            "entropy_over_task_norm": 0.04221028575750946,
+            "cosine": 0.02228418611962866,
+            "opposing_projection_fraction": -0.0009406218639830515
+          }
+        ]
+      },
+      "beam_real": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.020474130411177634,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.46877739643677474,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.04367559222523015,
+            "cosine": 0.017832308804667695,
+            "opposing_projection_fraction": -0.0007788366477870476
+          },
+          "max": {
+            "reward_std": 0.7502346908661968,
+            "task_grad_norm": 0.69199963644695,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.029586909201717797,
+            "cosine": 0.1409989269015052,
+            "opposing_projection_fraction": -0.004171722447774479
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.029479475365814984,
+          "upper": 0.04367565783497799,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.7973239039916971
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.7964694069463938,
+          "task_grad_norm": 0.6945166804897782,
+          "beam_entropy_grad_norm": 0.020474130411177634,
+          "entropy_over_task_norm": 0.029479681318437347,
+          "cosine": 0.14060057674802395,
+          "opposing_projection_fraction": -0.004144860195720238
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.46877739643677474,
+          "beam_entropy_grad_norm": 0.020474130411177634,
+          "entropy_over_task_norm": 0.04367559222523015,
+          "cosine": 0.017832308804667695,
+          "opposing_projection_fraction": -0.0007788366477870476
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.545002753292282,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.037567021978322866,
+            "cosine": 0.10695981001040122,
+            "opposing_projection_fraction": -0.004018161533457981
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.5551656038604948,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.03687932081671704,
+            "cosine": 0.11118885128185989,
+            "opposing_projection_fraction": -0.00410056931766595
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.6234678691428209,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.03283911076175687,
+            "cosine": 0.1310066569830485,
+            "opposing_projection_fraction": -0.004302142119193818
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.6561954424844498,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.031201268837923724,
+            "cosine": 0.13028057562091322,
+            "opposing_projection_fraction": -0.004064919264307565
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.4952248805685077,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.0413430972766832,
+            "cosine": 0.057029700384489936,
+            "opposing_projection_fraction": -0.0023577844506560645
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.46877739643677474,
+            "beam_entropy_grad_norm": 0.020474130411177634,
+            "entropy_over_task_norm": 0.04367559222523015,
+            "cosine": 0.017832308804667695,
+            "opposing_projection_fraction": -0.0007788366477870476
+          }
+        ]
+      },
+      "beam_imag": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.018857478922775058,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.416734554203205,
+            "task_grad_norm": 0.5120644130462679,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.036826380514498235,
+            "cosine": -0.19595743296515722,
+            "opposing_projection_fraction": 0.007216402991019161
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.4637976408812484,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.04065885045673046,
+            "cosine": 0.027199487112809922,
+            "opposing_projection_fraction": -0.0011058998790195059
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.026865229379317197,
+          "upper": 0.041656127001470214,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.9022127172500949
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.9027432478514197,
+          "task_grad_norm": 0.7019241641991429,
+          "beam_entropy_grad_norm": 0.018857478922775058,
+          "entropy_over_task_norm": 0.02686540780981719,
+          "cosine": -0.14389545691292852,
+          "opposing_projection_fraction": 0.0038658101319458023
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.1969245308972855,
+          "task_grad_norm": 0.4526959509430635,
+          "beam_entropy_grad_norm": 0.018857478922775058,
+          "entropy_over_task_norm": 0.04165594784643171,
+          "cosine": -0.18807783416043397,
+          "opposing_projection_fraction": 0.00783456045085687
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.4526959509430635,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.04165594784643171,
+            "cosine": -0.18807783416043397,
+            "opposing_projection_fraction": 0.00783456045085687
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.46307551340291614,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.040722254528641866,
+            "cosine": -0.19109631042404435,
+            "opposing_projection_fraction": 0.007781872592572291
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.5476024511199977,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.03443643994691098,
+            "cosine": -0.19439105307076854,
+            "opposing_projection_fraction": 0.006694135825288307
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.6921989927161898,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.02724285808157317,
+            "cosine": -0.1267435769470277,
+            "opposing_projection_fraction": 0.003452857279518825
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.5200053928220767,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.036264006456616246,
+            "cosine": -0.02150041586934129,
+            "opposing_projection_fraction": 0.000779691219905727
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.4637976408812484,
+            "beam_entropy_grad_norm": 0.018857478922775058,
+            "entropy_over_task_norm": 0.04065885045673046,
+            "cosine": 0.027199487112809922,
+            "opposing_projection_fraction": -0.0011058998790195059
+          }
+        ]
+      },
+      "shared_trunk": {
+        "parameter_count": 146816,
+        "beam_entropy_norm": 0.054138240369946765,
+        "other_entropy_norm": 0.024918214242165435,
+        "entropy_beam_other_cosine": -0.05984686862720242,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.3631152696788824,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.03971655337901134,
+            "cosine": 0.04810421466255019,
+            "opposing_projection_fraction": -0.0019105336094005943
+          },
+          "max": {
+            "reward_std": 1.8619955505939316,
+            "task_grad_norm": 1.2854667903602601,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.042115627393823366,
+            "cosine": 0.2653211916430149,
+            "opposing_projection_fraction": -0.011174168446922416
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.024792712761016543,
+          "upper": 0.05216476975058228,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8261532753858455
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8265469090893256,
+          "task_grad_norm": 2.183621961012001,
+          "beam_entropy_grad_norm": 0.054138240369946765,
+          "entropy_over_task_norm": 0.024792863113016303,
+          "cosine": 0.1972855785475049,
+          "opposing_projection_fraction": -0.004891274343100514
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 1.0378318159855544,
+          "beam_entropy_grad_norm": 0.054138240369946765,
+          "entropy_over_task_norm": 0.052164753032297013,
+          "cosine": 0.24527562691993682,
+          "opposing_projection_fraction": -0.012794742503120324
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.3631152696788824,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.03971655337901134,
+            "cosine": 0.04810421466255019,
+            "opposing_projection_fraction": -0.0019105336094005943
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.417497395136789,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.03819283235065304,
+            "cosine": 0.060597284495277605,
+            "opposing_projection_fraction": -0.002314381927632964
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.7768542208513929,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.03046858866339976,
+            "cosine": 0.12311784869227115,
+            "opposing_projection_fraction": -0.0037512270889275
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 2.0551746479732396,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.026342403757917365,
+            "cosine": 0.22521630198060452,
+            "opposing_projection_fraction": -0.005932738759638128
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.240544974690263,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.04364069136910083,
+            "cosine": 0.26498168906519814,
+            "opposing_projection_fraction": -0.01156398411095735
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.0378318159855544,
+            "beam_entropy_grad_norm": 0.054138240369946765,
+            "entropy_over_task_norm": 0.052164753032297013,
+            "cosine": 0.24527562691993682,
+            "opposing_projection_fraction": -0.012794742503120324
+          }
+        ]
+      },
+      "all_actor": {
+        "parameter_count": 178292,
+        "beam_entropy_norm": 0.06087481907793196,
+        "other_entropy_norm": 0.03999940969906613,
+        "entropy_beam_other_cosine": -0.03315669371734451,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.8311127386531671,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.033244713879663705,
+            "cosine": 0.028150263871099746,
+            "opposing_projection_fraction": -0.0009358474680317455
+          },
+          "max": {
+            "reward_std": 1.414628233751946,
+            "task_grad_norm": 2.0920830529099845,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.029097706705887266,
+            "cosine": 0.17241697550038004,
+            "opposing_projection_fraction": -0.0050169385842262085
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.022610081528145972,
+          "upper": 0.03788533779900983,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8414578485717441
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8405830767560272,
+          "task_grad_norm": 2.6923550223192323,
+          "beam_entropy_grad_norm": 0.06087481907793196,
+          "entropy_over_task_norm": 0.02261024960426413,
+          "cosine": 0.14376329196866613,
+          "opposing_projection_fraction": -0.003250523915342242
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 1.6068187315853348,
+          "beam_entropy_grad_norm": 0.06087481907793196,
+          "entropy_over_task_norm": 0.037885305841481615,
+          "cosine": 0.1450720235958176,
+          "opposing_projection_fraction": -0.005496097982970188
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.8311127386531671,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.033244713879663705,
+            "cosine": 0.028150263871099746,
+            "opposing_projection_fraction": -0.0009358474680317455
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.881284738460471,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.03235811030272229,
+            "cosine": 0.03707015337025149,
+            "opposing_projection_fraction": -0.00119952011169343
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 2.23515285717419,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.027235192833698827,
+            "cosine": 0.08458009191631172,
+            "opposing_projection_fraction": -0.0023035551132327206
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 2.582836277882128,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.02356898096841355,
+            "cosine": 0.1599843267418251,
+            "opposing_projection_fraction": -0.0037706675522225313
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.7987063201014768,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.03384366775032937,
+            "cosine": 0.16588583895522324,
+            "opposing_projection_fraction": -0.005614185218085221
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.6068187315853348,
+            "beam_entropy_grad_norm": 0.06087481907793196,
+            "entropy_over_task_norm": 0.037885305841481615,
+            "cosine": 0.1450720235958176,
+            "opposing_projection_fraction": -0.005496097982970188
+          }
+        ]
+      }
+    },
+    "worker1_contribution": {
+      "beam_heads": {
+        "parameter_count": 20640,
+        "beam_entropy_norm": 0.018293330338831022,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.550355294843759,
+            "task_grad_norm": 0.4756126774601468,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.038462663435551256,
+            "cosine": -0.3489905859162614,
+            "opposing_projection_fraction": 0.013423107448272999
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.5252975192626421,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.034824703464256396,
+            "cosine": 0.17853612487647733,
+            "opposing_projection_fraction": -0.006217467606480773
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.03482458433293984,
+          "upper": 0.04140972539321773,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8387264256341445
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.5252975192626421,
+          "beam_entropy_grad_norm": 0.018293330338831022,
+          "entropy_over_task_norm": 0.034824703464256396,
+          "cosine": 0.17853612487647733,
+          "opposing_projection_fraction": -0.006217467606480773
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.8385779099464985,
+          "task_grad_norm": 0.4417642779330677,
+          "beam_entropy_grad_norm": 0.018293330338831022,
+          "entropy_over_task_norm": 0.04140970932376445,
+          "cosine": -0.2587817635457909,
+          "opposing_projection_fraction": 0.010716077606722343
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.5117752022745646,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.03574485488458026,
+            "cosine": -0.31882654332523913,
+            "opposing_projection_fraction": 0.011396408524513015
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.5085996419387582,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.035968036212329406,
+            "cosine": -0.32424988808364696,
+            "opposing_projection_fraction": 0.011662631716436368
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.4831870763811341,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.03785972604201315,
+            "cosine": -0.34763378798709094,
+            "opposing_projection_fraction": 0.013161319976138546
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.4533061470597175,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.04035535467031975,
+            "cosine": -0.14120735505579868,
+            "opposing_projection_fraction": 0.005698472895334526
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.5146265033594964,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.03554680961709442,
+            "cosine": 0.1222076430419744,
+            "opposing_projection_fraction": -0.004344091820966897
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.5252975192626421,
+            "beam_entropy_grad_norm": 0.018293330338831022,
+            "entropy_over_task_norm": 0.034824703464256396,
+            "cosine": 0.17853612487647733,
+            "opposing_projection_fraction": -0.006217467606480773
+          }
+        ]
+      },
+      "beam_real": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.01588609234648574,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.6464244708127483,
+            "task_grad_norm": 0.34109312254725754,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.046574062320135945,
+            "cosine": -0.4936582120411579,
+            "opposing_projection_fraction": 0.022991668332451774
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3853615690698533,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04122386252689904,
+            "cosine": 0.1692364614882857,
+            "opposing_projection_fraction": -0.006976580622931934
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.041223721033595714,
+          "upper": 0.04906435412150195,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8632708650690679
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.3853615690698533,
+          "beam_entropy_grad_norm": 0.01588609234648574,
+          "entropy_over_task_norm": 0.04122386252689904,
+          "cosine": 0.1692364614882857,
+          "opposing_projection_fraction": -0.006976580622931934
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.8626399116608439,
+          "task_grad_norm": 0.3237809748693192,
+          "beam_entropy_grad_norm": 0.01588609234648574,
+          "entropy_over_task_norm": 0.04906431686697312,
+          "cosine": -0.40869583333847975,
+          "opposing_projection_fraction": 0.02005238186913081
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.3798797775907038,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04181873656776221,
+            "cosine": -0.4042486991784026,
+            "opposing_projection_fraction": 0.01690516985880217
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.3776804279201048,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04206225997457912,
+            "cosine": -0.4150510903735925,
+            "opposing_projection_fraction": 0.017457986866026582
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.35917589715113796,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04422928284578354,
+            "cosine": -0.4733539872410388,
+            "opposing_projection_fraction": 0.020936107387863317
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.3300110814010357,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04813805730111426,
+            "cosine": -0.28701862466017725,
+            "opposing_projection_fraction": 0.013816519000378618
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.37611286672656086,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.042237566836646256,
+            "cosine": 0.08314426825261732,
+            "opposing_projection_fraction": -0.0035118115874039693
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3853615690698533,
+            "beam_entropy_grad_norm": 0.01588609234648574,
+            "entropy_over_task_norm": 0.04122386252689904,
+            "cosine": 0.1692364614882857,
+            "opposing_projection_fraction": -0.006976580622931934
+          }
+        ]
+      },
+      "beam_imag": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.009070722399264722,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.34293616350686745,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.026450177509736668,
+            "cosine": -0.17530423512332033,
+            "opposing_projection_fraction": 0.004636828137220436
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3569789137015048,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.02540968682214488,
+            "cosine": 0.20987448105546577,
+            "opposing_projection_fraction": -0.0053328448355795645
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.02540960023701836,
+          "upper": 0.03024321293619166,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.808724992624513
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.3569789137015048,
+          "beam_entropy_grad_norm": 0.009070722399264722,
+          "entropy_over_task_norm": 0.02540968682214488,
+          "cosine": 0.20987448105546577,
+          "opposing_projection_fraction": -0.0053328448355795645
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.8085004078035667,
+          "task_grad_norm": 0.2999260608310243,
+          "beam_entropy_grad_norm": 0.009070722399264722,
+          "entropy_over_task_norm": 0.030243195186613298,
+          "cosine": 0.02086843250123793,
+          "opposing_projection_fraction": -0.0006311280773736035
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.34293616350686745,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.026450177509736668,
+            "cosine": -0.17530423512332033,
+            "opposing_projection_fraction": 0.004636828137220436
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.34063336616708506,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.026628989700367214,
+            "cosine": -0.1704205698147961,
+            "opposing_projection_fraction": 0.004538127598328918
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.3232064753179043,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.02806479167950705,
+            "cosine": -0.126839999334647,
+            "opposing_projection_fraction": 0.003559738157955681
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.3107718602361627,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.029187721154584814,
+            "cosine": 0.11840006353462822,
+            "opposing_projection_fraction": -0.0034558280391338543
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.35125425185006676,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.025823808114745807,
+            "cosine": 0.20517280585151304,
+            "opposing_projection_fraction": -0.005298343168673469
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3569789137015048,
+            "beam_entropy_grad_norm": 0.009070722399264722,
+            "entropy_over_task_norm": 0.02540968682214488,
+            "cosine": 0.20987448105546577,
+            "opposing_projection_fraction": -0.0053328448355795645
+          }
+        ]
+      },
+      "shared_trunk": {
+        "parameter_count": 146816,
+        "beam_entropy_norm": 0.013490827620033518,
+        "other_entropy_norm": 0.020414555104581997,
+        "entropy_beam_other_cosine": -0.07258976545275378,
+        "cosine_range": {
+          "min": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.9710500798416406,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.013893029721220567,
+            "cosine": -0.06655252759772431,
+            "opposing_projection_fraction": 0.0009246162439375359
+          },
+          "max": {
+            "reward_std": 0.8118033843173065,
+            "task_grad_norm": 0.6857474228274429,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.019673172907320225,
+            "cosine": 0.19126833388983813,
+            "opposing_projection_fraction": -0.0037628550043098423
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.01238788300540986,
+          "upper": 0.023363300079448708,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.9935443589734573
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.1969245308972855,
+          "task_grad_norm": 1.0890341396700776,
+          "beam_entropy_grad_norm": 0.013490827620033518,
+          "entropy_over_task_norm": 0.012387883105409862,
+          "cosine": 0.1322836643629303,
+          "opposing_projection_fraction": -0.0016387145708832529
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.9929757542802153,
+          "task_grad_norm": 0.5774376682080514,
+          "beam_entropy_grad_norm": 0.013490827620033518,
+          "entropy_over_task_norm": 0.02336326215416338,
+          "cosine": 0.1481202384403728,
+          "opposing_projection_fraction": -0.003460571961019617
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.0890341396700776,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.012387883105409862,
+            "cosine": 0.1322836643629303,
+            "opposing_projection_fraction": -0.0016387145708832529
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.083184284898659,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.01245478521809952,
+            "cosine": 0.1355479307120067,
+            "opposing_projection_fraction": -0.0016882203637758788
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.003843560917508,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.01343917333862556,
+            "cosine": 0.15710771856494654,
+            "opposing_projection_fraction": -0.0021113978626303175
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.5775555421665379,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.023358493919782078,
+            "cosine": 0.14492794609063595,
+            "opposing_projection_fraction": -0.0033852985475646244
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.8759760718837193,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.015400908829647057,
+            "cosine": -0.03825348424936802,
+            "opposing_projection_fraction": 0.0005891384233408564
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.9710500798416406,
+            "beam_entropy_grad_norm": 0.013490827620033518,
+            "entropy_over_task_norm": 0.013893029721220567,
+            "cosine": -0.06655252759772431,
+            "opposing_projection_fraction": 0.0009246162439375359
+          }
+        ]
+      },
+      "all_actor": {
+        "parameter_count": 178292,
+        "beam_entropy_norm": 0.02272990023645187,
+        "other_entropy_norm": 0.04708084909429815,
+        "entropy_beam_other_cosine": -0.01868151486267219,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.3296767765357781,
+            "task_grad_norm": 1.5836114283207368,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.01435320548333923,
+            "cosine": -0.028385097998401405,
+            "opposing_projection_fraction": 0.0004074171442357765
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.5151937132604645,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.015001316358118072,
+            "cosine": 0.024499749974064854,
+            "opposing_projection_fraction": -0.0003675285000557419
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.014040493282750519,
+          "upper": 0.02310971836676281,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.956929232022818
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.1969245308972855,
+          "task_grad_norm": 1.6188818737934623,
+          "beam_entropy_grad_norm": 0.02272990023645187,
+          "entropy_over_task_norm": 0.01404049338275052,
+          "cosine": -0.028300371834201803,
+          "opposing_projection_fraction": 0.0003973511834674896
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.9568827517086971,
+          "task_grad_norm": 0.9835645958471029,
+          "beam_entropy_grad_norm": 0.02272990023645187,
+          "entropy_over_task_norm": 0.023109717788159668,
+          "cosine": -0.005911872985619961,
+          "opposing_projection_fraction": 0.00013662171629712222
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.6188818737934623,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.01404049338275052,
+            "cosine": -0.028300371834201803,
+            "opposing_projection_fraction": 0.0003973511834674896
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.60777865729834,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.014137456131334937,
+            "cosine": -0.028350138854895235,
+            "opposing_projection_fraction": 0.0004007988443783355
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.482830443525768,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.015328725098472043,
+            "cosine": -0.028041003396228132,
+            "opposing_projection_fraction": 0.00042983283254610194
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.9901584914098317,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.022955820137529725,
+            "cosine": -0.0018538725992072252,
+            "opposing_projection_fraction": 4.2557165945295793e-05
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.4001384139071493,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.01623403801415823,
+            "cosine": 0.02194579887904966,
+            "opposing_projection_fraction": -0.0003562689332535632
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.5151937132604645,
+            "beam_entropy_grad_norm": 0.02272990023645187,
+            "entropy_over_task_norm": 0.015001316358118072,
+            "cosine": 0.024499749974064854,
+            "opposing_projection_fraction": -0.0003675285000557419
+          }
+        ]
+      }
+    },
+    "slots0_7_contribution": {
+      "beam_heads": {
+        "parameter_count": 20640,
+        "beam_entropy_norm": 0.02092582515121161,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.5486305997071143,
+            "task_grad_norm": 0.5523678350276194,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.03788385895092041,
+            "cosine": -0.2985276624407268,
+            "opposing_projection_fraction": 0.011309379856852477
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.7458773478448606,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.02805531661696756,
+            "cosine": 0.16431537285621362,
+            "opposing_projection_fraction": -0.00460991981051615
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.028055223810591837,
+          "upper": 0.041566822189177705,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.7463697120626266
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.7458773478448606,
+          "beam_entropy_grad_norm": 0.02092582515121161,
+          "entropy_over_task_norm": 0.02805531661696756,
+          "cosine": 0.16431537285621362,
+          "opposing_projection_fraction": -0.00460991981051615
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.7463402367081742,
+          "task_grad_norm": 0.5034264657288602,
+          "beam_entropy_grad_norm": 0.02092582515121161,
+          "entropy_over_task_norm": 0.04156679589920889,
+          "cosine": -0.2478083816048408,
+          "opposing_projection_fraction": 0.010300600420281688
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.6536288904371361,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.03201484123080418,
+            "cosine": -0.2685177990482586,
+            "opposing_projection_fraction": 0.008596554704174982
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.6432897866095149,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.032529391242945155,
+            "cosine": -0.2734897869665665,
+            "opposing_projection_fraction": 0.008896456281185166
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.5704695524376046,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.03668175639137268,
+            "cosine": -0.2970500592776837,
+            "opposing_projection_fraction": 0.010896317910466807
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.5866857146112727,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.03566786207684754,
+            "cosine": -0.06208438671106276,
+            "opposing_projection_fraction": 0.0022144173423358526
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.736140794322121,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.028426389778440773,
+            "cosine": 0.12757039974692672,
+            "opposing_projection_fraction": -0.003626365907397641
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.7458773478448606,
+            "beam_entropy_grad_norm": 0.02092582515121161,
+            "entropy_over_task_norm": 0.02805531661696756,
+            "cosine": 0.16431537285621362,
+            "opposing_projection_fraction": -0.00460991981051615
+          }
+        ]
+      },
+      "beam_real": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.016861843385004696,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.6370719229820683,
+            "task_grad_norm": 0.39990815953794295,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.04216428943207111,
+            "cosine": -0.35345270625577574,
+            "opposing_projection_fraction": 0.01490308220711734
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6260374136560557,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.026934242294772138,
+            "cosine": 0.18473872205434405,
+            "opposing_projection_fraction": -0.004975797501038268
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.02693415251020788,
+          "upper": 0.048419598351087244,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8008599900595501
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.6260374136560557,
+          "beam_entropy_grad_norm": 0.016861843385004696,
+          "entropy_over_task_norm": 0.026934242294772138,
+          "cosine": 0.18473872205434405,
+          "opposing_projection_fraction": -0.004975797501038268
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.8004797405654513,
+          "task_grad_norm": 0.348244611161283,
+          "beam_entropy_grad_norm": 0.016861843385004696,
+          "entropy_over_task_norm": 0.04841953857886245,
+          "cosine": -0.2858133229574554,
+          "opposing_projection_fraction": 0.01383894921729138
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.5611973619370229,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.030046191462491087,
+            "cosine": -0.29297244289730723,
+            "opposing_projection_fraction": 0.00880270611252623
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.5508766661709092,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.03060910802813586,
+            "cosine": -0.29907657918987685,
+            "opposing_projection_fraction": 0.00915446732110827
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.469364995468368,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.03592479956494981,
+            "cosine": -0.3372835426604551,
+            "opposing_projection_fraction": 0.012116843666633046
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.4157912071792212,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.040553631471424136,
+            "cosine": -0.07903348025964567,
+            "opposing_projection_fraction": 0.0032050946323537444
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.6039161607115955,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.027920834847566186,
+            "cosine": 0.14736014944571624,
+            "opposing_projection_fraction": -0.0041144183957865154
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.6260374136560557,
+            "beam_entropy_grad_norm": 0.016861843385004696,
+            "entropy_over_task_norm": 0.026934242294772138,
+            "cosine": 0.18473872205434405,
+            "opposing_projection_fraction": -0.004975797501038268
+          }
+        ]
+      },
+      "beam_imag": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.012392271620596999,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.3863065815281188,
+            "task_grad_norm": 0.32569806392127,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03804834290814988,
+            "cosine": -0.22331604042903996,
+            "opposing_projection_fraction": 0.008496805283134375
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.40547524552174563,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03056233828689402,
+            "cosine": 0.12229877105613049,
+            "opposing_projection_fraction": -0.0037377364130888628
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.028745154416061517,
+          "upper": 0.03824874653565353,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            1.3184061239135245,
+            0.4716205681682945
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 1.3178127774238795,
+          "task_grad_norm": 0.4311056307428871,
+          "beam_entropy_grad_norm": 0.012392271620596999,
+          "entropy_over_task_norm": 0.028745325360845942,
+          "cosine": 0.034504332740148684,
+          "opposing_projection_fraction": -0.000991838270974463
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.4716323838027298,
+          "task_grad_norm": 0.3239925506597422,
+          "beam_entropy_grad_norm": 0.012392271620596999,
+          "entropy_over_task_norm": 0.03824863131995709,
+          "cosine": -0.22061935611411598,
+          "opposing_projection_fraction": 0.008438388414055142
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.3350943857616947,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03698143611815052,
+            "cosine": -0.21682088852671316,
+            "opposing_projection_fraction": 0.008018347838131278
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.33219971135529197,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03730367967521592,
+            "cosine": -0.21946796281558337,
+            "opposing_projection_fraction": 0.008186962583844718
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.32424066877450575,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03821936238731128,
+            "cosine": -0.21818034078614004,
+            "opposing_projection_fraction": 0.008338713510292558
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.4139055444921997,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.02993985411768394,
+            "cosine": -0.04057110198086124,
+            "opposing_projection_fraction": 0.0012146928747006635
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.4209376912282499,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.029439681641332028,
+            "cosine": 0.08905621622968588,
+            "opposing_projection_fraction": -0.0026217866539835787
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.40547524552174563,
+            "beam_entropy_grad_norm": 0.012392271620596999,
+            "entropy_over_task_norm": 0.03056233828689402,
+            "cosine": 0.12229877105613049,
+            "opposing_projection_fraction": -0.0037377364130888628
+          }
+        ]
+      },
+      "shared_trunk": {
+        "parameter_count": 146816,
+        "beam_entropy_norm": 0.01975512376807665,
+        "other_entropy_norm": 0.0195889278584867,
+        "entropy_beam_other_cosine": 0.1801220628807677,
+        "cosine_range": {
+          "min": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.1298540151402254,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.017484669261121185,
+            "cosine": -0.08233356270004269,
+            "opposing_projection_fraction": 0.0014395751129000305
+          },
+          "max": {
+            "reward_std": 0.674134805414427,
+            "task_grad_norm": 1.4435511523732516,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.013685087456442742,
+            "cosine": 0.5129607552980332,
+            "opposing_projection_fraction": -0.007019912797976509
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.01366879748205001,
+          "upper": 0.017519155435265665,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            2.836042426648179,
+            0.7079770785251431
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.708242067327127,
+          "task_grad_norm": 1.4452641177418744,
+          "beam_entropy_grad_norm": 0.01975512376807665,
+          "entropy_over_task_norm": 0.01366886752778632,
+          "cosine": 0.5119966800471832,
+          "opposing_projection_fraction": -0.006998414794231345
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 2.8357240522371736,
+          "task_grad_norm": 1.127632113407088,
+          "beam_entropy_grad_norm": 0.01975512376807665,
+          "entropy_over_task_norm": 0.01751912129248205,
+          "cosine": -0.031166838051681963,
+          "opposing_projection_fraction": 0.0005460156161305615
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.3017043740352283,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.015176351990611051,
+            "cosine": 0.4276928545139764,
+            "opposing_projection_fraction": -0.006490817303973308
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.315554879513817,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.015016571391820197,
+            "cosine": 0.4393027414302526,
+            "opposing_projection_fraction": -0.006596820979309716
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.3979353675651045,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.014131643154923339,
+            "cosine": 0.4940130527601185,
+            "opposing_projection_fraction": -0.00698121617548031
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 1.3316070892358312,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.014835550161732403,
+            "cosine": 0.41896885063975314,
+            "opposing_projection_fraction": -0.006215633399869429
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.1336150601593014,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.017426659597571472,
+            "cosine": 0.05323024217472374,
+            "opposing_projection_fraction": -0.0009276253106752031
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.1298540151402254,
+            "beam_entropy_grad_norm": 0.01975512376807665,
+            "entropy_over_task_norm": 0.017484669261121185,
+            "cosine": -0.08233356270004269,
+            "opposing_projection_fraction": 0.0014395751129000305
+          }
+        ]
+      },
+      "all_actor": {
+        "parameter_count": 178292,
+        "beam_entropy_norm": 0.028777683599468317,
+        "other_entropy_norm": 0.03818471725302028,
+        "entropy_beam_other_cosine": 0.06343251362623727,
+        "cosine_range": {
+          "min": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.8113574795455434,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.015887357368402195,
+            "cosine": 0.013945491391311637,
+            "opposing_projection_fraction": -0.0002215570054117443
+          },
+          "max": {
+            "reward_std": 0.7924090430184159,
+            "task_grad_norm": 1.6177388684854053,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.017788831164334443,
+            "cosine": 0.25504576109515487,
+            "opposing_projection_fraction": -0.004536965983300888
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.015887302598571344,
+          "upper": 0.017915724455509107,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.883365499012053
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 1.8113574795455434,
+          "beam_entropy_grad_norm": 0.028777683599468317,
+          "entropy_over_task_norm": 0.015887357368402195,
+          "cosine": 0.013945491391311637,
+          "opposing_projection_fraction": -0.0002215570054117443
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 0.8826915797561319,
+          "task_grad_norm": 1.6062816962400601,
+          "beam_entropy_grad_norm": 0.028777683599468317,
+          "entropy_over_task_norm": 0.01791571407856438,
+          "cosine": 0.24736048791112925,
+          "opposing_projection_fraction": -0.0044316397757499714
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.805723037431385,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.01593693108130478,
+            "cosine": 0.14097215056667,
+            "opposing_projection_fraction": -0.0022466634479643404
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.7986716845986315,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.01599940881144742,
+            "cosine": 0.14944416231423746,
+            "opposing_projection_fraction": -0.002391018247349789
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.7370841491365467,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.016566660638618374,
+            "cosine": 0.20197952269564448,
+            "opposing_projection_fraction": -0.0033461262084488602
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 1.6211989254937087,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.01775086520656591,
+            "cosine": 0.21989842850604494,
+            "opposing_projection_fraction": -0.0039033873635464745
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.7760245113444497,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.016203427044868667,
+            "cosine": 0.06177309909992908,
+            "opposing_projection_fraction": -0.0010009359046011432
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.8113574795455434,
+            "beam_entropy_grad_norm": 0.028777683599468317,
+            "entropy_over_task_norm": 0.015887357368402195,
+            "cosine": 0.013945491391311637,
+            "opposing_projection_fraction": -0.0002215570054117443
+          }
+        ]
+      }
+    },
+    "slots8_39_contribution": {
+      "beam_heads": {
+        "parameter_count": 20640,
+        "beam_entropy_norm": 0.03039136421377273,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.5398537321617344,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.05629555267141842,
+            "cosine": -0.023816786190540517,
+            "opposing_projection_fraction": 0.0013407791414534844
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3647434742090601,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.08332257151324195,
+            "cosine": 0.023271428831381752,
+            "opposing_projection_fraction": -0.0019390352930181262
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.03566465564431531,
+          "upper": 0.08332259233944397,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8070358293575711
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8064952409940378,
+          "task_grad_norm": 0.8521370099932803,
+          "beam_entropy_grad_norm": 0.03039136421377273,
+          "entropy_over_task_norm": 0.03566488001033118,
+          "cosine": -0.009788418698349725,
+          "opposing_projection_fraction": 0.0003491027783675251
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.3647434742090601,
+          "beam_entropy_grad_norm": 0.03039136421377273,
+          "entropy_over_task_norm": 0.08332257151324195,
+          "cosine": 0.023271428831381752,
+          "opposing_projection_fraction": -0.0019390352930181262
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.5398537321617344,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.05629555267141842,
+            "cosine": -0.023816786190540517,
+            "opposing_projection_fraction": 0.0013407791414534844
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.5624992812365325,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.05402916097415079,
+            "cosine": -0.02297146832465733,
+            "opposing_projection_fraction": 0.0012411291599255167
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.7066169222591498,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.04300967505364495,
+            "cosine": -0.017927590400946262,
+            "opposing_projection_fraction": 0.000771059837639543
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.7871222315978621,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.03861073032085259,
+            "cosine": -0.004321798126251095,
+            "opposing_projection_fraction": 0.00016686778195384704
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.4429684094637805,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.06860842345521186,
+            "cosine": 0.014189952560326818,
+            "opposing_projection_fraction": -0.00097355027406827
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.3647434742090601,
+            "beam_entropy_grad_norm": 0.03039136421377273,
+            "entropy_over_task_norm": 0.08332257151324195,
+            "cosine": 0.023271428831381752,
+            "opposing_projection_fraction": -0.0019390352930181262
+          }
+        ]
+      },
+      "beam_real": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.023428754411703796,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.277794365114025,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.08433847965953917,
+            "cosine": -0.019922253732270627,
+            "opposing_projection_fraction": 0.0016802125911712844
+          },
+          "max": {
+            "reward_std": 0.26961868673393685,
+            "task_grad_norm": 0.3903381742590939,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.06002168364950271,
+            "cosine": 0.09238977149608751,
+            "opposing_projection_fraction": -0.005545389637188008
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.04124963336590119,
+          "upper": 0.08433851795520027,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8139039215783681
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8145159082321529,
+          "task_grad_norm": 0.5679711345348061,
+          "beam_entropy_grad_norm": 0.023428754411703796,
+          "entropy_over_task_norm": 0.04124990336153791,
+          "cosine": 0.07694722461971644,
+          "opposing_projection_fraction": -0.0031740655795018534
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.277794365114025,
+          "beam_entropy_grad_norm": 0.023428754411703796,
+          "entropy_over_task_norm": 0.08433847965953917,
+          "cosine": -0.019922253732270627,
+          "opposing_projection_fraction": 0.0016802125911712844
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.3713472238482202,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.06309123350624474,
+            "cosine": 0.09219832838528885,
+            "opposing_projection_fraction": -0.00581690626504169
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.384883960291276,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.060872254572451316,
+            "cosine": 0.09237510817226345,
+            "opposing_projection_fraction": -0.005623081100819749
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.47337783410530654,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.04949271538238499,
+            "cosine": 0.08992130227511105,
+            "opposing_projection_fraction": -0.004450449420315479
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.5304789490704384,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.04416528582851054,
+            "cosine": 0.06520275596505128,
+            "opposing_projection_fraction": -0.0028796983540031107
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.3239657502560624,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.07231861514121699,
+            "cosine": 0.012152127442822784,
+            "opposing_projection_fraction": -0.0008788250276845224
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.277794365114025,
+            "beam_entropy_grad_norm": 0.023428754411703796,
+            "entropy_over_task_norm": 0.08433847965953917,
+            "cosine": -0.019922253732270627,
+            "opposing_projection_fraction": 0.0016802125911712844
+          }
+        ]
+      },
+      "beam_imag": {
+        "parameter_count": 10320,
+        "beam_entropy_norm": 0.019357904987117168,
+        "other_entropy_norm": 0.0,
+        "entropy_beam_other_cosine": null,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.3918460047890923,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.049401817934921634,
+            "cosine": -0.15726481495915615,
+            "opposing_projection_fraction": 0.007769167756181372
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.23636432194599727,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.08189859124144766,
+            "cosine": 0.08471751246771327,
+            "opposing_projection_fraction": -0.0069382449245854955
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.03046800122916989,
+          "upper": 0.081898599623361,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8021500569019658
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8024849073749802,
+          "task_grad_norm": 0.6353483081192287,
+          "beam_entropy_grad_norm": 0.019357904987117168,
+          "entropy_over_task_norm": 0.03046817743864124,
+          "cosine": -0.10482019430874365,
+          "opposing_projection_fraction": 0.0031936802793516546
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.23636432194599727,
+          "beam_entropy_grad_norm": 0.019357904987117168,
+          "entropy_over_task_norm": 0.08189859124144766,
+          "cosine": 0.08471751246771327,
+          "opposing_projection_fraction": -0.0069382449245854955
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 0.3918460047890923,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.049401817934921634,
+            "cosine": -0.15726481495915615,
+            "opposing_projection_fraction": 0.007769167756181372
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 0.4102069947016009,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.04719057753073858,
+            "cosine": -0.15435307374379675,
+            "opposing_projection_fraction": 0.007284010693614452
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 0.5246150026455231,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.03689925924630315,
+            "cosine": -0.13611235939242897,
+            "opposing_projection_fraction": 0.005022445235847221
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 0.5815096663587991,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.03328905108031874,
+            "cosine": -0.08117351543987215,
+            "opposing_projection_fraction": 0.0027021893018469457
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.30210462499587465,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.06407682433654072,
+            "cosine": 0.016893482301537373,
+            "opposing_projection_fraction": -0.0010824806978680698
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.23636432194599727,
+            "beam_entropy_grad_norm": 0.019357904987117168,
+            "entropy_over_task_norm": 0.08189859124144766,
+            "cosine": 0.08471751246771327,
+            "opposing_projection_fraction": -0.0069382449245854955
+          }
+        ]
+      },
+      "shared_trunk": {
+        "parameter_count": 146816,
+        "beam_entropy_norm": 0.05278592331489941,
+        "other_entropy_norm": 0.026111902069843557,
+        "entropy_beam_other_cosine": -0.07783842095604546,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.0854507250211516,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.04863041877269077,
+            "cosine": -0.09478993878665157,
+            "opposing_projection_fraction": 0.004609674418632588
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.8236791401329174,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.06408554101100743,
+            "cosine": 0.2959661508145147,
+            "opposing_projection_fraction": -0.01896715089589359
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.030594969299107447,
+          "upper": 0.06408556284809108,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8241746934419367
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8245417422797969,
+          "task_grad_norm": 1.7253034452505511,
+          "beam_entropy_grad_norm": 0.05278592331489941,
+          "entropy_over_task_norm": 0.03059515325272753,
+          "cosine": 0.09672944572984057,
+          "opposing_projection_fraction": -0.0029594522161558627
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 0.8236791401329174,
+          "beam_entropy_grad_norm": 0.05278592331489941,
+          "entropy_over_task_norm": 0.06408554101100743,
+          "cosine": 0.2959661508145147,
+          "opposing_projection_fraction": -0.01896715089589359
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.0854507250211516,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.04863041877269077,
+            "cosine": -0.09478993878665157,
+            "opposing_projection_fraction": 0.004609674418632588
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.1281161244467879,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.04679121428282472,
+            "cosine": -0.08119066581992727,
+            "opposing_projection_fraction": 0.00379900984214543
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.4095737789286773,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.037448145037869855,
+            "cosine": -0.0073439290558833465,
+            "opposing_projection_fraction": 0.00027501652043254623
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 1.6218243111180364,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.03254725123617761,
+            "cosine": 0.14540618274145573,
+            "opposing_projection_fraction": -0.004732571560979712
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 0.980608020081976,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.0538297895121097,
+            "cosine": 0.26852319853292156,
+            "opposing_projection_fraction": -0.014454547256145613
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 0.8236791401329174,
+            "beam_entropy_grad_norm": 0.05278592331489941,
+            "entropy_over_task_norm": 0.06408554101100743,
+            "cosine": 0.2959661508145147,
+            "opposing_projection_fraction": -0.01896715089589359
+          }
+        ]
+      },
+      "all_actor": {
+        "parameter_count": 178292,
+        "beam_entropy_norm": 0.060909676726942405,
+        "other_entropy_norm": 0.0553504929576822,
+        "entropy_beam_other_cosine": -0.03182312761148047,
+        "cosine_range": {
+          "min": {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.497367898925988,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.0406778299245168,
+            "cosine": -0.06383360928984057,
+            "opposing_projection_fraction": 0.00259661270216019
+          },
+          "max": {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.0487850838901578,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.05807641399800995,
+            "cosine": 0.2054780738636976,
+            "opposing_projection_fraction": -0.011933429685221772
+          },
+          "method": "analytic stationary points of linear numerator / norm of affine vector; conditional on reconstructed critic/GAE and reward bounds"
+        },
+        "norm_ratio_analytic_bounds": {
+          "lower": 0.026337066414771772,
+          "upper": 0.05807643443709773,
+          "method": "Stationary roots of V/T and q^2/T, then bound sum; includes advantage normalization epsilon; numerical roundoff margin1e-10.",
+          "main_stationary_sigmas": [
+            0.1969245308972855,
+            4.207258149954866,
+            0.8064155974580727
+          ]
+        },
+        "norm_ratio_grid_min": {
+          "reward_std": 0.8064952409940378,
+          "task_grad_norm": 2.3126848575779717,
+          "beam_entropy_grad_norm": 0.060909676726942405,
+          "entropy_over_task_norm": 0.026337214310613803,
+          "cosine": 0.05715598784982564,
+          "opposing_projection_fraction": -0.0015053295011356967
+        },
+        "norm_ratio_grid_max": {
+          "reward_std": 4.207258149954866,
+          "task_grad_norm": 1.0487850838901578,
+          "beam_entropy_grad_norm": 0.060909676726942405,
+          "entropy_over_task_norm": 0.05807641399800995,
+          "cosine": 0.2054780738636976,
+          "opposing_projection_fraction": -0.011933429685221772
+        },
+        "probes": [
+          {
+            "reward_std": 0.1969245308972855,
+            "task_grad_norm": 1.497367898925988,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.0406778299245168,
+            "cosine": -0.06383360928984057,
+            "opposing_projection_fraction": 0.00259661270216019
+          },
+          {
+            "reward_std": 0.25,
+            "task_grad_norm": 1.5559788640428625,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.03914556819151274,
+            "cosine": -0.05515737762783998,
+            "opposing_projection_fraction": 0.0021591668871956296
+          },
+          {
+            "reward_std": 0.5,
+            "task_grad_norm": 1.9315280313308014,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.031534451345744285,
+            "cosine": -0.007917005462595168,
+            "opposing_projection_fraction": 0.0002496584235641991
+          },
+          {
+            "reward_std": 1.0,
+            "task_grad_norm": 2.1401942010825303,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.028459883077962607,
+            "cosine": 0.09469855324822031,
+            "opposing_projection_fraction": -0.0026951097530965662
+          },
+          {
+            "reward_std": 2.0,
+            "task_grad_norm": 1.2449852249467876,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.04892401572841619,
+            "cosine": 0.18581172586265213,
+            "opposing_projection_fraction": -0.009090655798628548
+          },
+          {
+            "reward_std": 4.207258149954866,
+            "task_grad_norm": 1.0487850838901578,
+            "beam_entropy_grad_norm": 0.060909676726942405,
+            "entropy_over_task_norm": 0.05807641399800995,
+            "cosine": 0.2054780738636976,
+            "opposing_projection_fraction": -0.011933429685221772
+          }
+        ]
+      }
+    }
+  },
+  "direct_affine_checks": [
+    {
+      "sigma": 0.1969245308972855,
+      "gradient_relative_l2_error": 3.680315219622492e-07,
+      "advantage_max_abs_error": 2.530127445332653e-07
+    },
+    {
+      "sigma": 0.5,
+      "gradient_relative_l2_error": 4.6774516198451996e-07,
+      "advantage_max_abs_error": 4.637106867377838e-07
+    },
+    {
+      "sigma": 1.0,
+      "gradient_relative_l2_error": 5.903384914776473e-07,
+      "advantage_max_abs_error": 5.368981295106323e-07
+    },
+    {
+      "sigma": 4.207258149954866,
+      "gradient_relative_l2_error": 3.896833508065034e-07,
+      "advantage_max_abs_error": 3.42163242184057e-07
+    }
+  ],
+  "limitations": [
+    "single update5001, not evidence of repeated conflict at5804 or later",
+    "full-batch entry objective, not historical random minibatches,5epochs or Adam preconditioned updates",
+    "reward sigma unknown; analytical cos range and grid norm ranges conditional on reconstructed floating-point model and stated reward bounds",
+    "gradient norm/angle is parameterization-dependent; does not directly prove a gain or completion improvement from lowering entropy"
+  ],
+  "artifact_sha256": {
+    "protocol.json": "4f998502b25e8caf628f60af282b19be8e81776bad40e6858d4a7aff8821aa9a",
+    "actions_update5001.jsonl": "1ff4f434a3753ca79a6ccf3bdf56c49f79ea3fa53192742d720dd84942e3dac3",
+    "reconstructed_batch.npz": "6906e31e80e2939a81fb70a569b201afb4deb540e1c6d48c819b04044c9d4d4c",
+    "gradient_vectors.npz": "55588bfb77b250cdc28dcf0e83b34f3f9a1250f1dc1dbfc903cca9b465a5bd7a"
+  }
+}

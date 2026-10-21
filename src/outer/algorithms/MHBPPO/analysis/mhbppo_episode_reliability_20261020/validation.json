@@ -1,0 +1,202 @@
+{
+  "passed": true,
+  "checks": {
+    "last500_episode_counts": true,
+    "previous500_episode_counts": true,
+    "last100_episode_counts": true,
+    "U60_window_episode_counts": true,
+    "optimal_slot_total": true,
+    "all_optimal_by_raw_steps": true,
+    "all_completion_by_raw_steps": true,
+    "all_infeasible_sensing_certified": true,
+    "versions_all_steps": true,
+    "all_failed_raw_sha_verified": true,
+    "exhaustive_matching_checks": true,
+    "legal_floor": true,
+    "production_sources_unchanged": true
+  },
+  "matching_checks": 7108,
+  "additional_findings": {
+    "infeasible_only_min_margin_median": 0.6784321501214285,
+    "infeasible_only_single_uav_n": 1711,
+    "infeasible_only_current_power_rematch_n": 1763,
+    "failed_steps_mean_Q": 0.04440685960459296,
+    "one_failed_uav_M068_Q": 0.03586560298331845,
+    "optimal_one_failure_repair_needed_pct": 91.98606271777004,
+    "whole_completion_with_all_single_failures_repaired_pct": 47.6,
+    "status_sources": [
+      {
+        "resolved": "infeasible",
+        "raw": "unknown",
+        "source": "analytic_c03_c05_c06",
+        "n": 1622
+      },
+      {
+        "resolved": "infeasible",
+        "raw": "infeasible",
+        "source": "solver",
+        "n": 152
+      },
+      {
+        "resolved": "unknown",
+        "raw": "unknown",
+        "source": "solver",
+        "n": 3
+      }
+    ]
+  },
+  "production_sources": [
+    {
+      "path": "algorithms/MHBPPO/MHBPPO_main.py",
+      "sha256": "7479953875dd67c6e5b50aa735f33f5bb350b2cf49ea434f1dfa8f5f8931ea7d",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/MHBPPO_sampler.py",
+      "sha256": "db8c262c28cd05d32831764e236ed8ce11f281c5ab7dd64ba1e2af314f50da59",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/MHBPPO_agent.py",
+      "sha256": "f04cfd2f2e2daded5508af78a93d92a1cbc2485561ae6cad19b8f6d06c5e7e3b",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/action_logging.py",
+      "sha256": "a3be017e5662f3cbfa32a87e324669b07e2eda3d326566cc651671b2d55abdd6",
+      "match": true
+    },
+    {
+      "path": "configs/base_params.py",
+      "sha256": "06bbd087b27544c4eee80c95eb5c2450e25d726e57fbb597e197b5314d90c687",
+      "match": true
+    },
+    {
+      "path": "configs/madrl_args.py",
+      "sha256": "ac344776975b4ff6a1b1728a809bb97f32e3b023221f6a85220f10f1da79d429",
+      "match": true
+    },
+    {
+      "path": "configs/seed_manager.py",
+      "sha256": "f5ecd20590f66d74767600ae7a85e23bff2043062f3295dfe7e8eef6e42f9f2a",
+      "match": true
+    },
+    {
+      "path": "environment/my_env.py",
+      "sha256": "99531dc7b10a0e568c9b678dea65bb8c28c83e196f51ec93557913d302cde92c",
+      "match": true
+    },
+    {
+      "path": "environment/channel_models.py",
+      "sha256": "06224834b4b5458391a335076c7c8c9d854f311c85af5a0f5e2780cdb77136bb",
+      "match": true
+    },
+    {
+      "path": "environment/topology.py",
+      "sha256": "bb078cc8dc675fc83c9752f51261a083f5e3e4ca2feb6a1e5c66b159c742ea69",
+      "match": true
+    },
+    {
+      "path": "environment/observation.py",
+      "sha256": "f9ced76fd5135ac6914d6a090f3c56ec5be2b69e179aa1bb8e86926e78cb2501",
+      "match": true
+    },
+    {
+      "path": "environment/mapping.py",
+      "sha256": "499aecddd7a835169c71b540bd60203c2f0dbc459cf8a6badbe7305f57bf2bbd",
+      "match": true
+    },
+    {
+      "path": "reward/my_reward.py",
+      "sha256": "454c3f21c775258b6bd665dec792e6f6ea8928b3720346ad3e73b02d822722ff",
+      "match": true
+    },
+    {
+      "path": "reward/cccp_bridge.py",
+      "sha256": "7b4bdc4107b523069cfcfd68621ceb67854bcc87268e7c7cf589c1eb8967f13c",
+      "match": true
+    },
+    {
+      "path": "reward/feasibility_diagnostics.py",
+      "sha256": "0f80f1cf4a45ddf72f2e664b30c6af5f1fd96a1d7646d8a042b37682cf4c442b",
+      "match": true
+    },
+    {
+      "path": "reward/solver_status.py",
+      "sha256": "657f38ebdd900184c7f70816c0dd63d83308505dbb0d1318e430267e22e55e13",
+      "match": true
+    },
+    {
+      "path": "reward/sensing_penalty.py",
+      "sha256": "04f88714ab0fd29f62fd14ec7d9f3d8915a39937c170904037293ec77ac4cb7b",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/checkpoint.py",
+      "sha256": "40e0d902d07a2346f14b8b1f66392ed15a547a66f4f5a58329545276c3096a78",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/policy_diagnostics.py",
+      "sha256": "2cfd5b670ec827e738b0709b9d2fdb60212b7db9d9b91112cb1c54b300a385f9",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/rollout_batch.py",
+      "sha256": "696016f203d728b09013d7de1d83982dffec3be18fdb5aa675f51b9e53e67b5e",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/policy_initialization.py",
+      "sha256": "ccc31d4480c81e058795a494816ebe453bfd169ffc1eb7ffb7054a2f70e7b158",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/beam_branch.py",
+      "sha256": "ee2a1b200a7eae4612b9f2b10ca9afdbce615177c755db1b0157c7a052d9b79f",
+      "match": true
+    },
+    {
+      "path": "algorithms/MHBPPO/beam_pretraining.py",
+      "sha256": "5ee83ddfb3700e66485be2fa007338cf2a1a201a41ef9412437876048e290d85",
+      "match": true
+    },
+    {
+      "path": "../inner/parameters.py",
+      "sha256": "a3b1c7685b1da1b246b9b7ecd9979d6550de8712f799e7838cf118565714644c",
+      "match": true
+    },
+    {
+      "path": "../inner/environment.py",
+      "sha256": "38b0bb319cb7af169c0683753bda458df729f089f7656ed888472c8068e7d038",
+      "match": true
+    },
+    {
+      "path": "../inner/target_layout.py",
+      "sha256": "59f67b81283109f199b0ddebb5801fdb6e2ff626f7e0131abe7bd8d50db039ca",
+      "match": true
+    },
+    {
+      "path": "../inner/pc3p.py",
+      "sha256": "5848bf77dde98d0161c7fb9c65ad65c412ab4809bce5681093ad420b59bc33ca",
+      "match": true
+    },
+    {
+      "path": "../inner/fusion_pc3p.py",
+      "sha256": "b8ee6557c363c804f757c0dee333b494ed4fef37143c26ed6850025d41a3bc8b",
+      "match": true
+    },
+    {
+      "path": "../inner/variables.py",
+      "sha256": "fbdf5812b8f049b82f31156d2310ac6ddb4b0ba66f06798e91101e4066eb8b7a",
+      "match": true
+    },
+    {
+      "path": "../inner/cccp_params.py",
+      "sha256": "ec5e4c5f1960b479919e755bf1df65e973cf541606378730572a21e497f677ec",
+      "match": true
+    }
+  ],
+  "solver_calls": 0,
+  "optimizer_steps": 0
+}

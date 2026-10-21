@@ -1,23 +1,28 @@
-"""MHBPPO 异步训练入口（学习进程 / 主进程）。
+"""MHBPPO 同步多环境训练入口（兼容原异步模式）。
 
 IMPALA 式 actor-learner 架构：
 - 采样进程（algorithms/MHBPPO/MHBPPO_sampler.sampler_worker）持续 rollout，
   episode 结果放入有界 sample_queue（满则阻塞 => staleness 上限 = maxsize）。
+- 同步模式每个环境采集一个同版本完整 episode，收齐 N*T 条再更新一次。
 - 本进程（learner）消费队列执行 PPO 更新：iteration = 外层更新次数，
   每轮更新后向 weight_queue 广播最新 actor 权重（drain-then-put），采样进程在
   episode 边界加载，下一个 episode 即使用最新参数。
-- 无固定终止条件：训练持续运行，每 checkpoint_interval 次 iteration 保存一次
+- 默认持续运行；可用 max_updates 限定更新次数。每 checkpoint_interval 次 iteration 保存一次
   iter_N/ 下的完整训练 CSV、actor/critic checkpoint、状态归一化统计与二维 UAV 轨迹；根 CSV 每轮追加。
   Ctrl+C / SIGTERM 请求停止，在当前轮结束后保存最终结果。
 
 日志约定：采样进程全程静默；训练摘要写入独立时间目录内的固定文件名 .log，逐时隙动作写入同目录的 _actions.jsonl，所有控制台日志 / tqdm / TensorBoard 均由本进程输出。
+逐步 JSONL 按窗口滚动保留（--log_rotate_iterations / --log_rotate_max_bytes / --log_rotate_backup_segments），
+两个 writer 同步换段使 actions/env 记录按 iteration 对齐；磁盘可用空间低于 --log_min_free_bytes 时暂停逐步详细日志，ckpt 不受影响。
 """
 
 import json
+import hashlib
 import logging
 import os
 import queue as queue_module
 import random
+import shutil
 import signal
 import sys
 import time
@@ -45,7 +50,7 @@ if _OUTER_ROOT not in sys.path:
     sys.path.insert(0, _OUTER_ROOT)
 
 from algorithms.MHBPPO.action_logging import (
-    ActionLogWriter, EnvDiagnosticLogWriter, build_run_log_paths,
+    ActionLogWriter, EnvDiagnosticLogWriter, JsonlRotation, build_run_log_paths,
     diagnostic_log_path, diagnostic_run_metadata, summarize_diagnostics,
 )
 from algorithms.MHBPPO.checkpoint import (
@@ -56,10 +61,19 @@ from algorithms.MHBPPO.policy_diagnostics import (
 )
 from algorithms.MHBPPO.MHBPPO_agent import HPPO
 from algorithms.MHBPPO.MHBPPO_sampler import sampler_worker
+from algorithms.MHBPPO.rollout_batch import (
+    actor_state_signature, actor_parameter_checksum, normalization_signature,
+    validate_sync_episode, assemble_rollout_batch,
+)
 from algorithms.MHBPPO.behavior_cloning import load_behavior_cloning_dataset
+from algorithms.MHBPPO.policy_initialization import (
+    actor_architecture_metadata, load_policy_initialization, apply_policy_initialization,
+    restore_initial_state_normalization, convert_agent_to_dedicated,
+)
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
+from reward.sensing_penalty import SENSING_PENALTY_CONTRACT
 
 
 def setSeed(seed):
@@ -139,7 +153,7 @@ _TRANSITION_KEYS = (
 )
 
 
-def validate_sample(item, expected_probability_metadata=None):
+def validate_sample(item, expected_probability_metadata=None, expected_architecture=None):
     """校验从队列取出元素的自洽性，防止训练错位。返回该 episode 的 transition 条数。
 
     错位风险主要来自各字段长度不一致（会导致 PPO 用错位的 old_log_probs / next_states
@@ -152,6 +166,8 @@ def validate_sample(item, expected_probability_metadata=None):
                 f"采样端/学习端动作概率契约不一致: sampler={actual}, "
                 f"learner={expected_probability_metadata}; 不可混用旧 rollout"
             )
+    if expected_architecture is not None and item.get("actor_architecture") != expected_architecture:
+        raise RuntimeError("采样端/学习端网络架构不一致")
     transition_dict = item.get("transition_dict", {})
     missing = [k for k in _TRANSITION_KEYS if k not in transition_dict]
     if missing:
@@ -169,16 +185,16 @@ def validate_sample(item, expected_probability_metadata=None):
 
 
 def actor_checksum(actor):
-    """actor 参数的确定性标量指纹（|param| 之和）。
+    """与sampler共用CPU float64归约；精确权重身份仍由actor SHA校验。"""
+    return actor_parameter_checksum(actor)
 
-    用于探针验证：采样端加载权重后会用**自己的 actor** 计算同一指纹并随样本回传，
-    学习端与之比对，即可证明"外层网络确实更新到了内层采样进程"，而不是只送到队列没生效。
-    """
-    total = 0.0
-    with torch.no_grad():
-        for param in actor.parameters():
-            total += float(param.detach().abs().sum().cpu().item())
-    return round(total, 6)
+
+def _optional_actor_architecture(actor):
+    """Keep generic broadcast/save callers usable; real MHBPPO actors declare their class."""
+    try:
+        return actor_architecture_metadata(actor)
+    except TypeError:
+        return None
 
 
 class StateNormStats:
@@ -230,6 +246,10 @@ def broadcast_weights(weight_queues, agent, version=-1, state_norm_stats=None):
         "weights_checksum": checksum,
         "state_norm_mean": None if state_norm_stats is None else state_norm_stats.mean.copy(),
         "state_norm_std": None if state_norm_stats is None else state_norm_stats.std.copy(),
+        "actor_signature": actor_state_signature(agent.actor),
+        "actor_architecture": _optional_actor_architecture(agent.actor),
+        "norm_signature": None if state_norm_stats is None else normalization_signature(
+            state_norm_stats.mean, state_norm_stats.std),
     }
     for weight_queue in weight_queues:
         while True:
@@ -252,7 +272,7 @@ def append_reward_record(csv_path, iteration, item):
 
 
 def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, completion_rate_res, agent, final=False,
-                   *, state_norm_stats):
+                   *, state_norm_stats, training_metadata=None):
     """保存同版本权重与测试归一化到 iter_N；final 保留为兼容参数。"""
     if state_norm_stats is None:
         raise ValueError("checkpoint requires corresponding state_norm_stats")
@@ -277,6 +297,26 @@ def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, complet
         os.path.join(snapshot_dir, STATE_NORMALIZATION_FILENAME),
         state_norm_stats, iteration, actor_path=actor_path,
     )
+    # The model is the shared learner AFTER this completed PPO update. The
+    # trajectory belongs to the preceding collection policy, recorded separately.
+    metadata_path = os.path.join(snapshot_dir, "checkpoint_metadata.json")
+    file_hashes = {}
+    for name, path in (("actor", actor_path), ("critic", critic_path)):
+        with open(path, "rb") as stream:
+            file_hashes[name + "_sha256"] = hashlib.sha256(stream.read()).hexdigest()
+    metadata = {
+        **(training_metadata or {}),
+        **file_hashes,
+        "actor_architecture": _optional_actor_architecture(agent.actor),
+        "iteration": int(iteration), "weights_version": int(iteration),
+        "seed": int(seed), "checkpoint_policy": "after_completed_update",
+        "actor_signature": actor_state_signature(agent.actor),
+        "norm_signature": normalization_signature(state_norm_stats.mean, state_norm_stats.std),
+        "state_normalization_file": STATE_NORMALIZATION_FILENAME,
+    }
+    with open(metadata_path + ".tmp", "w", encoding="utf-8") as stream:
+        json.dump(metadata, stream, ensure_ascii=False, indent=2, default=_configuration_json_default)
+    os.replace(metadata_path + ".tmp", metadata_path)
     return csv_path, actor_path, critic_path
 
 
@@ -288,7 +328,7 @@ def save_reward_plot(output_dir, reward_res):
         plt.plot(np.arange(reward_array.shape[0]), reward_array)
         plt.xlabel("Iteration (outer updates)")
         plt.ylabel("Reward")
-        plt.title("Single-Agent Beta-PPO training performance (async)")
+        plt.title("MHBPPO training reward (shared learner)")
         plot_path = os.path.join(output_dir, "training_reward_curve.png")
         plt.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(plt.gcf())
@@ -315,13 +355,19 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "critic_lr": agent.critic_optimizer.defaults["lr"],
         "hidden_dim": agent.actor.fc1.out_features,
         "batch_size": agent.batch_size,
-        "mini_batch_size_first_rollout": min(agent.batch_size, madrl_args.total_time_slots),
+        "mini_batch_size_first_rollout": min(
+            agent.batch_size, madrl_args.total_time_slots * (
+                (num_samplers if num_samplers is not None else max(1, madrl_args.num_samplers))
+                if madrl_args.sync_training else 1)),
         "epochs": agent.epochs,
         "gamma": agent.gamma,
         "lmbda": agent.lmbda,
         "eps": agent.eps,
         "continuous_entropy_coef": agent.continuous_entropy_coef,
         "discrete_entropy_coef": agent.discrete_entropy_coef,
+        "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
+        "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
+        "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
         "lr_min_ratio": agent.lr_min_ratio,
         "lr_decay_horizon": agent.num_episodes,
         "continuous_dist_type": agent.actor.continuous_dist_type,
@@ -329,10 +375,12 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "optimizer_eps": agent.actor_optimizer.defaults["eps"],
         "max_grad_norm": 1.0,
         "num_samplers": num_samplers if num_samplers is not None else
-            (1 if madrl_args.sync_training else max(1, madrl_args.num_samplers)),
+            max(1, madrl_args.num_samplers),
         "sample_queue_maxsize": sample_queue_maxsize if sample_queue_maxsize is not None
             else max(1, madrl_args.sample_queue_maxsize),
         **agent.actor.action_probability_metadata(),
+        "actor_architecture": actor_architecture_metadata(agent.actor),
+        "policy_initialization": getattr(agent, "policy_initialization_metadata", None),
     }
     params = getattr(base_args, "_params", None)
     payload = {
@@ -435,7 +483,7 @@ def save_environment_plot(output_dir, scene, *, trajectory=None,
         plt.close(fig)
 
 
-def save_uav_trajectory(output_dir, item, iteration):
+def save_uav_trajectory(output_dir, item, iteration, *, filename="uav_trajectory.png"):
     """Plot the consumed training rollout, labelled with its actual policy version."""
     try:
         traces = item["action_traces"]
@@ -444,7 +492,7 @@ def save_uav_trajectory(output_dir, item, iteration):
         trajectory = np.asarray(frames, dtype=float)  # [T+1, UAV, 3]
         return save_environment_plot(
             output_dir, item["trajectory_scene"], trajectory=trajectory,
-            filename="uav_trajectory.png",
+            filename=filename,
             title=(f"Training rollout | update={iteration}, policy v={item['weights_version']}\n"
                    f"sampler={item['sampler_id']}, episode={item['episode_idx']}"),
         )
@@ -453,14 +501,88 @@ def save_uav_trajectory(output_dir, item, iteration):
         return None
 
 
+def save_batch_trajectories(output_dir, item, iteration):
+    """Preserve env0's original filename; each other env has its own 40-slot path."""
+    paths = []
+    for episode in item.get("episodes", [item]):
+        worker_id = int(episode.get("worker_id", episode["sampler_id"]))
+        filename = "uav_trajectory.png" if worker_id == 0 else f"uav_trajectory_env_{worker_id}.png"
+        path = save_uav_trajectory(output_dir, episode, iteration, filename=filename)
+        if path is not None:
+            paths.append(path)
+    return paths
+
+
+def collect_sync_rollouts(sample_queue, sampler_procs, *, should_stop, expected_round,
+                          probability_metadata, actor_checksum_value, actor_signature,
+                          norm_signature, scene_signature, total_time_slots, expected_architecture=None):
+    """Collect exactly one complete episode per worker before any PPO update.
+
+    No wall-clock slot lock is needed. A missing/dead worker never silently
+    reduces the training batch; a user stop discards the unfinished collection.
+    """
+    worker_ids = tuple(range(len(sampler_procs)))
+    collected = {}
+    while len(collected) < len(worker_ids):
+        if should_stop():
+            return None
+        try:
+            item = sample_queue.get(timeout=1.0)
+        except queue_module.Empty:
+            if should_stop():
+                return None
+            dead = [(p.name, p.exitcode) for p in sampler_procs if not p.is_alive()]
+            if dead:
+                missing = sorted(set(worker_ids) - set(collected))
+                raise RuntimeError(f"同步采样进程退出: {dead}; round={expected_round}, missing={missing}")
+            continue
+        if should_stop():
+            return None
+        if isinstance(item, dict) and "error" in item:
+            raise RuntimeError(f"采样进程异常:\n{item['error']}")
+        validate_sample(item, probability_metadata, expected_architecture)
+        validate_sync_episode(
+            item, expected_round=expected_round, expected_worker_ids=worker_ids,
+            expected_policy_version=expected_round,
+            expected_actor_checksum=actor_checksum_value,
+            expected_actor_signature=actor_signature,
+            expected_norm_signature=norm_signature,
+            expected_scene_signature=scene_signature,
+            total_time_slots=total_time_slots,
+        )
+        worker_id = int(item["worker_id"])
+        if worker_id in collected:
+            raise RuntimeError(f"同步采样重复结果: round={expected_round}, worker={worker_id}")
+        collected[worker_id] = item
+    if should_stop():
+        return None
+    return [collected[worker_id] for worker_id in worker_ids]
+
+
+def issue_collection_permissions(control_queues, version):
+    for control_queue in control_queues:
+        control_queue.put({"collection_round": int(version),
+                           "expected_policy_version": int(version),
+                           "episode_idx": int(version)}, timeout=5.0)
+
+
 if __name__ == "__main__":
     started_at = datetime.now().astimezone()
     current_time_str = started_at.strftime("%Y-%m-%d_%H-%M-%S")
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    base_args = get_base_args()
     madrl_args = get_madrl_args()
+    base_args = get_base_args(seed=int(getattr(madrl_args, "seed", 42)))
     sync_training = bool(getattr(madrl_args, "sync_training", True))
+    num_samplers = max(1, int(madrl_args.num_samplers))
+    randomized_episodes = any(
+        bool(getattr(madrl_args, key, False)) for key in (
+            "randomize_layout_per_episode", "randomize_cu_traj_per_episode",
+            "randomize_nlos_per_episode"))
+    if sync_training and num_samplers > 1 and randomized_episodes:
+        raise ValueError("同步多env要求三个randomize_*_per_episode均为False")
+    fixed_shared_scene = sync_training and not randomized_episodes
+    scene_seed_offset = int(getattr(madrl_args, "scene_seed_offset", 0)) if sync_training else 1
     writer = get_tensorboard_writer(log_dir=os.path.join(
         _OUTER_ROOT,
         f"runs/beta-hppo/{current_time_str}_beta-hppo_{'sync' if sync_training else 'async'}_result",
@@ -468,7 +590,8 @@ if __name__ == "__main__":
     setSeed(seed=base_args.seed)
 
     # Use sampler-0's episode-0 scene for dimensions and the startup diagram.
-    env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=1)
+    env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=scene_seed_offset)
+    shared_scene = env.get_exogenous_scene_signature()
     state_dim_bs = env.observation_space["bs"].shape[0]
     bs_continuous_action_splits = env.bs_continuous_action_splits
     bs_continuous_action_space = env.action_space["bs"]["continuous"]
@@ -477,11 +600,22 @@ if __name__ == "__main__":
         "algorithm": "MHBPPO",
         "started_at": started_at.isoformat(timespec="microseconds"),
         "seed": int(base_args.seed),
+        "master_seed": int(base_args.seed), "scene_seed_offset": scene_seed_offset,
+        "num_envs": num_samplers,
+        "collection_contract": "synchronous_complete_episodes" if sync_training else "legacy_async",
+        "shared_exogenous_scene": shared_scene if fixed_shared_scene else None,
+        "initial_exogenous_scene": shared_scene,
+        "fixed_shared_scene": fixed_shared_scene,
+        "seed_offset_semantics": "scene RNG offset; worker_id and action_seed are separate in sync mode",
+        "checkpoint_policy": "after_completed_update",
         "continuous_action_splits": bs_continuous_action_splits,
         "continuous_low": bs_continuous_action_space.low.tolist(),
         "continuous_high": bs_continuous_action_space.high.tolist(),
         "discrete_action_dims": bs_discrete_action_space.nvec.tolist(),
         "structured_beam_alpha_configured": float(madrl_args.structured_beam_alpha),
+        "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
+        "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
+        "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
         "physical_units": {"uav_angles": "rad", "uav_distances": "m",
                            "uav_off_durations": "s", "cu_off_powers": "W"},
         "continuous_mapping": "env.step uses continuous_low + clip(raw, 0, 1) * (continuous_high - continuous_low)",
@@ -497,7 +631,8 @@ if __name__ == "__main__":
         "center": np.asarray(base_args.center, dtype=float).copy(),
         "deploy_radius": float(base_args.radius),
         "bs_position": np.asarray(base_args.bs_pos, dtype=float).copy(),
-        "seed_offset": 1,
+        "seed_offset": scene_seed_offset,
+        "exogenous_scene": shared_scene,
     }
     del env  # 主进程不需要环境实例，尽早释放
 
@@ -523,13 +658,37 @@ if __name__ == "__main__":
         lr_min_ratio=madrl_args.lr_min_ratio,
         structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
     )
+    loaded_initialization = None
+    initialization_path = str(getattr(madrl_args, "policy_initialization", "") or "")
+    receive_encoder = str(getattr(madrl_args, "receive_beam_encoder", "shared"))
+    if initialization_path:
+        loaded_initialization = load_policy_initialization(
+            initialization_path, expected_architecture=actor_architecture_metadata(agent_bs.actor),
+            expected_receive_beam_encoder=receive_encoder, expected_scene=shared_scene,
+            expected_seed=int(base_args.seed), expected_scene_seed_offset=scene_seed_offset,
+            expected_environment={"base_args": base_args.as_dict(),
+                "inner_parameter_source": vars(base_args._params).copy(),
+                "madrl_args": vars(madrl_args).copy(),
+                "continuous_low": bs_continuous_action_space.low.tolist(),
+                "continuous_high": bs_continuous_action_space.high.tolist()},
+            outer_root=_OUTER_ROOT, device=device)
+        agent_bs.policy_initialization_metadata = apply_policy_initialization(agent_bs, loaded_initialization)
+    elif receive_encoder == "dedicated":
+        agent_bs.policy_initialization_metadata = convert_agent_to_dedicated(agent_bs)
+    architecture_metadata = actor_architecture_metadata(agent_bs.actor)
     probability_metadata = agent_bs.actor.action_probability_metadata()
     action_log_metadata.update(probability_metadata)
+    action_log_metadata.update(actor_architecture=architecture_metadata,
+        policy_initialization=getattr(agent_bs, "policy_initialization_metadata", None))
 
     output_dir = os.path.join(
         _OUTER_ROOT, "ckpt", "MHBPPO", f"{current_time_str}_mhbppo_seed_{base_args.seed}",
     )
     os.makedirs(output_dir, exist_ok=True)
+    if hasattr(agent_bs, "policy_initialization_metadata"):
+        with open(os.path.join(output_dir, "initialization_provenance.json"), "x", encoding="utf-8") as stream:
+            json.dump(agent_bs.policy_initialization_metadata, stream, ensure_ascii=False, indent=2,
+                      default=_configuration_json_default, allow_nan=False)
     root_csv_path = os.path.join(output_dir, f"training_rewards_seed_{base_args.seed}.csv")
     pd.DataFrame(columns=["episode", "reward", "obj", "completion_rate"]).to_csv(
         root_csv_path, index=False, mode="x",
@@ -537,9 +696,8 @@ if __name__ == "__main__":
     env_plot_path = save_environment_plot(output_dir, initial_scene)
     checkpoint_interval = max(1, int(madrl_args.checkpoint_interval))
     queue_maxsize = max(1, int(madrl_args.sample_queue_maxsize))
-    num_samplers = max(1, int(madrl_args.num_samplers))
     if sync_training:
-        num_samplers = 1
+        queue_maxsize = max(queue_maxsize, num_samplers)
 
     hyperparameters_path = save_hyperparameters(
         output_dir, base_args, madrl_args, agent_bs, started_at=started_at,
@@ -550,7 +708,7 @@ if __name__ == "__main__":
     ctx = mp.get_context("spawn")  # Linux 服务器与 Windows 行为一致，且 CUDA 安全
     sample_queue = ctx.Queue(maxsize=queue_maxsize)
     stop_event = ctx.Event()
-    control_queue = ctx.Queue(maxsize=1) if sync_training else None
+    control_queues = [ctx.Queue(maxsize=1) for _ in range(num_samplers)] if sync_training else []
 
     # 多采样进程：每个 sampler 一条独立 weight_queue，互不争抢（详见 broadcast_weights 文档）
     weight_queues = [ctx.Queue(maxsize=1) for _ in range(num_samplers)]
@@ -559,7 +717,9 @@ if __name__ == "__main__":
     logger = setup_logger(log_path)
     run_id = os.path.basename(os.path.dirname(log_path))
     env_log_path = diagnostic_log_path(action_log_path)
-    metadata = {**action_log_metadata, "run_id": run_id, "training_log_path": log_path,
+    run_metadata = diagnostic_run_metadata(_OUTER_ROOT, base_args, madrl_args)
+    metadata = {**action_log_metadata, **run_metadata,
+                "run_id": run_id, "training_log_path": log_path,
                 "policy_distribution_contract": POLICY_DISTRIBUTION_CONTRACT,
                 "log_directory": os.path.dirname(log_path)}
     action_writer = ActionLogWriter(action_log_path, metadata)
@@ -567,20 +727,30 @@ if __name__ == "__main__":
     if bool(getattr(madrl_args, "env_diagnostics", True)):
         env_writer = EnvDiagnosticLogWriter(env_log_path, {
             **metadata, "action_log_path": action_log_path,
-            **diagnostic_run_metadata(_OUTER_ROOT, base_args, madrl_args),
         })
+    detailed_writers = [action_writer] if env_writer is None else [action_writer, env_writer]
+    log_rotation = JsonlRotation(
+        iterations=madrl_args.log_rotate_iterations, max_bytes=madrl_args.log_rotate_max_bytes,
+        keep_segments=madrl_args.log_rotate_backup_segments,
+    )
+    min_free_bytes = max(0, int(madrl_args.log_min_free_bytes))
+    detailed_logging_paused = False
 
     # 关键契约：启动采样进程前先下发初始 actor 权重，
     # 保证各采样端与学习端从同一份初始参数出发（PPO ratio 语义要求）。
     checksum_by_version = {}  # version -> 该版本广播时的 actor 指纹，用于与采样端回传值比对
     state_norm_stats = StateNormStats(state_dim_bs)
     reward_norm_stats = StateNormStats(1)
+    if loaded_initialization is not None:
+        restore_initial_state_normalization(state_norm_stats, loaded_initialization.normalizer)
 
     # ── BC 暖机（可选）：必须在首次权重广播之前完成，使 v0 即为预热后的策略 ──
     # 采样端只在 episode 边界加载权重，第一份 payload 就是 version=0，因此晚于此处
     # 预热会让第一个 episode 仍用随机策略采样。
     bc_dataset_path = str(getattr(madrl_args, "bc_dataset", "") or "")
     if bc_dataset_path:
+        if loaded_initialization is not None:
+            raise ValueError("policy initialization cannot be combined with behavior cloning")
         bc_data = load_behavior_cloning_dataset(bc_dataset_path)
         if bc_data["state_norm_mean"] is not None and bc_data["state_norm_mean"].size != state_dim_bs:
             raise RuntimeError(
@@ -628,9 +798,11 @@ if __name__ == "__main__":
     for worker_id in range(num_samplers):
         proc = ctx.Process(
             target=sampler_worker,
-            # seed_offset = worker_id + 1：各采样进程使用互不相同的 RNG 流，避免产出同分布副本
+            # Identity/action stream are independent from the common scene offset.
             args=(base_args, madrl_args, sample_queue, weight_queues[worker_id], stop_event,
-                  worker_id + 1, control_queue),
+                  worker_id + 1, control_queues[worker_id] if sync_training else None),
+            kwargs=({"worker_id": worker_id, "scene_seed_offset": scene_seed_offset}
+                    if sync_training else {}),
             daemon=True,
             name=f"sampler-{worker_id}",
         )
@@ -639,7 +811,7 @@ if __name__ == "__main__":
 
     if sync_training:
         # 许可令牌携带版本号：采样端据此阻塞等待对应版本的权重，避免非阻塞读空队列
-        control_queue.put(0)
+        issue_collection_permissions(control_queues, 0)
 
     cpu_count = os.cpu_count() or 1
     if num_samplers > cpu_count:
@@ -680,40 +852,57 @@ if __name__ == "__main__":
     obj_fun_res = []
     completion_rate_res = []
     last_completed_item = None
+    last_checkpoint_metadata = None
+    checkpoint_ready = True
+    cumulative_env_steps = 0
+    cumulative_episodes = 0
+    update_metrics_path = os.path.join(output_dir, "training_updates.csv")
+    training_loop_started = time.perf_counter()
 
-    iteration = 0  # 外层更新次数（每消费一个 episode 并完成一次 update，+1）
+    iteration = 0  # One update consumes N complete episodes in sync mode.
     interrupted = False
     dead_reported = set()  # 已告警过的采样进程名，避免每轮空队列轮询重复刷屏
     weights_sync_warned = False  # 权重同步故障只告警一次（该类故障表现为内层恒不可行，必须显眼提示）
+    training_error = None
 
     pbar = tqdm(total=None, desc="Training Progress", unit="update", dynamic_ncols=True)
     try:
         while not shutdown_requested:
+            collection_wait_started = time.perf_counter()
+            if sync_training:
+                episodes = collect_sync_rollouts(
+                    sample_queue, sampler_procs, should_stop=lambda: shutdown_requested,
+                    expected_round=iteration, probability_metadata=probability_metadata,
+                    actor_checksum_value=checksum_by_version[iteration],
+                    actor_signature=actor_state_signature(agent_bs.actor),
+                    norm_signature=normalization_signature(state_norm_stats.mean, state_norm_stats.std),
+                    scene_signature=shared_scene if fixed_shared_scene else None,
+                    total_time_slots=madrl_args.total_time_slots,
+                    expected_architecture=architecture_metadata,
+                )
+                if episodes is None:
+                    interrupted = True
+                    break
+                item = assemble_rollout_batch(episodes, continuous_action_splits=bs_continuous_action_splits)
             # 带超时轮询：保证停止请求在空队列等待时也能及时生效
-            try:
-                item = sample_queue.get(timeout=1.0)
-            except queue_module.Empty:
-                if not any(proc.is_alive() for proc in sampler_procs):
-                    # 全部采样进程已死且未发哨兵：最后再确认一次队列（可能还有在途样本）
-                    try:
-                        item = sample_queue.get_nowait()
-                    except queue_module.Empty:
-                        # 未发 error 哨兵即退出 => 多为组信号（Ctrl+Break/SIGKILL）或被系统 kill，
-                        # 优雅收尾保存产物；真正的采样端异常会走下方 error 哨兵路径
-                        logger.info("[learner] 全部采样进程已退出（未上报错误，可能被信号终止），优雅结束训练。")
-                        interrupted = True
-                        break
-                else:
-                    # 部分采样进程提前退出：仅告警一次（其余仍在产出，训练继续但吞吐下降）
-                    for proc in sampler_procs:
-                        if not proc.is_alive() and proc.name not in dead_reported:
-                            dead_reported.add(proc.name)
-                            logger.warning(
-                                f"[learner] 采样进程 {proc.name} 已提前退出 (exitcode={proc.exitcode})，"
-                                f"剩余 {sum(1 for p in sampler_procs if p.is_alive())}/{num_samplers} 个仍在采样，吞吐将下降"
-                            )
-                    continue
-
+            else:
+                try:
+                    item = sample_queue.get(timeout=1.0)
+                except queue_module.Empty:
+                    if not any(proc.is_alive() for proc in sampler_procs):
+                        try:
+                            item = sample_queue.get_nowait()
+                        except queue_module.Empty:
+                            logger.info("[learner] 全部异步采样进程已退出，结束训练。")
+                            interrupted = True
+                            break
+                    else:
+                        for proc in sampler_procs:
+                            if not proc.is_alive() and proc.name not in dead_reported:
+                                dead_reported.add(proc.name)
+                                logger.warning(f"[learner] 异步采样进程 {proc.name} 已退出 (exitcode={proc.exitcode})")
+                        continue
+            collection_wait_cost = time.perf_counter() - collection_wait_started
             if shutdown_requested:
                 break
 
@@ -723,12 +912,42 @@ if __name__ == "__main__":
 
             # ── 消费：一次 update = 一次 iteration ──
             # 消费前校验该 episode 的 9 个字段等长自洽，避免错位数据参与 PPO 更新
-            n_transitions = validate_sample(item, probability_metadata)
+            episodes = item.get("episodes", [item])
+            n_transitions = sum(validate_sample(episode, probability_metadata, architecture_metadata) for episode in episodes)
+
+            # ── 磁盘水位保护：低位先归档裁剪一轮并暂停逐步详细日志，避免写满导致 Errno28 ──
+            paused_before = detailed_logging_paused
+            if min_free_bytes:
+                free_bytes = shutil.disk_usage(output_dir).free
+                detailed_logging_paused = free_bytes < min_free_bytes
+                if detailed_logging_paused and not paused_before:
+                    logger.warning(f"[learner] 可用空间 {free_bytes / 2 ** 30:.2f} GiB 低于 "
+                                   f"log_min_free_bytes={min_free_bytes / 2 ** 30:.2f} GiB，"
+                                   "归档裁剪一轮后暂停逐步详细日志（根 CSV/TensorBoard 仍记录）")
+                elif not detailed_logging_paused and paused_before:
+                    logger.info(f"[learner] 可用空间恢复至 {free_bytes / 2 ** 30:.2f} GiB，恢复逐步详细日志")
 
             # 先落盘实际动作与原始奖励；即使 PPO 更新失败，也保留该批诊断。
-            action_writer.write_episode(item, iteration=iteration + 1)
-            if env_writer is not None:
-                env_writer.write_episode(item, iteration=iteration + 1)
+            logging_started = time.perf_counter()
+            rotate_index = 0
+            if log_rotation.active:
+                if detailed_logging_paused and not paused_before:
+                    rotate_index = log_rotation.force(iteration + 1)
+                elif not detailed_logging_paused and log_rotation.due(
+                        iteration + 1, [writer.size for writer in detailed_writers]):
+                    rotate_index = log_rotation.segment
+                if rotate_index:
+                    archived = [writer.rotate(rotate_index) for writer in detailed_writers]
+                    earliest = rotate_index + 1 - log_rotation.keep_segments
+                    for detailed_writer in detailed_writers:
+                        archived.extend(detailed_writer.prune(earliest))
+                    logger.info(f"[learner] 详细日志滚动到第 {rotate_index} 段 | 归档/清理: {archived}")
+            if not detailed_logging_paused:
+                for episode in episodes:
+                    action_writer.write_episode(episode, iteration=iteration + 1)
+                    if env_writer is not None:
+                        env_writer.write_episode(episode, iteration=iteration + 1)
+            logging_cost = time.perf_counter() - logging_started
             diag_summary = summarize_diagnostics(item.get("diagnostic_traces", []))
             transition_dict = item["transition_dict"]
             raw_rewards = np.asarray(transition_dict["rewards"], dtype=np.float64).reshape(-1, 1)
@@ -739,15 +958,9 @@ if __name__ == "__main__":
             ).reshape(-1).tolist()
 
             update_start = time.time()
+            checkpoint_ready = False
             agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
             update_cost = time.time() - update_start
-            iteration += 1
-            # 先提交本轮历史，再广播/发许可，避免队列超时丢失已完成更新的指标。
-            reward_res.append(item["avg_total_reward"])
-            obj_fun_res.append(item["avg_obj_fun"])
-            completion_rate_res.append(item["completion_rate"])
-            last_completed_item = item
-            append_reward_record(root_csv_path, iteration, item)
 
             # 采样端使用的是本 episode 开始时的归一化快照；新统计量从下一个 episode 生效。
             raw_states = item["transition_dict"].get("raw_states", [])
@@ -757,18 +970,60 @@ if __name__ == "__main__":
             if raw_next_states:
                 state_norm_stats.update(np.asarray(raw_next_states, dtype=np.float64))
             reward_norm_stats.update(raw_rewards)
+            # Commit a model version only after its paired normalization is ready.
+            iteration += 1
+            cumulative_env_steps += n_transitions
+            cumulative_episodes += len(episodes)
+            checkpoint_ready = True
+            reward_res.append(item["avg_total_reward"])
+            obj_fun_res.append(item["avg_obj_fun"])
+            completion_rate_res.append(item["completion_rate"])
+            last_completed_item = item
+            last_checkpoint_metadata = {
+                "actor_architecture": architecture_metadata,
+                "policy_initialization": getattr(agent_bs, "policy_initialization_metadata", None),
+                "num_envs": num_samplers,
+                "transitions_last_update": n_transitions,
+                "cumulative_env_steps": cumulative_env_steps,
+                "cumulative_episodes": cumulative_episodes,
+                "collection_policy_version": item["weights_version"],
+                "scene_seed_offset": scene_seed_offset,
+                "shared_exogenous_scene": shared_scene if fixed_shared_scene else None,
+                "collection_scene_signature": item.get("scene_signature"),
+                "training_mode": "sync" if sync_training else "async",
+                "source_sha256": run_metadata["source_sha256"],
+                "csv_episode_semantics": "zero_based_PPO_update_index",
+            }
+            append_reward_record(root_csv_path, iteration, item)
+            pd.DataFrame([{
+                "update": iteration, "env_steps": cumulative_env_steps,
+                "episodes": cumulative_episodes, "num_envs": num_samplers,
+                "transitions": n_transitions, "collection_policy_version": item["weights_version"],
+                "saved_policy_version": iteration,
+                "reward": item["avg_total_reward"], "base_reward": item.get("avg_base_reward", item["avg_total_reward"]),
+                "completion_rate": item["completion_rate"],
+                "optimal_count": item.get("solver_status_counts", {}).get("optimal", 0),
+                "sensing_Q": item.get("avg_sensing_penalty_score", float("nan")),
+                "collection_wait_seconds": collection_wait_cost,
+                "worker_collection_seconds_max": max(float(e.get("collection_seconds", 0)) for e in episodes),
+                "update_seconds": update_cost, "logging_seconds": logging_cost,
+            }]).to_csv(update_metrics_path, mode="a", header=iteration == 1, index=False)
 
+            # A finite run ends before issuing another collection permission.
+            limit_reached = (int(getattr(madrl_args, "max_updates", 0)) > 0 and
+                             iteration >= int(madrl_args.max_updates))
             # 更新后立即向所有采样进程广播 actor 和统一状态归一化统计量。
-            checksum_by_version[iteration] = broadcast_weights(
-                weight_queues, agent_bs, version=iteration,
-                state_norm_stats=state_norm_stats,
-            )
-            stop_after_iteration = False
-            if sync_training and not shutdown_requested:
+            if not shutdown_requested and not limit_reached:
+                checksum_by_version[iteration] = broadcast_weights(
+                    weight_queues, agent_bs, version=iteration,
+                    state_norm_stats=state_norm_stats,
+                )
+            stop_after_iteration = limit_reached
+            if sync_training and not shutdown_requested and not limit_reached:
                 # 令牌 = 本轮广播的版本号；带超时是防御性的：采样进程若已被 kill 而未发
                 # error 哨兵，无超时的 put 会让 learner 永久阻塞（连 stop_event 都发不出去）。
                 try:
-                    control_queue.put(iteration, timeout=5.0)
+                    issue_collection_permissions(control_queues, iteration)
                 except queue_module.Full:
                     logger.warning("[learner] 许可下发超时（采样进程可能已退出），本轮保存后停止")
                     stop_after_iteration = True
@@ -835,7 +1090,25 @@ if __name__ == "__main__":
                 f"diag_c06_bad={diag_summary['sensing_infeasible_rate']:.1f}% "
                 f"diag_cov_valid={diag_summary['covariance_pass_rate']:.1f}% "
                 f"diag_beam_valid={diag_summary['recovered_beam_pass_rate']:.1f}%"
+                f" | base_reward={item.get('avg_base_reward', item['avg_total_reward']):.3f} "
+                f"sensing_Q={item.get('avg_sensing_penalty_score', float('nan')):.4f} "
+                f"sensing_penalty={item.get('avg_sensing_penalty_applied', 0.0):.4f} "
+                f"sensing_Q_valid={item.get('sensing_penalty_score_valid_count', 0)} "
+                f"sensing_unavailable={item.get('sensing_penalty_unavailable_count', 0)}"
+                f" | envs={num_samplers} env_steps={cumulative_env_steps} episodes={cumulative_episodes} "
+                f"collection_wait={collection_wait_cost:.3f}s log_cost={logging_cost:.3f}s "
+                f"steps_per_second={cumulative_env_steps / max(time.perf_counter() - training_loop_started, 1e-9):.3f}"
             )
+            if sync_training and num_samplers > 1:
+                for episode in episodes:
+                    logger.info(
+                        f"[ENV] iter={iteration} worker={episode['worker_id']} "
+                        f"episode={episode['episode_idx']} transitions={len(episode['transition_dict']['rewards'])} "
+                        f"wv={episode['weights_version']} reward={episode['avg_total_reward']:.6f} "
+                        f"completion={episode['completion_rate']:.2f}% "
+                        f"solver_counts={episode.get('solver_status_counts', {})} "
+                        f"collection={episode.get('collection_seconds', float('nan')):.3f}s"
+                    )
             log_policy_distribution(
                 logger, writer, item.get("policy_distribution_summary", {}),
                 iteration, used_version,
@@ -848,8 +1121,17 @@ if __name__ == "__main__":
             )
 
             writer.add_scalar("Reward/iteration", item["avg_total_reward"], iteration)
+            writer.add_scalar("Reward/base_reward", item.get("avg_base_reward", item["avg_total_reward"]), iteration)
+            writer.add_scalar("Reward/sensing_penalty_score", item.get("avg_sensing_penalty_score", float("nan")), iteration)
+            writer.add_scalar("Reward/sensing_penalty_applied", item.get("avg_sensing_penalty_applied", 0.0), iteration)
+            writer.add_scalar("Reward/sensing_penalty_score_valid_count", item.get("sensing_penalty_score_valid_count", 0), iteration)
+            writer.add_scalar("Reward/sensing_penalty_unavailable_count", item.get("sensing_penalty_unavailable_count", 0), iteration)
             writer.add_scalar("Obj/iteration", item["avg_obj_fun"], iteration)
             writer.add_scalar("Completion Rate/iteration", item["completion_rate"], iteration)
+            writer.add_scalar("Sampling/cumulative_env_steps", cumulative_env_steps, iteration)
+            writer.add_scalar("Sampling/transitions_per_update", n_transitions, iteration)
+            writer.add_scalar("Sampling/collection_wait_seconds", collection_wait_cost, iteration)
+            writer.add_scalar("Sampling/logging_seconds", logging_cost, iteration)
 
             pbar.set_postfix({"iter": iteration, "avg_reward": f"{item['avg_total_reward']:.3f}"})
             pbar.update(1)
@@ -860,14 +1142,17 @@ if __name__ == "__main__":
                     output_dir, base_args.seed, iteration,
                     reward_res, obj_fun_res, completion_rate_res, agent_bs,
                     state_norm_stats=state_norm_stats,
+                    training_metadata=last_checkpoint_metadata,
                 )
-                trajectory_path = save_uav_trajectory(
+                trajectory_paths = save_batch_trajectories(
                     os.path.dirname(actor_path), last_completed_item, iteration,
                 )
                 logger.info(f"iter={iteration} | 已保存 {len(reward_res)} episodes CSV ({csv_path}) + checkpoint ({actor_path})"
                             + f" | 状态归一化: {os.path.join(os.path.dirname(actor_path), STATE_NORMALIZATION_FILENAME)}"
-                            + (f" | UAV轨迹: {trajectory_path}" if trajectory_path else ""))
+                            + (f" | UAV轨迹: {trajectory_paths}" if trajectory_paths else ""))
             if stop_after_iteration:
+                if limit_reached:
+                    logger.info(f"[learner] 已完成 max_updates={madrl_args.max_updates}，保存后正常停止")
                 break
 
         if shutdown_requested:
@@ -879,48 +1164,64 @@ if __name__ == "__main__":
         logger.info("[learner] 收到中断信号，正在保存最终结果并停止采样进程...")
     except Exception as exc:
         # 异常（含采样端 error 哨兵抛出的 RuntimeError）落盘后再抛出，便于事后排查
+        training_error = exc
         logger.exception(f"[learner] 训练异常终止: {exc}")
         raise
     finally:
         # 优雅退出：通知采样进程 -> 等待 -> 兜底 terminate
         stop_event.set()
+        # No consumer remains for unused next-round payloads. Do not let a
+        # Queue feeder's exit-time join wait forever on a dead worker's pipe.
+        for training_queue in [sample_queue, *weight_queues, *control_queues]:
+            if hasattr(training_queue, "cancel_join_thread"):
+                training_queue.cancel_join_thread()
         for proc in sampler_procs:
             proc.join(timeout=120)
             if proc.is_alive():
                 proc.terminate()
                 proc.join(timeout=10)
 
-        if iteration > 0:
-            csv_path, actor_path, _ = save_artifacts(
-                output_dir, base_args.seed, iteration,
-                reward_res, obj_fun_res, completion_rate_res, agent_bs, final=True,
-                state_norm_stats=state_norm_stats,
-            )
-            trajectory_path = save_uav_trajectory(
-                os.path.dirname(actor_path), last_completed_item, iteration,
-            )
-            plot_path = save_reward_plot(output_dir, reward_res)
-            logger.info(f"[learner] 最终结果已保存: iter={iteration}, best_avg_reward={max(reward_res):.4f}")
-            logger.info(f"[learner] CSV: {csv_path} | checkpoint: {actor_path}"
-                        + f" | 状态归一化: {os.path.join(os.path.dirname(actor_path), STATE_NORMALIZATION_FILENAME)}"
-                        + (f" | UAV轨迹: {trajectory_path}" if trajectory_path else "")
-                        + (f" | 曲线: {plot_path}" if plot_path else ""))
-        else:
-            logger.info("[learner] 未完成任何 iteration，无产物保存。")
-
-        action_writer.close()
-        if env_writer is not None:
-            env_writer.close()
-        writer.close()
-        pbar.close()
-        sample_queue.close()
-        for weight_queue in weight_queues:
-            weight_queue.close()
-        if control_queue is not None:
-            control_queue.close()
+        save_error = None
+        try:
+            if iteration > 0 and checkpoint_ready:
+                csv_path, actor_path, _ = save_artifacts(
+                    output_dir, base_args.seed, iteration,
+                    reward_res, obj_fun_res, completion_rate_res, agent_bs, final=True,
+                    state_norm_stats=state_norm_stats,
+                    training_metadata=last_checkpoint_metadata,
+                )
+                trajectory_paths = save_batch_trajectories(
+                    os.path.dirname(actor_path), last_completed_item, iteration,
+                )
+                plot_path = save_reward_plot(output_dir, reward_res)
+                logger.info(f"[learner] 最终结果已保存: iter={iteration}, best_avg_reward={max(reward_res):.4f}")
+                logger.info(f"[learner] CSV: {csv_path} | checkpoint: {actor_path}"
+                            + f" | 状态归一化: {os.path.join(os.path.dirname(actor_path), STATE_NORMALIZATION_FILENAME)}"
+                            + (f" | UAV轨迹: {trajectory_paths}" if trajectory_paths else "")
+                            + (f" | 曲线: {plot_path}" if plot_path else ""))
+            elif iteration > 0:
+                logger.warning("[learner] 当前PPO/归一化更新未完整完成，保留此前checkpoint，不将部分网络标为完成版本。")
+            else:
+                logger.info("[learner] 未完成任何 iteration，无产物保存。")
+        except Exception as exc:
+            save_error = exc
+            try:
+                logger.exception(f"[learner] 最终保存失败，不能标记成功: {exc}")
+            except OSError:
+                print(f"Final checkpoint save failed: {exc}", file=sys.stderr)
+        finally:
+            resources = [action_writer, env_writer, writer, pbar, sample_queue, *weight_queues, *control_queues]
+            for resource in resources:
+                if resource is not None:
+                    try:
+                        resource.close()
+                    except Exception as exc:
+                        print(f"Closing training resource failed: {exc}", file=sys.stderr)
+        if save_error is not None and training_error is None:
+            raise save_error
         # 仅在"非主动中断"时判定为故障：Ctrl+C / Ctrl+Break 会投递给整个进程组，
         # 采样进程同样收到信号并以 STATUS_CONTROL_C_EXIT (0xC000013A) 退出，属预期而非异常。
-        if not interrupted:
+        if not interrupted and training_error is None:
             failed = [(p.name, p.exitcode) for p in sampler_procs if p.exitcode not in (0, None)]
             if failed:
                 logger.error(f"[learner] 采样进程异常退出: {failed}")

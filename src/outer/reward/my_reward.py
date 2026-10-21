@@ -9,12 +9,20 @@ if current_dir not in sys.path:
 
 from cccp_bridge import solve_inner_energy as penalty_based_cccp
 import numpy as np
+from reward.sensing_penalty import (
+    SENSING_PENALTY_CONTRACT, normalized_sensing_shortfall,
+    validate_sensing_penalty_settings,
+)
 
 
 class MyReward:
-    def __init__(self, base_args, enable_diagnostics=True):
+    def __init__(self, base_args, enable_diagnostics=True, *,
+                 sensing_penalty_coef=0.0, sensing_penalty_reference_factor=10.0):
         self.base_args = base_args
         self.enable_diagnostics = bool(enable_diagnostics)
+        (self.sensing_penalty_coef,
+         self.sensing_penalty_reference_factor) = validate_sensing_penalty_settings(
+             sensing_penalty_coef, sensing_penalty_reference_factor)
 
     def reward_compute(self, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels, uavs_2_targets_channels,
                        uavs_targets_matched_matrix, uavs_cus_matched_matrix,
@@ -34,6 +42,8 @@ class MyReward:
         uavs_off_duration = [float(x) for x in np.asarray(uavs_off_duration).reshape(-1)]
         cus_off_power = [float(x) for x in np.asarray(cus_off_power).reshape(-1)]
 
+        sensing_reward_kwargs = ({"collect_sensing_reward": True}
+                                 if self.sensing_penalty_coef > 0 else {})
         energy_opt, _, _, _, _, _, _, per_uav_sen_power_list, per_uav_off_power_list, per_uav_bs_freq_list, cur_cus_off_duration, solution_payload = penalty_based_cccp(
             args=self.base_args,
             uavs_2_cus_channels=uavs_2_cus_channels,
@@ -53,6 +63,7 @@ class MyReward:
             diagnostic_candidates=diagnostic_candidates,
             diagnostic_cu_min_power=diagnostic_cu_min_power,
             capture_failed_solution=capture_failed_solution,
+            **sensing_reward_kwargs,
         )
 
         avg_cu_off_power = float(np.mean(cus_off_power)) if len(cus_off_power) > 0 else float("nan")
@@ -100,6 +111,39 @@ class MyReward:
             - no_solution_penalty
         )
 
+        # Preserve the original reward calculation above. Only unsuccessful
+        # solves receive this additional, bounded sensing-shortfall penalty.
+        base_reward = float(total_reward)
+        base_no_solution_penalty = no_solution_penalty
+        sensing_penalty_score = 0.0
+        sensing_penalty_per_uav = None
+        sensing_margin = None
+        sensing_penalty_status = "disabled"
+        sensing_penalty_reason = None
+        if self.sensing_penalty_coef > 0:
+            metrics = (solution_payload or {}).get("sensing_reward_metrics")
+            sensing_penalty_status = "unavailable"
+            if not isinstance(metrics, dict):
+                sensing_penalty_reason = "missing_sensing_reward_metrics"
+            elif metrics.get("status") != "checked":
+                sensing_penalty_reason = metrics.get("reason") or str(
+                    metrics.get("status", "invalid_sensing_reward_metrics"))
+            else:
+                try:
+                    sensing_penalty_score, per_uav = normalized_sensing_shortfall(
+                        metrics.get("margin"), self.sensing_penalty_reference_factor,
+                        expected_uavs=self.base_args.uavs_num)
+                    sensing_penalty_per_uav = per_uav.tolist()
+                    sensing_margin = np.asarray(metrics["margin"], dtype=float).tolist()
+                    sensing_penalty_status = "available"
+                except (ValueError, TypeError, OverflowError) as exc:
+                    sensing_penalty_reason = "{}: {}".format(type(exc).__name__, exc)
+        sensing_penalty_applied = (
+            self.sensing_penalty_coef * sensing_penalty_score
+            if base_no_solution_penalty and sensing_penalty_status == "available" else 0.0)
+        no_solution_penalty = base_no_solution_penalty + sensing_penalty_applied
+        total_reward = base_reward - sensing_penalty_applied
+
         reward = {
             "bs": float(total_reward),
             "components": {
@@ -107,6 +151,15 @@ class MyReward:
                 "bs_alloc_spectrum_penalty": float(bs_alloc_spectrum_penalty),
                 "uav_collision_penalty_sum": float(np.sum(uav_collision_penalty)),
                 "no_solution_penalty":float(no_solution_penalty),
+                "base_reward": base_reward,
+                "base_no_solution_penalty": float(base_no_solution_penalty),
+                "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
+                "sensing_penalty_score": float(sensing_penalty_score),
+                "sensing_penalty_applied": float(sensing_penalty_applied),
+                "sensing_penalty_per_uav": sensing_penalty_per_uav,
+                "sensing_margin": sensing_margin,
+                "sensing_penalty_status": sensing_penalty_status,
+                "sensing_penalty_reason": sensing_penalty_reason,
                 "flight_energy": float(flight_energy),
                 "sensing_energy": float(sensing_energy),
                 "offloading_energy": float(offloading_energy),

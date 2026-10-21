@@ -1,0 +1,110 @@
+{
+  "range": [
+    9067,
+    9566
+  ],
+  "records": 40000,
+  "solver_counts": {
+    "optimal": 39180,
+    "infeasible": 820
+  },
+  "status_sources": [
+    {
+      "resolved": "infeasible",
+      "raw": "unknown",
+      "source": "analytic_c03_c05_c06",
+      "n": 787
+    },
+    {
+      "resolved": "infeasible",
+      "raw": "infeasible",
+      "source": "solver",
+      "n": 33
+    }
+  ],
+  "sensing_failure_n": 820,
+  "failed_uav_hist": {
+    "1": 808,
+    "2": 12
+  },
+  "failed_margin_median": 0.7777589843509948,
+  "rematching": {
+    "current_power_matching": {
+      "n": 820,
+      "pct": 100.0
+    },
+    "current_power_margin2_matching": {
+      "n": 811,
+      "pct": 98.90243902439025
+    },
+    "min_power_matching": {
+      "n": 820,
+      "pct": 100.0
+    },
+    "min_power_margin2_matching": {
+      "n": 820,
+      "pct": 100.0
+    }
+  },
+  "failure_slot_groups": {
+    "0_3": {
+      "n": 36,
+      "failure_rate_pct": 0.8999999999999999,
+      "share_of_failures_pct": 4.390243902439024
+    },
+    "4_7": {
+      "n": 27,
+      "failure_rate_pct": 0.675,
+      "share_of_failures_pct": 3.2926829268292686
+    },
+    "8_19": {
+      "n": 214,
+      "failure_rate_pct": 1.7833333333333332,
+      "share_of_failures_pct": 26.097560975609756
+    },
+    "20_39": {
+      "n": 543,
+      "failure_rate_pct": 2.715,
+      "share_of_failures_pct": 66.21951219512195
+    }
+  },
+  "outer_failure_nonoptimal": {
+    "": 815,
+    "matching_cu_unique": 5
+  },
+  "beam_pass_pct": 91.74,
+  "beam_and_outer_pass_pct": 91.625,
+  "beam_failure_types": {
+    "": 37516,
+    "c08_uav_offloading": 2484
+  },
+  "legacy_success_beam_failed_n": 2473,
+  "checks": {
+    "rows40000": true,
+    "unique": true,
+    "complete40": true,
+    "episode_failure_counts": true,
+    "all_completion_count": true,
+    "reward_matches": true,
+    "Q_matches": true,
+    "completion_matches": true,
+    "versions": true,
+    "candidate_match_exhaustive": true
+  },
+  "matching_checks": 1640,
+  "manifest": [
+    {
+      "file": "mhbppo_train_env.jsonl",
+      "handle_bound": 1416619099,
+      "first_update": 9016,
+      "selected": 40000
+    },
+    {
+      "file": "mhbppo_train_env_part010.jsonl",
+      "handle_bound": 2148985691,
+      "first_update": 8161,
+      "selected": 0
+    }
+  ],
+  "limits": "Candidate matching only satisfies the sensing necessary condition at a recorded state. No full-task counterfactual solver was run."
+}

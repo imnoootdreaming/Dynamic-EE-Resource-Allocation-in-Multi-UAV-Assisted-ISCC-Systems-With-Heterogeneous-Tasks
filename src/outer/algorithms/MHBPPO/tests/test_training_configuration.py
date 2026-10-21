@@ -40,6 +40,11 @@ class TrainingConfigurationTests(unittest.TestCase):
 
     def test_defaults_and_json_cli_precedence(self):
         args = get_madrl_args([])
+        self.assertEqual(args.seed, 42)
+        self.assertEqual(args.scene_seed_offset, 0)
+        self.assertEqual(args.worker_num_threads, 0)
+        self.assertEqual(args.mosek_num_threads, 0)
+        self.assertEqual(get_base_args().seed, 1208)
         self.assertEqual(args.batch_size, 32)
         self.assertEqual(args.continuous_entropy_coef, .05)
         self.assertEqual(args.discrete_entropy_coef, .01)
@@ -61,9 +66,9 @@ class TrainingConfigurationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = save_hyperparameters(directory, get_base_args(), args, learner)
             data = json.loads(Path(path).read_text(encoding="utf8"))
-            self.assertEqual(data["effective"]["num_samplers"], 1)
+            self.assertEqual(data["effective"]["num_samplers"], 5)
             self.assertEqual(data["effective"]["batch_size"], 64)
-            self.assertEqual(data["effective"]["mini_batch_size_first_rollout"], 40)
+            self.assertEqual(data["effective"]["mini_batch_size_first_rollout"], 64)
             self.assertEqual(data["effective"]["hidden_dim"], learner.actor.fc1.out_features)
             self.assertIsInstance(data["environment"]["inner_parameters"]["L_cu_task"], list)
             reloaded = get_madrl_args(["--config", path])
@@ -114,6 +119,7 @@ class TrainingConfigurationTests(unittest.TestCase):
         main_file = OUTER / "algorithms" / "MHBPPO" / "MHBPPO_main.py"
         original_join = os.path.join
         with tempfile.TemporaryDirectory() as directory:
+            args.log_file = str(Path(directory) / "logs" / "config_startup.log")
             def scoped_join(*parts):
                 if len(parts) == 4 and parts[1:3] == ("ckpt", "MHBPPO"):
                     return original_join(directory, "run")
@@ -130,7 +136,7 @@ class TrainingConfigurationTests(unittest.TestCase):
             for key in ("actor_lr", "critic_lr", "hidden_dim", "batch_size",
                         "continuous_entropy_coef", "discrete_entropy_coef"):
                 self.assertEqual(data["effective"][key], getattr(args, key))
-            self.assertEqual(data["effective"]["num_samplers"], 1)
+            self.assertEqual(data["effective"]["num_samplers"], 5)
             self.assertTrue((Path(directory) / "run" / "env.png").exists())
 
 

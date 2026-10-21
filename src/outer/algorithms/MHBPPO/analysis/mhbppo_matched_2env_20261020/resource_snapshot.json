@@ -1,0 +1,96 @@
+{
+  "time": "2026-10-20T09:08:40.922062+08:00",
+  "physical_cores": 6,
+  "logical_cpus": 6,
+  "cpu_per_logical": [
+    36.4,
+    29.2,
+    29.2,
+    41.5,
+    56.9,
+    70.8
+  ],
+  "available_ram_gib": 1.8247566223144531,
+  "total_ram_gib": 15.784461975097656,
+  "python_processes": [
+    {
+      "pid": 35756,
+      "ppid": 62100,
+      "cmdline": [
+        "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+        "-c",
+        "from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=62100, pipe_handle=4100)",
+        "--multiprocessing-fork"
+      ],
+      "threads": 15,
+      "rss_mib": 203.9296875,
+      "created": "2026-10-19T09:44:19.139049+08:00",
+      "one_second_cpu_percent": 84.0
+    },
+    {
+      "pid": 47700,
+      "ppid": 56676,
+      "cmdline": [
+        "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+        "D:\\anaconda3\\envs\\ML2024_Task1\\Scripts\\tensorboard.exe",
+        "--logdir=2026-10-11_12-28-50_beta-hppo_sync_result"
+      ],
+      "threads": 1,
+      "rss_mib": 2.078125,
+      "created": "2026-10-12T09:24:10.405038+08:00",
+      "one_second_cpu_percent": 0.0
+    },
+    {
+      "pid": 48904,
+      "ppid": 55024,
+      "cmdline": [
+        "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+        "-"
+      ],
+      "threads": 4,
+      "rss_mib": 17.54296875,
+      "created": "2026-10-20T09:08:20.556852+08:00",
+      "one_second_cpu_percent": 71.1
+    },
+    {
+      "pid": 57444,
+      "ppid": 62100,
+      "cmdline": [
+        "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+        "-c",
+        "from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=62100, pipe_handle=4232)",
+        "--multiprocessing-fork"
+      ],
+      "threads": 15,
+      "rss_mib": 212.23046875,
+      "created": "2026-10-19T09:44:19.253526+08:00",
+      "one_second_cpu_percent": 99.2
+    },
+    {
+      "pid": 62100,
+      "ppid": 33220,
+      "cmdline": [
+        "D:\\anaconda3\\envs\\ML2024_Task1\\python.exe",
+        "MHBPPO_main.py",
+        "--num_samplers",
+        "2",
+        "--sync_training",
+        "--seed",
+        "42",
+        "--scene_seed_offset",
+        "0",
+        "--worker_num_threads",
+        "1",
+        "--mosek_num_threads",
+        "1",
+        "--structured_beam_alpha",
+        "0"
+      ],
+      "threads": 34,
+      "rss_mib": 249.69921875,
+      "created": "2026-10-19T09:44:08.321964+08:00",
+      "one_second_cpu_percent": 0.0
+    }
+  ],
+  "scope": "One current one-second snapshot; not evidence of historical load at updates 6472-6483. Analysis processes are identified by their command lines."
+}

@@ -1,0 +1,303 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "before": {
+        "mode": "disabled",
+        "env_enabled": false,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      },
+      "after": {
+        "mode": "disabled",
+        "env_enabled": false,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "disabled",
+        "env_enabled": true,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      },
+      "after": {
+        "mode": "disabled",
+        "env_enabled": true,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "pending",
+        "env_enabled": false,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      },
+      "after": {
+        "mode": "pending",
+        "env_enabled": false,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "pending",
+        "env_enabled": true,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      },
+      "after": {
+        "mode": "pending",
+        "env_enabled": true,
+        "rotations": 0,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "iteration",
+        "env_enabled": false,
+        "rotations": 3,
+        "tensorboard_preserved": false,
+        "scalar_count": 1,
+        "errors": [
+          {
+            "iteration": 1,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "iteration",
+        "env_enabled": false,
+        "rotations": 3,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "iteration",
+        "env_enabled": true,
+        "rotations": 3,
+        "tensorboard_preserved": false,
+        "scalar_count": 1,
+        "errors": [
+          {
+            "iteration": 1,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "iteration",
+        "env_enabled": true,
+        "rotations": 3,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "size",
+        "env_enabled": false,
+        "rotations": 4,
+        "tensorboard_preserved": false,
+        "scalar_count": 0,
+        "errors": [
+          {
+            "iteration": 0,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 1,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "size",
+        "env_enabled": false,
+        "rotations": 4,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "size",
+        "env_enabled": true,
+        "rotations": 4,
+        "tensorboard_preserved": false,
+        "scalar_count": 0,
+        "errors": [
+          {
+            "iteration": 0,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 1,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "size",
+        "env_enabled": true,
+        "rotations": 4,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "disk_guard",
+        "env_enabled": false,
+        "rotations": 4,
+        "tensorboard_preserved": false,
+        "scalar_count": 0,
+        "errors": [
+          {
+            "iteration": 0,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 1,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "ActionLogWriter",
+            "error": "'ActionLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "disk_guard",
+        "env_enabled": false,
+        "rotations": 4,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    },
+    {
+      "before": {
+        "mode": "disk_guard",
+        "env_enabled": true,
+        "rotations": 4,
+        "tensorboard_preserved": false,
+        "scalar_count": 0,
+        "errors": [
+          {
+            "iteration": 0,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 1,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 2,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          },
+          {
+            "iteration": 3,
+            "type": "EnvDiagnosticLogWriter",
+            "error": "'EnvDiagnosticLogWriter' object has no attribute 'add_scalar'"
+          }
+        ]
+      },
+      "after": {
+        "mode": "disk_guard",
+        "env_enabled": true,
+        "rotations": 4,
+        "tensorboard_preserved": true,
+        "scalar_count": 4,
+        "errors": []
+      }
+    }
+  ],
+  "source_sha256": "7479953875dd67c6e5b50aa735f33f5bb350b2cf49ea434f1dfa8f5f8931ea7d",
+  "scope": "Actual main rotation AST and real JSONL writers; scalar recorder; no PPO, training or solver execution"
+}

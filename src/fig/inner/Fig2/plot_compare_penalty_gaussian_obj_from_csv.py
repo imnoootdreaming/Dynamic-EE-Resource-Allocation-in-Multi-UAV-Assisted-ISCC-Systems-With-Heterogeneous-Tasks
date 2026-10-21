@@ -49,6 +49,7 @@ def main():
     case_ids, penalty_values, gaussian_values, penalty_times, gaussian_times = load_compare_data(csv_path)
 
     x = np.arange(case_ids.size)
+    tick_mask = case_ids % 5 == 0
     bar_width = 0.36
     fig, (ax_time, ax_obj) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={"height_ratios": [1.0, 1.0]})
 
@@ -73,13 +74,13 @@ def main():
         label="GC3P",
         zorder=3,
     )
-    ax_time.set_xlabel("Random cases", fontsize=18)
-    ax_time.set_ylabel("Running time (s)", fontsize=18)
-    ax_time.set_xticks(x)
-    ax_time.set_xticklabels(case_ids)
-    ax_time.tick_params(axis="x", which="major", labelsize=18)
-    ax_time.tick_params(axis="y", which="major", labelsize=18)
-    ax_time.set_ylim(0, 20)
+    ax_time.set_xlabel("Random cases", fontsize=20)
+    ax_time.set_ylabel("Running time (s)", fontsize=20)
+    ax_time.set_xticks(x[tick_mask])
+    ax_time.set_xticklabels(case_ids[tick_mask])
+    ax_time.tick_params(axis="x", which="major", labelsize=20)
+    ax_time.tick_params(axis="y", which="major", labelsize=20)
+    ax_time.set_ylim(0, max(max(penalty_times), max(gaussian_times)) * 1.55)
     ax_time.grid(
         True,
         linestyle=(0, (3, 5)),
@@ -88,7 +89,7 @@ def main():
         alpha=1.0,
         zorder=1,
     )
-    ax_time.legend(fontsize=18, loc="upper right")
+    ax_time.legend(fontsize=20, loc="upper right")
 
     # --- Bottom subplot: objective value comparison (bar chart) ---
     ax_obj.bar(
@@ -111,13 +112,13 @@ def main():
         label="GC3P",
         zorder=3,
     )
-    ax_obj.set_xlabel("Random cases", fontsize=18)
-    ax_obj.set_ylabel("The weighted total energy consumption (J)", fontsize=18)
-    ax_obj.set_xticks(x)
-    ax_obj.set_xticklabels(case_ids)
-    ax_obj.tick_params(axis="x", which="major", labelsize=18)
-    ax_obj.tick_params(axis="y", which="major", labelsize=18)
-    ax_obj.set_ylim(0, max(max(penalty_values), max(gaussian_values)) * 1.5)
+    ax_obj.set_xlabel("Random cases", fontsize=20)
+    ax_obj.set_ylabel("The weighted total energy consumption (J)", fontsize=20)
+    ax_obj.set_xticks(x[tick_mask])
+    ax_obj.set_xticklabels(case_ids[tick_mask])
+    ax_obj.tick_params(axis="x", which="major", labelsize=20)
+    ax_obj.tick_params(axis="y", which="major", labelsize=20)
+    ax_obj.set_ylim(0, max(max(penalty_values), max(gaussian_values)) * 1.3)
 
     ax_obj.grid(
         True,
@@ -127,7 +128,7 @@ def main():
         alpha=1.0,
         zorder=1,
     )
-    ax_obj.legend(fontsize=18, loc="upper right")
+    ax_obj.legend(fontsize=20, loc="upper right")
 
     # 收紧左右两侧空白：x 轴范围仅比最外侧柱边缘多留少量余量；
     # 同时让上下两个子图共用同一 x 轴范围，保证柱子与折线在横向上对齐。
@@ -136,6 +137,13 @@ def main():
     ax_obj.set_xlim(x[0] - side_pad, x[-1] + side_pad)
 
     plt.tight_layout()
+    # 按实际文字边界仅上移下子图标签的底部溢出部分，保留 1 像素余量。
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    label = ax_obj.yaxis.label
+    overflow = (fig.bbox.y0 + 1) - label.get_window_extent(renderer).y0
+    if overflow > 0:
+        label.set_y(label.get_position()[1] + overflow / ax_obj.bbox.height)
 
     plt.show()
 
