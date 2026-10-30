@@ -1,0 +1,138 @@
+\subsection{MVDR 接收波束与最大感知 SINR 的详细证明}
+
+\noindent\textbf{命题。}任取 UAV $u_i$ 和时隙 $t$，固定 UAV 位置、目标、频谱共享关系、CU 发射功率、相关信道及感知发射波束。感知发射波束 $\bm w_i(t)$ 与接收波束 $\bm g_i(t)$ 均属于 $\mathbb C^{N\times1}$，且 $\|\bm g_i(t)\|^2=1$。考虑以下原始感知信道模型和感知 SINR：
+\begin{equation}\label{detail:eq:channel}
+\mathbf A(\theta_i(t))
+=\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t)),
+\end{equation}
+\begin{equation}\label{detail:eq:original-sinr}
+\operatorname{SINR}_i(t)=
+\frac{\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+其中 $\bm a_r$、$\bm a_t$ 是接收和发射导向向量，$\bm h_{c_j,u_i}(t)\in\mathbb C^{1\times N}$ 为 CU 到 UAV 的信道，$\eta_{i,j}(t)$ 和 $p_j(t)$ 分别为频谱共享指标和 CU 发射功率；$d_i(t)>0$ 是 UAV 到目标的距离，$\xi_0\ge0$、$\rho\ge0$ 为信道参数，$\sigma^2$ 是噪声功率。设 $\sigma^2>0$、$\eta_{i,j}(t)p_j(t)\ge0$、$\bm a_r(\theta_i(t))\ne\bm0$。则式~\eqref{detail:eq:mvdr} 所示单位范数接收波束能够达到该时隙最大的感知 SINR。
+
+\medskip
+\noindent\textbf{证明。}
+任取 UAV $u_i$ 和时隙 $t$。首先将式~\eqref{detail:eq:channel} 代入回波幅值，并利用标量乘法的结合律，逐步得到
+\begin{align}
+&\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\left|\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm g_i^H(t)\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\xi_0\rho d_i^{-4}(t)
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.\label{detail:eq:factor}
+\end{align}
+将上式代入原始 SINR 定义~\eqref{detail:eq:original-sinr}，得到
+\begin{equation}\label{detail:eq:factored}
+\frac{\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+考虑固定 UAV 位置、频谱共享变量 $\eta_{i,j}(t)$、CU 功率 $p_j(t)$ 和感知发射波束 $\bm w_i(t)$ 的情况。式\,(\ref{detail:eq:factored}) 的分子中，下面这一项表示发射波束指向目标的增益及感知信道的路径增益：
+\begin{equation}\label{detail:eq:tx-factor}
+\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.
+\end{equation}
+这一项只包含目标参数、位置及发射波束，没有接收波束 $\bm g_i(t)$；所以改变 $\bm g_i(t)$ 时，式\,(\ref{detail:eq:tx-factor}) 的值不变。若该值大于零，将其作为正因子从最大化问题中提出，不改变最大值对应的接收波束。因此，求解接收波束时只需最大化：
+\begin{equation}\label{detail:eq:receive-optimization}
+\max_{\|\bm g_i(t)\|^2=1}
+\frac{\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+式\,(\ref{detail:eq:receive-optimization}) 中不再出现 $\bm w_i(t)$，这说明最优接收方向由目标接收导向、CU 信道、匹配、功率及噪声决定，与发射波束的具体取值无关。若式\,(\ref{detail:eq:tx-factor}) 为零，所有接收波束的感知 SINR 均为零，另见本节的退化情形。
+
+为求解式\,(\ref{detail:eq:receive-optimization})，先将分母中的干扰和噪声统一写成关于 $\bm g_i(t)$ 的二次型。由于接收波束满足 $\|\bm g_i(t)\|^2=1$，所以
+\begin{equation}
+\sigma^2=\sigma^2\bm g_i^H(t)\bm g_i(t)
+=\bm g_i^H(t)(\sigma^2\mathbf I)\bm g_i(t).
+\end{equation}
+将噪声和每个 CU 的干扰一起写入括号，原分母等于
+\begin{align}\label{detail:eq:denominator}
+&\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2\notag\\
+&=\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t).
+\end{align}
+假设 $\sigma^2>0$ 且 $\eta_{i,j}(t)p_j(t)\ge0$。对任意非零向量 $\bm v\in\mathbb C^{N\times1}$，有
+\begin{align}
+&\bm v^H\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm v\notag\\
+&=\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm h_{c_j,u_i}(t)\bm v\right|^2+\sigma^2\|\bm v\|^2>0.
+\end{align}
+\begin{samepage}
+因此，式\,(\ref{detail:eq:denominator}) 括号中的矩阵为 Hermitian 正定矩阵，其正定平方根及逆平方根均存在。为了把分子和这个分母联系起来，在分子的内积中插入该矩阵的平方根及逆平方根，得到
+\begin{align}\label{detail:eq:sqrt-insertion}
+&\bm g_i^H(t)\bm a_r(\theta_i(t))\notag\\
+&=\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right]^H\notag\\
+&\quad\times\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right].
+\end{align}
+\end{samepage}
+\begin{samepage}
+这里两个矩阵相乘为单位矩阵。对式\,(\ref{detail:eq:sqrt-insertion}) 右侧的两个向量应用复数 Cauchy--Schwarz 不等式 $|\bm x^H\bm y|^2\le\|\bm x\|^2\|\bm y\|^2$，得到
+\begin{align}\label{detail:eq:cs-norms}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right\|^2\notag\\
+&\quad\times\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right\|^2.
+\end{align}
+\end{samepage}
+将两个范数平方分别展开，就得到：
+\begin{align}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t)\notag\\
+&\quad\times\bm a_r^H(\theta_i(t))\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}\!\bm a_r(\theta_i(t)).\label{detail:eq:cs}
+\end{align}
+式\,(\ref{detail:eq:cs}) 右侧第一项恰好是式\,(\ref{detail:eq:denominator}) 的分母；将式\,(\ref{detail:eq:cs}) 两侧除以该正数，就得到式\,(\ref{detail:eq:receive-optimization}) 的上界。Cauchy--Schwarz 不等式取等当且仅当式\,(\ref{detail:eq:sqrt-insertion}) 中的两个向量线性相关；将这一条件两侧乘以对应的逆平方根，可得 $\bm g_i(t)$ 与下式同方向，即相差非零复数倍：
+\begin{equation}\label{detail:eq:direction}
+\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t)).
+\end{equation}
+由此，满足论文单位范数要求的一个解为
+\begin{equation}\label{detail:eq:mvdr}
+\bm g_i^{\rm MVDR}(t)=
+\frac{\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))}
+{\left\|\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))\right\|}.
+\end{equation}
+其任意整体相位旋转也达到相同 SINR。经典无失真 MVDR 采用 $\bm g_i^H(t)\bm a_r(\theta_i(t))=1$ 的幅度归一化；式\,(\ref{detail:eq:mvdr}) 采用论文要求的单位范数，方向相同，约束不同。经典无失真 MVDR 的问题定义及闭式解证明见附录~\ref{app:classic}；相关文献为 Capon [1] 和 Vorobyov [2，第 2.2 节]。
+
+\textbf{退化情形。}若式\,(\ref{detail:eq:tx-factor}) 为零，包括 $\bm a_t^H(\theta_i(t))\bm w_i(t)=0$ 的情形，则回波分子为零，所有接收方向的 SINR 都为零；在 $\epsilon>0$ 时该方案不可行。上面的唯一方向结论针对目标增益非零、目标导向矢量非零的情况。
+
+
+由上述上界及取等条件，最大感知 SINR 的值为
+\begin{align}\label{detail:eq:maximum-value}
+&\max_{\|\bm g_i(t)\|^2=1}\operatorname{SINR}_i(t)\notag\\
+&=\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2
+\bm a_r^H(\theta_i(t))
+\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)
++\sigma^2\mathbf I\right)^{-1}\bm a_r(\theta_i(t)).
+\end{align}
+实际计算时，可先求解线性方程组
+\begin{equation}\label{detail:eq:solve}
+\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)
++\sigma^2\mathbf I\right)\bm x_i(t)=\bm a_r(\theta_i(t)),
+\quad
+\bm g_i^{\rm MVDR}(t)=\frac{\bm x_i(t)}{\|\bm x_i(t)\|}.
+\end{equation}
+此方式不需显式计算矩阵逆。综上，式~\eqref{detail:eq:mvdr} 是该时隙最大感知 SINR 的一个单位范数接收波束。命题得证。\hfill$\square$
+
+

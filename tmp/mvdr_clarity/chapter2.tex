@@ -1,0 +1,107 @@
+\section{MVDR 为什么不依赖尚未求得的发射波束}
+\subsection{代入论文原式，不省略物理变量}
+由式\,(\ref{eq:A}) 直接得到
+\begin{align}
+&\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\xi_0\rho d_i^{-4}(t)
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.\label{eq:factor}
+\end{align}
+因此原 SINR 完整地等于
+\begin{equation}\label{eq:factored}
+\frac{\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+考虑固定 UAV 位置、频谱共享变量 $\eta_{i,j}(t)$、CU 功率 $p_j(t)$ 和感知发射波束 $\bm w_i(t)$ 的情况。式\,(\ref{eq:factored}) 的分子中，下面这一项表示发射波束指向目标的增益及感知信道的路径增益：
+\begin{equation}\label{eq:tx-factor}
+\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.
+\end{equation}
+这一项只包含目标参数、位置及发射波束，没有接收波束 $\bm g_i(t)$；所以改变 $\bm g_i(t)$ 时，式\,(\ref{eq:tx-factor}) 的值不变。若该值大于零，将其作为正因子从最大化问题中提出，不改变最大值对应的接收波束。因此，求解接收波束时只需最大化：
+\begin{equation}\label{eq:receive-optimization}
+\max_{\|\bm g_i(t)\|^2=1}
+\frac{\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+式\,(\ref{eq:receive-optimization}) 中不再出现 $\bm w_i(t)$，这说明最优接收方向由目标接收导向、CU 信道、匹配、功率及噪声决定，与发射波束的具体取值无关。
+
+\subsection{最大 SINR 方向及严格上界}
+为求解式\,(\ref{eq:receive-optimization})，先将分母中的干扰和噪声统一写成关于 $\bm g_i(t)$ 的二次型。由于接收波束满足 $\|\bm g_i(t)\|^2=1$，所以
+\begin{equation}
+\sigma^2=\sigma^2\bm g_i^H(t)\bm g_i(t)
+=\bm g_i^H(t)(\sigma^2\mathbf I)\bm g_i(t).
+\end{equation}
+将噪声和每个 CU 的干扰一起写入括号，原分母等于
+\begin{align}\label{eq:denominator}
+&\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2\notag\\
+&=\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t).
+\end{align}
+由于频谱共享指标和 CU 发射功率均非负，对每个 $j$ 有 $\eta_{i,j}(t)p_j(t)\ge0$。对任意非零向量 $\bm v\in\mathbb C^{N\times1}$，有
+\begin{align}
+&\bm v^H\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm v\notag\\
+&=\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm h_{c_j,u_i}(t)\bm v\right|^2+\sigma^2\|\bm v\|^2>0.
+\end{align}
+虽然匹配 CU 的功率大于零，但当 $\bm v$ 与其信道正交时，对应干扰项仍可能为零。对任意非零 $\bm v$，上式的严格大于零由 $\sigma^2>0$ 保证。
+\begin{samepage}
+式\,(\ref{eq:denominator}) 括号中的各矩阵 $\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)$ 和 $\mathbf I$ 均为 Hermitian 矩阵，且对应系数均为实数，因此它们的加权和也是 Hermitian 矩阵；由上式，该矩阵对任意非零 $\bm v$ 的二次型均严格大于零，故它是正定矩阵，其正定平方根及逆平方根均存在。
+
+为说明接下来的推导，记式~\eqref{eq:denominator} 括号中的 Hermitian 正定矩阵为 $\mathbf Q_i(t)$，即 $\mathbf Q_i(t)=\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I$。式~\eqref{eq:receive-optimization} 是要求最大化的分式：其分子是 $|\bm g_i^H(t)\bm a_r(\theta_i(t))|^2$，分母是 $\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)|^2+\sigma^2$。由式~\eqref{eq:denominator}，这个分母等于 $\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)$。
+
+为利用 Cauchy--Schwarz 不等式得到式~\eqref{eq:receive-optimization} 的上界，在分子内积 $\bm g_i^H(t)\bm a_r(\theta_i(t))$ 中插入单位矩阵 $\mathbf Q_i^{1/2}(t)\mathbf Q_i^{-1/2}(t)=\mathbf I$。其中 $\mathbf Q_i^{1/2}(t)$ 为 $\mathbf Q_i(t)$ 的正定平方根，$\mathbf Q_i^{-1/2}(t)$ 为该平方根的逆矩阵。利用 $\mathbf Q_i^{1/2}(t)$ 的 Hermitian 性，可得
+\begin{align}\label{eq:sqrt-insertion}
+&\bm g_i^H(t)\bm a_r(\theta_i(t))\notag\\
+&=\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right]^H\notag\\
+&\quad\times\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right].
+\end{align}
+\end{samepage}
+\begin{samepage}
+这里相乘得到单位矩阵的是 $\mathbf Q_i^{1/2}(t)$ 与 $\mathbf Q_i^{-1/2}(t)$，即 $\mathbf Q_i^{1/2}(t)\mathbf Q_i^{-1/2}(t)=\mathbf I$。对式\,(\ref{eq:sqrt-insertion}) 右侧的两个向量应用复数 Cauchy--Schwarz 不等式 $|\bm x^H\bm y|^2\le\|\bm x\|^2\|\bm y\|^2$，得到
+\begin{align}\label{eq:cs-norms}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right\|^2\notag\\
+&\quad\times\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right\|^2.
+\end{align}
+\end{samepage}
+将两个范数平方分别展开，就得到：
+\begin{align}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t)\notag\\
+&\quad\times\bm a_r^H(\theta_i(t))\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}\!\bm a_r(\theta_i(t)).\label{eq:cs}
+\end{align}
+式~\eqref{eq:cs} 右侧的第一项 $\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)$ 等于式~\eqref{eq:receive-optimization} 的分母，等价关系由式~\eqref{eq:denominator} 给出。该分母为正，将式~\eqref{eq:cs} 两侧除以它，得到对任意单位范数接收波束均成立的不等式
+\begin{equation}\label{eq:receive-bound}
+\frac{|\bm g_i^H(t)\bm a_r(\theta_i(t))|^2}{\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)}
+\le\bm a_r^H(\theta_i(t))\mathbf Q_i^{-1}(t)\bm a_r(\theta_i(t)).
+\end{equation}
+右侧是式~\eqref{eq:receive-optimization} 的上界：任何满足约束的 $\bm g_i(t)$ 都不能使该分式超过它。上界本身不一定能达到，还需要证明存在可取等的接收波束。Cauchy--Schwarz 不等式取等当且仅当式~\eqref{eq:sqrt-insertion} 中的两个向量线性相关，即存在非零复数 $\alpha_i(t)$ 使 $\mathbf Q_i^{1/2}(t)\bm g_i(t)=\alpha_i(t)\mathbf Q_i^{-1/2}(t)\bm a_r(\theta_i(t))$。两侧左乘 $\mathbf Q_i^{-1/2}(t)$，得到
+\begin{equation}\label{eq:direction}
+\bm g_i(t)=\alpha_i(t)\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t)).
+\end{equation}
+为了满足 $\|\bm g_i(t)\|=1$，可选取 $\alpha_i(t)$ 为式\,(\ref{eq:direction}) 中矩阵逆与导向向量乘积的范数的倒数，得到一个单位范数解：
+\begin{equation}\label{eq:mvdr}
+\bm g_i^{\rm MVDR}(t)=
+\frac{\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))}
+{\left\|\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))\right\|}.
+\end{equation}
+将式~\eqref{eq:mvdr} 代入式~\eqref{eq:receive-bound} 时等号成立，因此式~\eqref{eq:receive-bound} 的上界可达到，并且就是式~\eqref{eq:receive-optimization} 的最大值。其任意整体相位旋转也达到相同 SINR。经典无失真 MVDR 采用 $\bm g_i^H(t)\bm a_r(\theta_i(t))=1$ 的幅度归一化；式\,(\ref{eq:mvdr}) 采用论文要求的单位范数，方向相同，约束不同。Capon [1] 是相关的原始文献；Vorobyov [2, 第 2 节] 讨论最大 SINR、MVDR 和模型误差。
+

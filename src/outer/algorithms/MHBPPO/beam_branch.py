@@ -18,7 +18,7 @@ from torch.distributions import Beta, kl_divergence
 
 from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
 from algorithms.MHBPPO.beam_pretraining import (
-    BEAM_HEAD_NAMES, file_sha256, isolated_torch_rng, teacher_beta_parameters,
+    BEAM_HEAD_NAMES, amplitude_phase_beams, file_sha256, isolated_torch_rng, teacher_beta_parameters,
 )
 from algorithms.MHBPPO.checkpoint import load_state_normalization
 from algorithms.MHBPPO.rollout_batch import actor_state_signature, normalization_signature
@@ -45,6 +45,8 @@ class DedicatedBeamActor(MultiHeadActor):
     def __init__(self, source_actor):
         if not isinstance(source_actor, MultiHeadActor) or isinstance(source_actor, DedicatedBeamActor):
             raise TypeError("source must be an unbranched MultiHeadActor")
+        if source_actor.receive_beam_mapping["receive_beam_phase_mode"] != "absolute":
+            raise ValueError("dedicated branch does not support phase_residual mapping")
         if source_actor.continuous_dist_type != "beta" or source_actor.structured_beam_alpha_effective != 1.0:
             raise ValueError("branch study requires the original Beta actor with alpha=1")
         device, dtype = source_actor.fc1.weight.device, source_actor.fc1.weight.dtype
@@ -99,7 +101,7 @@ def build_branch_actor(source_actor):
 
 
 def branch_dists(actor, states):
-    """Return real/imag Beta distributions from normalized state, never a cache."""
+    """Return amplitude/phase Beta distributions from normalized state."""
     if not isinstance(actor, DedicatedBeamActor):
         raise TypeError("branch_dists requires DedicatedBeamActor")
     parameter = next(actor.parameters())
@@ -150,16 +152,9 @@ def branch_training(actor):
             module.training = training
 
 
-def _unit_beams(real, imag, uavs, antennas, draws):
-    r = (2*real.sample((int(draws),))-1).reshape(int(draws), -1, uavs, antennas)
-    im = (2*imag.sample((int(draws),))-1).reshape(int(draws), -1, uavs, antennas)
-    raw = torch.complex(r, im)
-    norm = torch.linalg.vector_norm(raw, dim=-1, keepdim=True)
-    fallback = norm < 1e-12
-    beam = raw / norm.clamp_min(1e-12)
-    unit = torch.zeros_like(beam)
-    unit[..., 0] = 1
-    return torch.where(fallback, unit, beam), fallback
+def _unit_beams(amplitude, phase, uavs, antennas, draws):
+    return amplitude_phase_beams(amplitude.sample((int(draws),)),
+                                 phase.sample((int(draws),)), uavs, antennas)
 
 
 def evaluate_branch_target_gain(actor, normalized_states, teacher_g, *, draws=8,
@@ -179,8 +174,8 @@ def evaluate_branch_target_gain(actor, normalized_states, teacher_g, *, draws=8,
         actor.eval()
         with torch.no_grad(), isolated_torch_rng(seed, device):
             for start in range(0, len(teacher), int(batch_size)):
-                real, imag = branch_dists(actor, normalized_states[start:start+int(batch_size)])
-                beams, bad = _unit_beams(real, imag, uavs, antennas, draws)
+                amplitude, phase = branch_dists(actor, normalized_states[start:start+int(batch_size)])
+                beams, bad = _unit_beams(amplitude, phase, uavs, antennas, draws)
                 target = torch.as_tensor(teacher[start:start+int(batch_size)], dtype=beams.dtype, device=device)
                 numerator = torch.abs(torch.sum(target.conj().unsqueeze(0)*beams, dim=-1)).square()
                 denominator = torch.sum(torch.abs(target).square(), dim=-1).unsqueeze(0)
@@ -257,11 +252,11 @@ def train_branch(actor, arrays, normalizer, *, rho=.9, kappa=64., lr=1e-3,
             loss_sum, norm_sum, seen, batches = 0., 0., 0, 0
             for start in range(0, len(order), int(batch_size)):
                 index = torch.as_tensor(order[start:start+int(batch_size)], dtype=torch.long)
-                real, imag = branch_dists(actor, states_train[index])
+                amplitude, phase = branch_dists(actor, states_train[index])
                 alpha, beta = t_alpha[index].to(device), t_beta[index].to(device)
-                real_kl = kl_divergence(Beta(alpha[:, :dimension], beta[:, :dimension]), real)
-                imag_kl = kl_divergence(Beta(alpha[:, dimension:], beta[:, dimension:]), imag)
-                loss = torch.cat((real_kl, imag_kl), dim=-1).mean()
+                amplitude_kl = kl_divergence(Beta(alpha[:, :dimension], beta[:, :dimension]), amplitude)
+                phase_kl = kl_divergence(Beta(alpha[:, dimension:], beta[:, dimension:]), phase)
+                loss = torch.cat((amplitude_kl, phase_kl), dim=-1).mean()
                 if not torch.isfinite(loss):
                     raise ValueError("nonfinite branch KL")
                 optimizer.zero_grad(set_to_none=True)
@@ -335,6 +330,8 @@ def load_branch_checkpoint(path, *, device="cpu"):
     metadata_path = directory/"initialization_metadata.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8-sig"))
     architecture = metadata.get("architecture", {})
+    if architecture.get("receive_beam_phase_mode", "absolute") != "absolute":
+        raise ValueError("dedicated branch does not support phase_residual mapping")
     if (architecture.get("actor_class") != "DedicatedBeamActor" or
             architecture.get("architecture_contract") != BRANCH_ARCHITECTURE_CONTRACT or
             architecture.get("base_actor_strict_load_compatible") is not False):

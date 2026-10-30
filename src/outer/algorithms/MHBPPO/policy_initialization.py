@@ -23,16 +23,21 @@ OUTER_ROOT = Path(__file__).resolve().parents[2]
 PROTECTED_BEHAVIOR_FILES = (
     "algorithms/MHBPPO/MHBPPO_agent.py", "configs/base_params.py", "configs/seed_manager.py",
     "environment/my_env.py", "environment/channel_models.py", "environment/topology.py",
-    "environment/observation.py", "environment/mapping.py", "reward/my_reward.py",
+    "environment/observation.py", "environment/mapping.py", "environment/cu_tasks.py", "reward/my_reward.py",
     "reward/cccp_bridge.py", "reward/feasibility_diagnostics.py", "reward/solver_status.py",
-    "reward/sensing_penalty.py", "algorithms/MHBPPO/checkpoint.py",
+    "reward/sensing_penalty.py", "reward/episode_success_bonus.py",
+    "algorithms/MHBPPO/checkpoint.py",
     "algorithms/MHBPPO/policy_diagnostics.py", "algorithms/MHBPPO/rollout_batch.py",
     "../inner/parameters.py", "../inner/environment.py", "../inner/target_layout.py",
     "../inner/pc3p.py", "../inner/fusion_pc3p.py", "../inner/variables.py", "../inner/cccp_params.py",
 )
 ENVIRONMENT_MADRL_FIELDS = (
     "total_time_slots", "structured_beam_alpha", "sensing_penalty_coef",
-    "sensing_penalty_reference_factor", "randomize_layout_per_episode",
+    "sensing_penalty_reference_factor", "episode_success_bonus",
+    "cu_task_profile", "cu_task_l_kbit_min", "cu_task_l_kbit_max",
+    "cu_task_c_min", "cu_task_c_max", "cu_task_d_min", "cu_task_d_max",
+    "cu_task_slot_duration",
+    "randomize_layout_per_episode",
     "randomize_cu_traj_per_episode", "randomize_nlos_per_episode",
 )
 RESOURCE_FIELDS = frozenset({"mosek_num_threads", "worker_num_threads"})
@@ -77,6 +82,8 @@ def _same(first, second, label):
 
 
 def _base_architecture(architecture):
+    if architecture.get("receive_beam_phase_mode", "absolute") != "absolute":
+        raise ValueError("offline initialization/evaluation supports absolute phases only; phase_residual is unsupported")
     required = ("state_dim", "hidden_dim", "continuous_action_splits", "discrete_action_dims",
                 "continuous_dist_type", "structured_beam_alpha")
     if any(name not in architecture for name in required):
@@ -109,7 +116,10 @@ def actor_architecture_metadata(actor):
         "discrete_action_dims": list(actor.discrete_action_dims),
         "continuous_dist_type": actor.continuous_dist_type,
         "structured_beam_alpha": actor.structured_beam_alpha_effective,
-        "base_actor_strict_load_compatible": True}
+        "base_actor_strict_load_compatible": True,
+        **(actor.receive_beam_mapping if actor.receive_beam_mapping[
+            "receive_beam_phase_mode"] == "phase_residual" or actor.receive_beam_mapping[
+            "receive_beam_mapping_version"] in ("mvdr_complex_residual_v1", "mvdr_aligned_mix_v1", "matched_unit_norm_v1") else {})}
 
 
 def build_actor_for_architecture(architecture, *, device="cpu"):
@@ -240,7 +250,12 @@ def load_policy_initialization(directory, *, expected_architecture, expected_sce
     _same(metadata.get("seed"), int(expected_seed), "master seed")
     _same(metadata.get("scene_seed_offset"), int(expected_scene_seed_offset), "scene seed offset")
     scene = metadata.get("shared_exogenous_scene")
-    if not isinstance(scene, dict) or not isinstance(expected_scene, dict) or len(scene.get("component_sha256", {})) != 8:
+    components = scene.get("component_sha256") if isinstance(scene, dict) else None
+    expected_components = (expected_scene.get("component_sha256")
+                           if isinstance(expected_scene, dict) else None)
+    if (not isinstance(components, dict) or not isinstance(expected_components, dict)
+            or not expected_components or set(components) != set(expected_components)
+            or "cu_velocities" not in expected_components):
         raise ValueError("complete shared scene signature is required")
     _same(scene, expected_scene, "external scene/time series/physical constants")
     if (not isinstance(scene.get("signature"), str) or len(scene["signature"]) != 64 or
@@ -328,7 +343,7 @@ def load_policy_initialization(directory, *, expected_architecture, expected_sce
         else:
             if metadata["initialization_mode"] == "branch" and actor_class != "DedicatedBeamActor":
                 raise ValueError("format2 branch mode requires the dedicated actor class")
-            allowed = ("continuous_heads.uav_rec_beam_dir_real.", "continuous_heads.uav_rec_beam_dir_imag.")
+            allowed = ("continuous_heads.uav_rec_beam_amplitude.", "continuous_heads.uav_rec_beam_phase.")
             actual_state = actor.state_dict()
             for name, value in source_actor_state.items():
                 if not name.startswith(allowed) and (name not in actual_state or not torch.equal(value, actual_state[name])):

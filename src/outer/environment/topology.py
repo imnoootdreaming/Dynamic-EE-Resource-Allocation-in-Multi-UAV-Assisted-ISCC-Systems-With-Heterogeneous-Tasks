@@ -1,4 +1,4 @@
-"""场景拓扑：扇区分区部署、CU 马尔可夫轨迹、扇区内链式目标调度。
+"""场景拓扑：全局/分区圆周或随机目标、CU 轨迹及责任区目标调度。
 
 从 `environment/my_env.py` 抽离的、与环境状态机无关的拓扑类计算：
 
@@ -25,19 +25,31 @@ import numpy as np
 
 
 
-_RING_GENERATOR = None
+_TARGET_LAYOUT_MODULE = None
 
 
-def generate_ring_targets(*args, **kwargs):
+def _load_target_layout():
     """Load the shared inner/outer geometry without relying on sys.path order."""
-    global _RING_GENERATOR
-    if _RING_GENERATOR is None:
+    global _TARGET_LAYOUT_MODULE
+    if _TARGET_LAYOUT_MODULE is None:
         path = Path(__file__).resolve().parents[2] / "inner" / "target_layout.py"
         spec = importlib.util.spec_from_file_location("_iscc_target_layout", path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        _RING_GENERATOR = module.generate_sector_ring_targets
-    return _RING_GENERATOR(*args, **kwargs)
+        _TARGET_LAYOUT_MODULE = module
+    return _TARGET_LAYOUT_MODULE
+
+
+def generate_ring_targets(*args, **kwargs):
+    return _load_target_layout().generate_sector_ring_targets(*args, **kwargs)
+
+
+def generate_global_ring_targets(*args, **kwargs):
+    return _load_target_layout().generate_global_ring_targets(*args, **kwargs)
+
+
+def resolve_global_ring_hold_slots(*args, **kwargs):
+    return _load_target_layout().resolve_global_ring_hold_slots(*args, **kwargs)
 
 
 # ── 扇区划分工具（对齐 src/inner/environment.py 的分区责任制语义） ─────────────
@@ -91,6 +103,8 @@ def get_num_target_windows(total_time_slots, hold_slots):
 
 
 def validate_target_schedule_requirements(uavs_num, targets_num, total_time_slots, hold_slots):
+    if total_time_slots <= 0 or hold_slots <= 0 or total_time_slots % hold_slots != 0:
+        raise ValueError("total_time_slots must be positive and divisible by target_hold_slots; every target window must be complete")
     required_target_num = get_num_target_windows(total_time_slots, hold_slots) * uavs_num
     if targets_num != required_target_num:
         raise ValueError(
@@ -169,15 +183,21 @@ def generate_uav_target_schedule(uavs_num, targets_num, init_uavs_pos, init_targ
         return schedule, schedule_distances
 
     validate_target_schedule_requirements(uavs_num, targets_num, total_time_slots, hold_slots)
-    if target_layout not in ("random_sector", "sector_ring"):
+    if target_layout == "global_ring":
+        expected_hold = resolve_global_ring_hold_slots(uavs_num, targets_num, total_time_slots)
+        if hold_slots != expected_hold:
+            raise ValueError(f"global_ring requires hold_slots={expected_hold}, got {hold_slots}")
+    if target_layout not in ("random_sector", "sector_ring", "global_ring"):
         raise ValueError("Unknown target_layout: " + str(target_layout))
-    if target_layout == "sector_ring":
+    if target_layout in ("sector_ring", "global_ring"):
         sectors = np.asarray(target_sector if target_sector is not None else
                              sector_of(init_targets_pos, center, uavs_num), dtype=int)
         per_sector = targets_num // uavs_num
+        # Both generators store ascending IDs in visit order. For global_ring,
+        # IDs/positions stay fixed across UAV counts; only sector membership changes.
         by_sector = [np.flatnonzero(sectors == i) for i in range(uavs_num)]
         if any(len(indices) != per_sector for indices in by_sector):
-            raise ValueError("sector_ring requires equal target counts in every sector")
+            raise ValueError(f"{target_layout} requires equal target counts in every sector")
         reference = np.asarray(init_uavs_pos if initial_reference_positions is None else
                                initial_reference_positions, dtype=float).copy()
         for window_idx in range(get_num_target_windows(total_time_slots, hold_slots)):
@@ -256,13 +276,15 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
                  time_slot_duration=0.6, uav_min_speed=5.0, uav_max_speed=40.0,
                  target_ring_space_ratio=1.0 / 3.0, target_ring_move_ratio=0.85,
                  target_ring_direction="clockwise", uav_safe_distance=0.0,
+                 target_ring_radius_ratio=0.5,
                  return_layout_info=False):
     """扇区分区部署（对齐 inner 语义）：目标均分到 I 个等角扇区，UAV 各负责一个扇区。
 
     - CU：全区域圆盘均匀（r = R·sqrt(U)），z = 0；
-    - 目标：`counts = [K // I] * I`（余数补给前几个扇区），在各扇区内均匀采样，z = 0；
-    - UAV：锚定各扇区面积质心，随后在本扇区目标中取离质心最近者，
-      最终悬停在该目标正上方（水平坐标重合），z = uav_height。
+    - global_ring：整体中心固定圆周、目标ID沿访问方向排列，按极角划分责任区；
+    - sector_ring：各责任区面积质心处独立小圆；两种圆周布局从本区首个目标起飞；
+    - random_sector：各区内均匀采样，UAV从离扇区质心最近的目标起飞。
+      所有目标z=0，UAV初始高度为uav_height。
 
     :param rng: 显式随机源 `np.random.Generator`；None 时回退旧式全局 `np.random`
         （仅为兼容无 rng 的旧调用，并行采样 / 逐 episode 重生成场景必须显式传入）。
@@ -279,26 +301,33 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
     cus_pos[:, 0] = center[0] + r_cu * np.cos(theta_cu)
     cus_pos[:, 1] = center[1] + r_cu * np.sin(theta_cu)
 
-    if target_layout not in ("random_sector", "sector_ring"):
+    if target_layout not in ("random_sector", "sector_ring", "global_ring"):
         raise ValueError("Unknown target_layout: " + str(target_layout))
-    if target_layout == "sector_ring":
-        targets_pos, target_sector, layout_info = generate_ring_targets(
-            uavs_num, targets_num, center, radius,
-            hold_slots=target_hold_slots, time_slot_duration=time_slot_duration,
-            min_speed=uav_min_speed, max_speed=uav_max_speed,
-            space_ratio=target_ring_space_ratio, move_ratio=target_ring_move_ratio,
-            direction=target_ring_direction)
+    if target_layout in ("sector_ring", "global_ring"):
+        if target_layout == "global_ring":
+            targets_pos, target_sector, layout_info = generate_global_ring_targets(
+                uavs_num, targets_num, center, radius,
+                radius_ratio=target_ring_radius_ratio, direction=target_ring_direction)
+            first_indices = [order[0] for order in layout_info["visit_order"]]
+        else:
+            targets_pos, target_sector, layout_info = generate_ring_targets(
+                uavs_num, targets_num, center, radius,
+                hold_slots=target_hold_slots, time_slot_duration=time_slot_duration,
+                min_speed=uav_min_speed, max_speed=uav_max_speed,
+                space_ratio=target_ring_space_ratio, move_ratio=target_ring_move_ratio,
+                direction=target_ring_direction)
+            first_indices = np.arange(uavs_num) * (targets_num // uavs_num)
         # Preserve subsequent trajectory/NLoS random draws for layout-only comparisons.
         # These old draws are discarded; the actual ring targets are deterministic.
         for i in range(uavs_num):
             sample_in_sector(rng, targets_num // uavs_num, i, center, radius, uavs_num, 0.0)
-        uavs_pos = targets_pos[np.arange(uavs_num) * (targets_num // uavs_num)].copy()
+        uavs_pos = targets_pos[first_indices].copy()
         uavs_pos[:, 2] = uav_height
         if uavs_num > 1:
             distances = np.linalg.norm(uavs_pos[:, None, :] - uavs_pos[None, :, :], axis=2)
             distances[np.diag_indices(uavs_num)] = np.inf
             if np.min(distances) < uav_safe_distance:
-                raise ValueError("sector_ring initial UAV spacing violates uav_safe_distance; "
+                raise ValueError(f"{target_layout} initial UAV spacing violates uav_safe_distance; "
                                  "increase deploy_radius or reduce UAV count")
         layout_info["target_rng_semantics"] = "deterministic_ring_preserves_legacy_draws"
         result = (uavs_pos, cus_pos, targets_pos, target_sector)
@@ -352,11 +381,12 @@ def generate_cu_trajectory(init_cus_pos, cus_num, total_time_slots,
                            markov_velocity, markov_memory_level,
                            markov_asymptotic_mean_of_velocity,
                            markov_standard_deviation_of_velocity,
-                           time_slot_duration, seed):
+                           time_slot_duration, seed, *, return_velocities=False):
     """按一阶马尔可夫速度模型预计算 CU 轨迹（含 t=0 初始位置）。
 
     :param seed: int 种子或现成的 `np.random.Generator`；传 Generator 时直接复用
         （供逐 episode 场景重生成时注入已派生的独立随机流）。
+    :param return_velocities: 同时返回逐时隙三维速度；默认仅返回轨迹以兼容旧调用。
     """
     traj = np.zeros((total_time_slots + 1, cus_num, 3), dtype=float)
     velocities = np.zeros((total_time_slots + 1, cus_num, 2), dtype=float)
@@ -368,6 +398,10 @@ def generate_cu_trajectory(init_cus_pos, cus_num, total_time_slots,
     velocities[0] = np.tile(v_init, (cus_num, 1))
     rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
 
+    durations = np.broadcast_to(np.asarray(time_slot_duration, dtype=float), (total_time_slots,))
+    if not np.isfinite(durations).all() or np.any(durations <= 0):
+        raise ValueError("CU trajectory slot durations must be positive and finite")
+    # The Markov velocity transition remains once per decision slot.
     for t in range(total_time_slots):
         random_component = rng.normal(size=(cus_num, 2))
         v_bar = np.array(markov_asymptotic_mean_of_velocity)[:2]
@@ -378,7 +412,11 @@ def generate_cu_trajectory(init_cus_pos, cus_num, total_time_slots,
             * markov_standard_deviation_of_velocity
             * random_component
         )
-        traj[t + 1, :, :2] = traj[t, :, :2] + velocities[t] * time_slot_duration
+        traj[t + 1, :, :2] = traj[t, :, :2] + velocities[t] * durations[t]
         traj[t + 1, :, 2] = traj[t, :, 2]
 
+    if return_velocities:
+        velocities_3d = np.zeros((total_time_slots + 1, cus_num, 3), dtype=velocities.dtype)
+        velocities_3d[:, :, :2] = velocities
+        return traj, velocities_3d
     return traj

@@ -10,9 +10,9 @@ from dataclasses import dataclass
 import numpy as np
 
 try:
-    from .target_layout import generate_sector_ring_targets
+    from .target_layout import generate_sector_ring_targets, generate_global_ring_targets
 except ImportError:  # Direct execution from src/inner remains supported.
-    from target_layout import generate_sector_ring_targets
+    from target_layout import generate_sector_ring_targets, generate_global_ring_targets
 
 
 def _steering_vector(sin_phi, antenna_nums, d_over_lambda):
@@ -94,7 +94,13 @@ def _generate_positions(params, rng):
     q_cu_pos = sample_in_disk(params.J, 0.0)          # CU：全区域随机（不变）
 
     layout = getattr(params, "target_layout", "random_sector")
-    if layout == "sector_ring":
+    if layout == "global_ring":
+        q_target_pos, _, layout_info = generate_global_ring_targets(
+            params.I, params.K, params.bs_pos, params.deploy_radius,
+            radius_ratio=getattr(params, "target_ring_radius_ratio", 0.5),
+            direction=getattr(params, "target_ring_direction", "clockwise"))
+        first_indices = [order[0] for order in layout_info["visit_order"]]
+    elif layout == "sector_ring":
         # Shared validation runs before division by I or position allocation.
         q_target_pos, _, _ = generate_sector_ring_targets(
             params.I, params.K, params.bs_pos, params.deploy_radius,
@@ -105,25 +111,26 @@ def _generate_positions(params, rng):
             move_ratio=getattr(params, "target_ring_move_ratio", 0.85),
             direction=getattr(params, "target_ring_direction", "clockwise"),
         )
+        first_indices = np.arange(params.I) * (params.K // params.I)
     elif layout != "random_sector":
-        raise ValueError("target_layout must be 'sector_ring' or 'random_sector'")
+        raise ValueError("target_layout must be 'global_ring', 'sector_ring' or 'random_sector'")
 
     counts = [params.K // params.I] * params.I        # 目标均分，余数补给前几个扇区
     for i in range(params.K % params.I):
         counts[i] += 1
 
-    if layout == "sector_ring":
+    if layout in ("sector_ring", "global_ring"):
         # Keep legacy target draws so same-seed communication randomness is
         # comparable to random_sector; these draws do not determine targets.
         for i in range(params.I):
             _sample_in_sector(rng, counts[i], i, params, 0.0)
-        q_uav_pos = q_target_pos[np.arange(params.I) * (params.K // params.I)].copy()
+        q_uav_pos = q_target_pos[first_indices].copy()
         q_uav_pos[:, 2] = params.uav_height
         if params.I > 1:
             distances = np.linalg.norm(q_uav_pos[:, None, :] - q_uav_pos[None, :, :], axis=2)
             np.fill_diagonal(distances, np.inf)
             if np.min(distances) < params.uav_safe_distance:
-                raise ValueError("sector_ring initial UAV separation is below uav_safe_distance; "
+                raise ValueError(f"{layout} initial UAV separation is below uav_safe_distance; "
                                  "increase deployment radius or reduce UAV count")
     else:
         q_uav_pos = np.vstack([_sector_centroid(i, params) for i in range(params.I)])

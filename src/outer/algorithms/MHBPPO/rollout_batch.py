@@ -9,7 +9,8 @@ import math
 
 import numpy as np
 
-from algorithms.MHBPPO.policy_diagnostics import summarize_policy_distribution
+from algorithms.MHBPPO.policy_diagnostics import summarize_policy_distribution, merge_policy_distribution_summaries
+from algorithms.MHBPPO.energy_statistics import summarize_energy, merge_energy_statistics
 
 SYNC_ROLLOUT_CONTRACT = "shared_scene_complete_episode_batch_v1"
 ACTION_STREAM_DOMAIN = 0x4D484250  # Stable named domain: MHBP policy actions.
@@ -157,9 +158,10 @@ def _sensing_summary(traces):
               and outcome.get("sensing_penalty_score") is not None
               and np.isfinite(outcome["sensing_penalty_score"])]
     unavailable = sum(outcome.get("sensing_penalty_status") == "unavailable" for outcome in outcomes)
+    removed = any(outcome.get("sensing_penalty_status") == "removed" for outcome in outcomes)
     return {
         "avg_base_reward": float(np.mean([outcome.get("base_reward", outcome["total_reward"]) for outcome in outcomes])),
-        "avg_sensing_penalty_score": float(np.mean(scores)) if scores else (float("nan") if unavailable else 0.0),
+        "avg_sensing_penalty_score": float(np.mean(scores)) if scores else (float("nan") if unavailable or removed else 0.0),
         "avg_sensing_penalty_applied": float(np.mean([outcome.get("sensing_penalty_applied", 0.0) for outcome in outcomes])),
         "sensing_penalty_score_valid_count": len(scores),
         "sensing_penalty_unavailable_count": unavailable,
@@ -175,6 +177,9 @@ def assemble_rollout_batch(items, *, continuous_action_splits=None):
     if len(set(worker_ids)) != len(worker_ids):
         raise ValueError("duplicate worker result in one rollout batch")
     first = episodes[0]
+    levels = {item.get("log_detail_level", "full") for item in episodes}
+    if len(levels) != 1:
+        raise ValueError("cannot mix logging schemas in one rollout batch")
     for name in ("collection_round", "weights_version", "weights_checksum", "actor_signature",
                  "norm_signature", "scene_signature", "action_probability_metadata", "diagnostics_enabled"):
         if any(item.get(name) != first.get(name) for item in episodes[1:]):
@@ -190,7 +195,9 @@ def assemble_rollout_batch(items, *, continuous_action_splits=None):
     traces = [trace for item in episodes for trace in item["action_traces"]]
     total = len(traces)
     split = continuous_action_splits or first.get("continuous_action_splits")
-    if split is None:
+    if first.get("log_detail_level") == "compact":
+        summary = merge_policy_distribution_summaries([item["policy_distribution_summary"] for item in episodes])
+    elif split is None:
         summary = {"available": False, "steps": 0}
     else:
         summary = summarize_policy_distribution(traces, split)
@@ -200,6 +207,9 @@ def assemble_rollout_batch(items, *, continuous_action_splits=None):
         for kind, number in item["solver_status_counts"].items():
             solver_counts[kind] = solver_counts.get(kind, 0)+int(number)
     result = dict(first)
+    all_slots_success_count = sum(bool(item.get("all_slots_success", False)) for item in episodes)
+    episode_success_bonus_total = sum(
+        float(item.get("episode_success_bonus_total", 0.0)) for item in episodes)
     result.update({
         "rollout_batch_contract": SYNC_ROLLOUT_CONTRACT,
         "episodes": episodes, "num_envs": len(episodes), "batch_size": total,
@@ -208,10 +218,18 @@ def assemble_rollout_batch(items, *, continuous_action_splits=None):
         "policy_distribution_summary": summary, "state_norm_count": total,
         "avg_total_reward": weighted("avg_total_reward"),
         "avg_bs_reward": weighted("avg_bs_reward"), "avg_obj_fun": weighted("avg_obj_fun"),
+        "energy_statistics": merge_energy_statistics([
+            item["energy_statistics"] if "energy_statistics" in item
+            else summarize_energy(item["action_traces"]) for item in episodes]),
         "solver_status_counts": solver_counts,
         "action_min": min(item["action_min"] for item in episodes),
         "action_max": max(item["action_max"] for item in episodes),
         "collection_seconds": max(float(item.get("collection_seconds", 0.0)) for item in episodes),
+        "all_slots_success_count": all_slots_success_count,
+        "all_slots_success_rate": 100.0 * all_slots_success_count / len(episodes),
+        "episode_success_bonus_total": episode_success_bonus_total,
+        "avg_episode_success_bonus": episode_success_bonus_total / len(episodes),
+        "avg_episode_success_bonus_per_transition": episode_success_bonus_total / total,
         **_sensing_summary(traces),
     })
     for key in ("completion_rate", "finite_obj_rate", "no_solution_rate", "collision_rate", "spectrum_penalty_rate"):

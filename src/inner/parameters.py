@@ -29,8 +29,9 @@ class Parameters:
     J: int = 10                         # CU 数量
     K: int = 40                         # target 数量
 
-    # ── 目标布局：每扇区独立圆周，半径随区域、扇区和移动预算自适应 ─────────
-    target_layout: str = "sector_ring"  # sector_ring / random_sector
+    # ── 目标布局：全局固定圆周；旧布局仍可显式选择 ──────────────────────
+    target_layout: str = "global_ring"  # global_ring / sector_ring / random_sector
+    target_ring_radius_ratio: float = 0.5       # 全局圆半径 / 整体部署半径，不随 UAV 数变化
     target_ring_space_ratio: float = 1.0 / 3.0  # 整圆可容纳半径的比例
     target_ring_move_ratio: float = 0.85        # 参考窗口移动预算的比例
     target_ring_direction: str = "clockwise"   # clockwise / counterclockwise
@@ -74,7 +75,7 @@ class Parameters:
     D_max_sen: float = 0.2               # D^sen_max，感知任务最大容忍时延 (s)
     D_max_cu_delay: float = 0.6          # D^max_j，CU 娱乐任务最大容忍时延 (s)
     L_cu_task_bits: float = 170e3        # L_j，CU 娱乐任务数据量 (bits)
-    varkappa: int = 4                    # ϰ，一个感知窗口包含的时隙数
+    varkappa: int = 4                    # ϰ，旧布局窗口；global_ring 外层按 T*I/K 解析有效值
     tau_slot: float = 0.6                # τ，时隙长度 (s)
 
     # ── 求解器数值尺度（仅改变变量的度量单位，不改变任何公式） ────────────

@@ -1,0 +1,237 @@
+\section{MVDR 接收波束的全局最优性证明}
+
+\noindent\textbf{定理。}考虑论文中的系统能耗最小化问题 $P0$。假设 $P0$ 存在全局最优解，感知信道矩阵的完整表达式为
+\begin{equation}\label{eq:theorem-channel}
+\mathbf A(\theta_i(t))=\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t)).
+\end{equation}
+该矩阵由接收与发射导向向量的外积构成，其每一列都是接收导向向量的标量倍数，故其秩不超过 $1$；当 $\xi_0\rho>0$ 且两个导向向量均非零时，矩阵非零，故其秩为 $1$。对所有 UAV 和时隙，设 $\sigma^2>0$、$p_j(t)\ge0$、$\bm a_r(\theta_i(t))\ne\bm0$、$\omega_2\ge0$，感知发射、卸载发射和接收波束均属于 $\mathbb C^{N\times1}$。
+
+则 $P0$ 至少存在一个全局最优解，其每个 UAV 在每个时隙的接收波束可以取为
+\begin{equation}\label{eq:unified-theorem}
+\bm g_i^{\rm MVDR}(t)=
+\frac{\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))}
+{\left\|\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))\right\|}.
+\end{equation}
+
+\medskip
+\noindent\textbf{证明。}分两步证明。首先从感知信道及 SINR 的原始表达式出发，推导式~\eqref{eq:unified-theorem}；然后构造可行解，证明该接收波束可用于 $P0$ 的全局最优解。
+
+\subsection{第一步：推导 MVDR 接收波束}
+
+任取 UAV $u_i$ 和时隙 $t$，固定 $P0$ 中除 $\bm g_i(t)$ 以外的所有优化变量，即各时隙的
+\begin{align*}
+&\bm w_{i'}(t'),\ \bm b_{i'}(t'),\ \bm q_{u_{i'}}(t'),\ D_{u_{i'}}^{\rm off}(t'),\ f_{u_{i'}}(t'),\\
+&p_{j'}(t'),\ D_{c_{j'}}^{\rm off}(t'),\ f_{c_{j'}}(t'),\ \eta_{i',j'}(t'),\\
+&\bm g_{i'}(t')\quad\text{其中 }(i',t')\ne(i,t).
+\end{align*}
+以上指标 $i',j',t'$ 遍历各 UAV、CU 和时隙。考虑以下原始感知信道模型和感知 SINR：
+\begin{equation}\label{detail:eq:channel}
+\mathbf A(\theta_i(t))
+=\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t)),
+\end{equation}
+\begin{equation}\label{detail:eq:original-sinr}
+\operatorname{SINR}_i(t)=
+\frac{\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+其中 $\bm a_r$、$\bm a_t$ 是接收和发射导向向量，$\bm h_{c_j,u_i}(t)\in\mathbb C^{1\times N}$ 为 CU 到 UAV 的信道，$\eta_{i,j}(t)$ 和 $p_j(t)$ 分别为频谱共享指标和 CU 发射功率；$d_i(t)>0$ 是 UAV 到目标的距离，$\xi_0\ge0$、$\rho\ge0$ 为信道参数，$\sigma^2$ 是噪声功率。下面推导最大感知 SINR 对应的接收波束。
+
+任取 UAV $u_i$ 和时隙 $t$。首先将式~\eqref{detail:eq:channel} 代入回波幅值，并利用标量乘法的结合律，逐步得到
+\begin{samepage}
+\begin{align}
+&\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\left|\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm g_i^H(t)\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\xi_0\rho d_i^{-4}(t)
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.\label{detail:eq:factor}
+\end{align}
+\end{samepage}
+将上式代入原始 SINR 定义~\eqref{detail:eq:original-sinr}，得到
+\begin{equation}\label{detail:eq:factored}
+\frac{\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+在上述其他优化变量固定的条件下，式\,(\ref{detail:eq:factored}) 的分子中，下面这一项表示发射波束指向目标的增益及感知信道的路径增益：
+\begin{equation}\label{detail:eq:tx-factor}
+\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.
+\end{equation}
+这一项只包含目标参数、位置及发射波束，没有接收波束 $\bm g_i(t)$；所以改变 $\bm g_i(t)$ 时，式\,(\ref{detail:eq:tx-factor}) 的值不变。若该值大于零，将其作为正因子从最大化问题中提出，不改变最大值对应的接收波束。因此，求解接收波束时只需最大化：
+\begin{equation}\label{detail:eq:receive-optimization}
+\max_{\|\bm g_i(t)\|^2=1}
+\frac{\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+式\,(\ref{detail:eq:receive-optimization}) 中不再出现 $\bm w_i(t)$，这说明最优接收方向由目标接收导向、CU 信道、匹配、功率及噪声决定，与发射波束的具体取值无关。若式\,(\ref{detail:eq:tx-factor}) 为零，所有接收波束的感知 SINR 均为零。
+
+为求解式\,(\ref{detail:eq:receive-optimization})，先将分母中的干扰和噪声统一写成关于 $\bm g_i(t)$ 的二次型。由于接收波束满足 $\|\bm g_i(t)\|^2=1$，所以
+\begin{equation}
+\sigma^2=\sigma^2\bm g_i^H(t)\bm g_i(t)
+=\bm g_i^H(t)(\sigma^2\mathbf I)\bm g_i(t).
+\end{equation}
+将噪声和每个 CU 的干扰一起写入括号，原分母等于
+\begin{align}\label{detail:eq:denominator}
+&\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2\notag\\
+&=\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t).
+\end{align}
+由于 $\sigma^2>0$ 且 $\eta_{i,j}(t)p_j(t)\ge0$，对任意满足 $\|\bm g_i(t)\|=1$ 的接收波束，有
+\begin{samepage}
+\begin{align}
+&\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t)\notag\\
+&=\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm h_{c_j,u_i}(t)\bm g_i(t)\right|^2+\sigma^2>0.
+\end{align}
+\end{samepage}
+由于这里的 $\bm g_i(t)$ 是任意单位向量，而任何非零向量都能缩放为单位向量，故式~\eqref{detail:eq:denominator} 括号中的矩阵对所有非零向量的二次型均严格为正。同时，每个 $\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)$ 和 $\mathbf I$ 都是 Hermitian 矩阵，且系数为实数，因此该矩阵是 Hermitian 正定矩阵。
+
+为简化文字，记这个矩阵为 $\mathbf Q_i(t)=\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I$。它的正定平方根 $\mathbf Q_i^{1/2}(t)$ 与逆平方根 $\mathbf Q_i^{-1/2}(t)$ 存在，且 $\mathbf Q_i^{1/2}(t)\mathbf Q_i^{-1/2}(t)=\mathbf I$。
+
+式~\eqref{detail:eq:receive-optimization} 中的分子是 $|\bm g_i^H(t)\bm a_r(\theta_i(t))|^2$，分母是 $\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)|\bm g_i^H(t)\bm h_{c_j,u_i}^H(t)|^2+\sigma^2$，根据式~\eqref{detail:eq:denominator}，分母也可写为 $\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)$。为将分子与该分母联系起来，在分子的内积 $\bm g_i^H(t)\bm a_r(\theta_i(t))$ 中插入 $\mathbf Q_i^{1/2}(t)\mathbf Q_i^{-1/2}(t)=\mathbf I$，得到
+\begin{samepage}
+\begin{align}\label{detail:eq:sqrt-insertion}
+&\bm g_i^H(t)\bm a_r(\theta_i(t))\notag\\
+&=\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right]^H\notag\\
+&\quad\times\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right].
+\end{align}
+\end{samepage}
+\begin{samepage}
+根据 $\mathbf Q_i^{1/2}(t)\mathbf Q_i^{-1/2}(t)=\mathbf I$，对式\,(\ref{detail:eq:sqrt-insertion}) 右侧的两个向量应用复数 Cauchy--Schwarz 不等式 $|\bm x^H\bm y|^2\le\|\bm x\|^2\|\bm y\|^2$，得到
+\begin{align}\label{detail:eq:cs-norms}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right\|^2\notag\\
+&\quad\times\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right\|^2.
+\end{align}
+\end{samepage}
+将两个范数平方分别展开，就得到：
+\begin{align}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t)\notag\\
+&\quad\times\bm a_r^H(\theta_i(t))\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}\!\bm a_r(\theta_i(t)).\label{detail:eq:cs}
+\end{align}
+式\,(\ref{detail:eq:cs}) 右侧第一项 $\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)$ 是式\,(\ref{detail:eq:receive-optimization}) 的分母；式\,(\ref{detail:eq:denominator}) 则是将该分母写成二次型的等式。将式\,(\ref{detail:eq:cs}) 两侧除以这个正数，可得
+\begin{equation}\label{detail:eq:upper-bound}
+\frac{|\bm g_i^H(t)\bm a_r(\theta_i(t))|^2}{\bm g_i^H(t)\mathbf Q_i(t)\bm g_i(t)}
+\le\bm a_r^H(\theta_i(t))\mathbf Q_i^{-1}(t)\bm a_r(\theta_i(t)).
+\end{equation}
+这表示右侧是式\,(\ref{detail:eq:receive-optimization}) 目标值的上界；只有当某个可行接收波束能够达到它时，它才是该问题的最大值。
+
+Cauchy--Schwarz 不等式取等当且仅当式\,(\ref{detail:eq:sqrt-insertion}) 中的两个向量线性相关，即存在非零复数 $\alpha_i(t)$，使 $\mathbf Q_i^{1/2}(t)\bm g_i(t)=\alpha_i(t)\mathbf Q_i^{-1/2}(t)\bm a_r(\theta_i(t))$。两侧左乘 $\mathbf Q_i^{-1/2}(t)$，得到
+\begin{equation}\label{detail:eq:direction}
+\bm g_i(t)=\alpha_i(t)\mathbf Q_i^{-1}(t)\bm a_r(\theta_i(t)).
+\end{equation}
+因 $\mathbf Q_i(t)$ 正定且 $\bm a_r(\theta_i(t))\ne\bm0$，$\mathbf Q_i^{-1}(t)\bm a_r(\theta_i(t))\ne\bm0$。取 $\alpha_i(t)=1/\|\mathbf Q_i^{-1}(t)\bm a_r(\theta_i(t))\|$，即可使 $\|\bm g_i(t)\|=1$ 且式\,(\ref{detail:eq:upper-bound}) 取等。因此，上界能够达到，就是式\,(\ref{detail:eq:receive-optimization}) 的最大值，其一个单位范数接收波束为
+\begin{equation}\label{detail:eq:mvdr}
+\bm g_i^{\rm MVDR}(t)=
+\frac{\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))}
+{\left\|\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))\right\|}.
+\end{equation}
+经典无失真 MVDR 的问题定义及闭式解证明见附录~\ref{app:classic}；相关文献为 Capon [1] 和 Vorobyov [2，第 2.2 节]。
+
+
+
+
+综上，式~\eqref{detail:eq:mvdr} 即为定理中的式~\eqref{eq:unified-theorem}，也是该时隙最大感知 SINR 的一个单位范数接收波束。
+
+
+
+\subsection{第二步：证明 MVDR 接收波束可用于 P0 的全局最优解}
+
+任取 $P0$ 的一个可行解 $\tilde{\bm\zeta}$，保留其中所有时隙的轨迹、频谱匹配、CU 功率、卸载波束、卸载时长及计算频率。对任意 UAV $u_i$ 和时隙 $t$，采用第一步的式~\eqref{detail:eq:mvdr} 所得接收波束 $\bm g_i^{\rm MVDR}(t)$。在保持该可行解的其他变量和感知发射波束不变时，该接收波束使感知 SINR 达到最大值。即使原发射目标增益为零，该向量仍为最大 SINR 的一个解。
+
+记原可行解中的感知发射与接收波束分别为 $\tilde{\bm w}_i(t)$ 和 $\tilde{\bm g}_i(t)$，原感知 SINR 为
+\begin{equation}\label{eq:new-old-sinr}
+\tilde s_i(t)=\frac{\left|\tilde{\bm g}_i^H(t)\mathbf A(\theta_i(t))\tilde{\bm w}_i(t)\right|^2}{\displaystyle\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)\left|\tilde{\bm g}_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+保持 $\tilde{\bm w}_i(t)$ 不变，先以 $\bm g_i^{\rm MVDR}(t)$ 替换原接收波束，记此时的感知 SINR 为 $\hat s_i(t)$。根据上述最大化结论，
+\begin{equation}\label{eq:new-ineq}
+\hat s_i(t)\ge\tilde s_i(t)\ge0.
+\end{equation}
+由式~\eqref{eq:new-ineq}，存在 $c_i(t)\in[0,1]$，使得
+\begin{equation}\label{eq:new-scale}
+c_i^2(t)\hat s_i(t)=\tilde s_i(t).
+\end{equation}
+这是因为 $c_i^2(t)\hat s_i(t)$ 在 $c_i(t)\in[0,1]$ 上连续取遍 $[0,\hat s_i(t)]$；若 $\hat s_i(t)=0$，则 $\tilde s_i(t)=0$，可取 $c_i(t)=0$。
+构造新的感知发射波束 $\bm w'_i(t)=c_i(t)\tilde{\bm w}_i(t)$。因此新解的感知 SINR $s'_i(t)$ 与感知发射功率满足
+\begin{samepage}
+\begin{align}\label{eq:new-same-sinr}
+s'_i(t)&=c_i^2(t)\hat s_i(t)=\tilde s_i(t),\\
+\|\bm w'_i(t)\|^2&=c_i^2(t)\|\tilde{\bm w}_i(t)\|^2\le\|\tilde{\bm w}_i(t)\|^2.\label{eq:new-power}
+\end{align}
+\end{samepage}
+对所有 UAV 和时隙分别执行上述构造，所得解记为 $\bm\zeta'$。下面验证其满足 $P0$ 的约束。
+
+首先，接收波束满足单位范数约束；由式~\eqref{eq:new-power} 及原解可行性，感知发射功率仍不超过上限。由于式~\eqref{eq:new-same-sinr} 保持感知 SINR 不变，原有感知 SINR 阈值仍成立。论文模型的感知信息速率为
+\begin{equation}\label{eq:new-rate-formula}
+R_i^{\rm sen}(t)=\frac{\delta}{2\nu}\log_2\!\left(1+2\sigma_{\rm pre}^2\gamma^2B^3\nu\,s_i(t)\right),
+\end{equation}
+其中 $s_i(t)$ 为感知 SINR。由此新旧感知速率及数据量相等：
+\begin{equation}\label{eq:new-same-rate}
+R_i^{\rm sen\prime}(t)=\tilde R_i^{\rm sen}(t),\qquad
+\bar D^{\rm sen}R_i^{\rm sen\prime}(t)=\bar D^{\rm sen}\tilde R_i^{\rm sen}(t).
+\end{equation}
+论文中的感知数据完整卸载和计算时延约束分别为
+\begin{align}\label{eq:new-model-off}
+D_{u_i}^{\rm off}(t) R_i^{\rm off}(t)&\ge\bar D^{\rm sen}R_i^{\rm sen}(t),\\
+\bar D^{\rm sen}+D_{u_i}^{\rm off}(t)+\frac{C^{\rm sen}\bar D^{\rm sen}R_i^{\rm sen}(t)}{f_{u_i}(t)}&\le D_{\max}^{\rm sen}.\label{eq:new-model-delay}
+\end{align}
+由于卸载波束、卸载时长和计算频率均保持原值，感知任务卸载速率 $R_i^{\rm off}(t)$ 不变；结合原解的可行性，得
+\begin{align}
+\bar D^{\rm sen}R_i^{\rm sen\prime}(t)&=\bar D^{\rm sen}\tilde R_i^{\rm sen}(t)\le\tilde D_{u_i}^{\rm off}(t)\tilde R_i^{\rm off}(t),\label{eq:new-off}\\
+\bar D^{\rm sen}+\tilde D_{u_i}^{\rm off}(t)+\frac{C^{\rm sen}\bar D^{\rm sen}R_i^{\rm sen\prime}(t)}{\tilde f_{u_i}(t)}&\le D_{\max}^{\rm sen}.\label{eq:new-delay}
+\end{align}
+故感知数据完整卸载与计算时延约束仍满足。原模型中对应的 BS 感知计算能耗也不变，其表达式为
+\[
+\kappa C^{\rm sen}\bar D^{\rm sen}R_i^{\rm sen}(t) f_{u_i}^2(t).
+\]
+
+其次，对于与 UAV $u_i$ 共享频谱的 CU $c_j$，感知阶段的 CU 卸载速率为
+\begin{equation}\label{eq:new-cu-rate}
+R_{i,j}^{(1)}(t)=B\log_2\!\left(1+\frac{p_j(t)|h_{c_j,\rm BS}(t)|^2}{|\bm h_{u_i,\rm BS}^H(t)\bm w_i(t)|^2+\sigma^2}\right).
+\end{equation}
+而新解的感知发射干扰满足
+\begin{equation}\label{eq:new-interference}
+\left|\bm h_{u_i,\mathrm{BS}}^H(t)\bm w'_i(t)\right|^2=c_i^2(t)\left|\bm h_{u_i,\mathrm{BS}}^H(t)\tilde{\bm w}_i(t)\right|^2\le\left|\bm h_{u_i,\mathrm{BS}}^H(t)\tilde{\bm w}_i(t)\right|^2.
+\end{equation}
+由式~\eqref{eq:new-cu-rate} 和~\eqref{eq:new-interference}，第一阶段速率不降低，即 $R_{i,j}^{(1)\prime}(t)\ge\tilde R_{i,j}^{(1)}(t)$。第二、第三阶段速率及各阶段时长保持不变，而第一阶段在 CU 已卸载数据量中具有非负系数 $\eta_{i,j}(t)\bar D^{\rm sen}$，故 CU 成功卸载约束仍成立。其余变量和约束均未改变，包括跨时隙轨迹约束，故 $\bm\zeta'$ 是 $P0$ 的可行解。
+
+最后比较目标值。令 $E_{P0}(\cdot)$ 表示系统长期平均加权能耗。BS 计算能耗、CU 能耗、UAV 卸载能耗与飞行能耗均不变，感知发射能耗为 $\bar D^{\rm sen}\|\bm w_i(t)\|^2$，故
+\begin{align}\label{eq:new-objective}
+E_{P0}(\bm\zeta')-E_{P0}(\tilde{\bm\zeta})
+&=-\frac{\omega_2\bar D^{\rm sen}}{t_{\max}}\sum_{t=1}^{t_{\max}}\sum_{u_i\in\mathcal U}\bigl(1-c_i^2(t)\bigr)\left\|\tilde{\bm w}_i(t)\right\|^2\le0.
+\end{align}
+现令 $\bm\zeta^\star$ 为 $P0$ 的一个全局最优解，$E_{P0}^\star=E_{P0}(\bm\zeta^\star)$。对其执行上述构造，得到采用 MVDR 接收波束的可行解 $\bm\zeta^{\rm MVDR}$。由式~\eqref{eq:new-objective}，
+\begin{equation}\label{eq:new-opt-upper}
+E_{P0}(\bm\zeta^{\rm MVDR})\le E_{P0}(\bm\zeta^\star)=E_{P0}^\star.
+\end{equation}
+另一方面，由于 $\bm\zeta^{\rm MVDR}$ 对 $P0$ 可行，且 $E_{P0}^\star$ 是全局最小值，有
+\begin{equation}\label{eq:new-opt-lower}
+E_{P0}(\bm\zeta^{\rm MVDR})\ge E_{P0}^\star.
+\end{equation}
+结合上述两式可得 $E_{P0}(\bm\zeta^{\rm MVDR})=E_{P0}^\star$。因此，$\bm\zeta^{\rm MVDR}$ 是 $P0$ 的一个全局最优解，定理得证。\hfill$\square$
+
+

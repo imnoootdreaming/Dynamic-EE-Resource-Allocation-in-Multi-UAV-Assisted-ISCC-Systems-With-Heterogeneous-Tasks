@@ -1,7 +1,8 @@
-"""Shared deterministic sector-ring target geometry for inner and outer environments.
+"""Shared deterministic ring target geometry for inner and outer environments.
 
-The radius combines space inside each responsibility sector with a reference
-movement budget. This is a scenario-design rule, not a solver feasibility bound.
+global_ring uses a fixed fraction of the deployment radius. The legacy
+sector_ring combines sector containment with a reference movement budget.
+These are scenario-design rules, not solver feasibility bounds.
 Only NumPy is required; target generation does not consume any random state.
 """
 
@@ -29,6 +30,66 @@ def _finite_number(name, value, *, positive=False, nonnegative=False):
         requirement = "positive and finite" if positive else "nonnegative and finite" if nonnegative else "finite"
         raise ValueError(f"{name} must be {requirement}, got {value!r}")
     return number
+
+
+def resolve_global_ring_hold_slots(uavs_num, targets_num, total_time_slots):
+    """Equal responsibility and complete windows: h = T / (K / I)."""
+    uavs_num = _positive_integer("uavs_num", uavs_num)
+    targets_num = _positive_integer("targets_num", targets_num)
+    total_time_slots = _positive_integer("total_time_slots", total_time_slots)
+    if targets_num < uavs_num or targets_num % uavs_num:
+        raise ValueError("global_ring requires targets_num >= uavs_num and targets_num % uavs_num == 0")
+    per_uav = targets_num // uavs_num
+    if total_time_slots % per_uav:
+        raise ValueError("global_ring requires total_time_slots divisible by targets_num / uavs_num")
+    return total_time_slots // per_uav
+
+
+def generate_global_ring_targets(uavs_num, targets_num, center, deploy_radius, *,
+                                 radius_ratio=0.5, direction="clockwise", target_height=0.0):
+    """One global circle; target coordinates and IDs are independent of UAV count.
+
+    Half a target-spacing offset avoids sector boundaries for every divisor of K.
+    IDs follow the requested direction globally; each sector's ascending IDs are
+    therefore also its visit order. No speed/window bound clips the chosen radius.
+    """
+    uavs_num = _positive_integer("uavs_num", uavs_num)
+    targets_num = _positive_integer("targets_num", targets_num)
+    if targets_num < uavs_num or targets_num % uavs_num:
+        raise ValueError("global_ring requires targets_num >= uavs_num and targets_num % uavs_num == 0")
+    deploy_radius = _finite_number("deploy_radius", deploy_radius, positive=True)
+    radius_ratio = _finite_number("radius_ratio", radius_ratio, positive=True)
+    if radius_ratio >= 1.0:
+        raise ValueError("radius_ratio must lie strictly between 0 and 1")
+    if direction not in ("clockwise", "counterclockwise"):
+        raise ValueError("direction must be 'clockwise' or 'counterclockwise'")
+    target_height = _finite_number("target_height", target_height)
+    try:
+        center = np.asarray(center, dtype=float)
+    except (TypeError, ValueError):
+        raise ValueError("center must contain two or three finite coordinates") from None
+    if center.shape not in ((2,), (3,)) or not np.all(np.isfinite(center)):
+        raise ValueError("center must contain two or three finite coordinates")
+    base_angles = (np.arange(targets_num) + 0.5) * (2.0 * np.pi / targets_num)
+    angles = 2.0 * np.pi - base_angles if direction == "clockwise" else base_angles
+    ring_radius = radius_ratio * deploy_radius
+    targets = np.empty((targets_num, 3), dtype=float)
+    targets[:, :2] = center[:2] + ring_radius * np.column_stack((np.cos(angles), np.sin(angles)))
+    targets[:, 2] = target_height
+    sectors = np.minimum((angles / (2.0 * np.pi / uavs_num)).astype(np.int64), uavs_num - 1)
+    visit_order = [np.flatnonzero(sectors == i).tolist() for i in range(uavs_num)]
+    info = {
+        "layout": "global_ring", "geometry_contract": "fixed_global_ring_v1",
+        "center": [float(center[0]), float(center[1]), target_height],
+        "ring_radius": float(ring_radius), "radius_ratio": radius_ratio,
+        "deploy_radius": deploy_radius, "targets_per_sector": targets_num // uavs_num,
+        "direction": direction, "visit_order": visit_order,
+        "first_target_angle": float(angles[0]),
+        "adjacent_distance": 0.0 if targets_num == 1 else float(2.0 * ring_radius * np.sin(np.pi / targets_num)),
+        "radius_rule": "radius_ratio * deploy_radius; independent of UAV count and window length",
+        "target_rng_semantics": "deterministic_ring_preserves_legacy_draws",
+    }
+    return targets, sectors, info
 
 
 def generate_sector_ring_targets(uavs_num, targets_num, center, deploy_radius, *,

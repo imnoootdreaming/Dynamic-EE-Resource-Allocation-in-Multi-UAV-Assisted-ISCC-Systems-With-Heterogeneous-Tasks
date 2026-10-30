@@ -1,4 +1,4 @@
-"""Resolve only unknown solver outcomes using fixed-action sensing constraints.
+"""Certify fixed-action sensing infeasibility before solving or after unknown outcomes.
 
 The certificate uses the actual P5 G/Gamma, independently of diagnostic logging.
 C03/C05/C06 imply Tr(G W) <= lambda_max(G) P_max < eps * Gamma.
@@ -9,6 +9,7 @@ import numpy as np
 
 
 SENSING_CERTIFICATE_TOL = 1e-6
+SENSING_PRESOLVE_CONTRACT = "strict_sensing_c03_c05_c06_presolve_v1"
 
 
 def classify_solver_status(status):

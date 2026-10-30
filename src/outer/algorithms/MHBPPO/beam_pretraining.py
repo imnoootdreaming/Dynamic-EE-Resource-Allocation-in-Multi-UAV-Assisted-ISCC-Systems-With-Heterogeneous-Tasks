@@ -19,8 +19,8 @@ from algorithms.MHBPPO.checkpoint import load_state_normalization
 from algorithms.MHBPPO.rollout_batch import actor_state_signature, normalization_signature
 
 
-BEAM_HEAD_NAMES = ("uav_rec_beam_dir_real", "uav_rec_beam_dir_imag")
-PRETRAIN_CONTRACT = "canonical_matched_beam_finite_beta_kl_v1"
+BEAM_HEAD_NAMES = ("uav_rec_beam_amplitude", "uav_rec_beam_phase")
+PRETRAIN_CONTRACT = "amplitude_phase_matched_beam_finite_beta_kl_v2"
 
 
 def file_sha256(path):
@@ -143,22 +143,32 @@ def load_dataset(path):
 def _architecture(source, metadata):
     if "architecture" in metadata:
         architecture = dict(metadata["architecture"])
+    elif metadata.get("actor_architecture"):
+        # save_artifacts records the actual input width here, including appended
+        # observation features. Do not infer the legacy width for a new checkpoint.
+        architecture = dict(metadata["actor_architecture"])
     else:
         hyper_path = source.parent / "hyperparameters.json"
         if not hyper_path.is_file():
             raise FileNotFoundError("source requires architecture metadata or run hyperparameters.json")
         hyper = json.loads(hyper_path.read_text(encoding="utf-8-sig"))
         hp = hyper["hyperparameters"]
+        if hp.get("receive_beam_phase_mode", "absolute") != "absolute":
+            raise ValueError("offline beam pretraining requires absolute phases; phase_residual is unsupported")
         base = hyper["environment"]["base_args"]
         i, j, n = int(base["uavs_num"]), int(base["cus_num"]), int(base["antenna_nums"])
         architecture = {"state_dim": 1017, "hidden_dim": int(hp["hidden_dim"]),
             "continuous_action_splits": {"uav_angles": i, "uav_distances": i,
                 "uav_off_durations": i, "cu_off_powers": j,
-                "uav_rec_beam_dir_real": i*n, "uav_rec_beam_dir_imag": i*n},
+                "uav_rec_beam_amplitude": i*n, "uav_rec_beam_phase": i*n},
             "discrete_action_dims": [j]*i, "continuous_dist_type": "beta",
             "structured_beam_alpha": float(hp["structured_beam_alpha"])}
+    if architecture.get("receive_beam_phase_mode", "absolute") != "absolute":
+        raise ValueError("offline beam pretraining requires absolute phases; phase_residual is unsupported")
     if architecture.get("continuous_dist_type", "beta") != "beta":
         raise ValueError("receive-beam pretraining requires a Beta actor")
+    if not all(name in architecture["continuous_action_splits"] for name in BEAM_HEAD_NAMES):
+        raise ValueError("source checkpoint requires amplitude/phase receive-beam heads; Cartesian checkpoints cannot be reused")
     if float(architecture.get("structured_beam_alpha", 1.0)) != 1.0:
         raise ValueError("pretraining validation requires structured_beam_alpha=1")
     return architecture
@@ -275,6 +285,11 @@ def head_only_training(actor):
 
 
 def teacher_beta_parameters(teacher_g_real, teacher_g_imag, *, rho=0.9, kappa=64.0):
+    """Polar teacher means; rho scales amplitudes, preserving beam direction.
+
+    A per-UAV global phase puts the phase cut in the largest empty angular
+    gap, keeping equivalent matched teachers away from Beta endpoints.
+    """
     rho, kappa = float(rho), float(kappa)
     if not math.isfinite(rho) or not 0 < rho < 1 or not math.isfinite(kappa) or kappa <= 0:
         raise ValueError("rho must be in (0,1) and kappa finite positive")
@@ -282,8 +297,15 @@ def teacher_beta_parameters(teacher_g_real, teacher_g_imag, *, rho=0.9, kappa=64
     imag = np.asarray(teacher_g_imag, dtype=np.float64)
     if real.ndim != 3 or real.shape != imag.shape:
         raise ValueError("teacher components must have matching [state,UAV,antenna] shapes")
-    mean = 0.5*(1.0 + rho*np.concatenate((real.reshape(len(real), -1),
-                                        imag.reshape(len(imag), -1)), axis=1))
+    beam = real + 1j*imag
+    phase = np.mod(np.angle(beam), 2*np.pi)
+    ordered = np.sort(phase, axis=-1)
+    gaps = np.diff(np.concatenate((ordered, ordered[..., :1]+2*np.pi), axis=-1), axis=-1)
+    gap_idx = np.argmax(gaps, axis=-1)[..., None]
+    cut = np.take_along_axis(ordered + gaps/2, gap_idx, axis=-1)
+    phase_unit = np.mod(phase-cut, 2*np.pi)/(2*np.pi)
+    mean = np.concatenate(((rho*np.abs(beam)).reshape(len(real), -1),
+                           phase_unit.reshape(len(real), -1)), axis=1)
     alpha, beta = kappa*mean, kappa*(1.0-mean)
     if not np.all(np.isfinite(alpha)) or not np.all(np.isfinite(beta)) or np.any(alpha <= 1) or np.any(beta <= 1):
         raise ValueError("all teacher Beta alpha/beta must exceed one")
@@ -316,22 +338,26 @@ def cache_frozen_features(actor, raw_states, normalizer, indices, *, batch_size=
     return torch.cat(pieces, dim=0)
 
 
+def amplitude_phase_beams(amplitude, phase_unit, uavs, antennas):
+    """Decode [0,1] latent amplitude/phase, matching environment mapping."""
+    raw = torch.polar(amplitude, 2*math.pi*phase_unit).reshape(
+        *amplitude.shape[:-1], uavs, antennas)
+    norm = torch.linalg.vector_norm(raw, dim=-1, keepdim=True)
+    fallback = norm < 1e-12
+    unit = torch.zeros_like(raw)
+    unit[..., 0] = 1
+    return torch.where(fallback, unit, raw/norm.clamp_min(1e-12)), fallback.squeeze(-1)
+
+
 def _draw_unit_beams(actor, states=None, *, features=None, draws=8):
-    real, imag = beam_dists(actor, states, features=features)
+    amplitude, phase = beam_dists(actor, states, features=features)
     uavs = len(actor.discrete_action_dims)
     width = actor.continuous_action_splits[BEAM_HEAD_NAMES[0]]
     if width % uavs:
         raise ValueError("beam width is not divisible by UAV count")
     antennas = width // uavs
-    r = (2*real.sample((int(draws),))-1).reshape(int(draws), -1, uavs, antennas)
-    im = (2*imag.sample((int(draws),))-1).reshape(int(draws), -1, uavs, antennas)
-    raw = torch.complex(r, im)
-    norm = torch.linalg.vector_norm(raw, dim=-1, keepdim=True)
-    fallback = norm < 1e-12
-    result = raw / norm.clamp_min(1e-12)
-    unit = torch.zeros_like(result)
-    unit[..., 0] = 1
-    return torch.where(fallback, unit, result), fallback
+    return amplitude_phase_beams(amplitude.sample((int(draws),)),
+                                 phase.sample((int(draws),)), uavs, antennas)
 
 
 def sample_beams(actor, states=None, *, features=None, draws=8, seed=None):
@@ -436,11 +462,11 @@ def train_receive_beam(actor, arrays, normalizer, *, rho=0.9, kappa=64.0,
             loss_sum, norm_sum, seen, batches = 0., 0., 0, 0
             for start in range(0, len(order), int(batch_size)):
                 index = torch.as_tensor(order[start:start+int(batch_size)], dtype=torch.long)
-                real, imag = beam_dists(actor, features=features_train[index])
+                amplitude, phase = beam_dists(actor, features=features_train[index])
                 a, b = t_alpha[index].to(device), t_beta[index].to(device)
-                real_kl = kl_divergence(Beta(a[:, :dimension], b[:, :dimension]), real)
-                imag_kl = kl_divergence(Beta(a[:, dimension:], b[:, dimension:]), imag)
-                loss = torch.cat((real_kl, imag_kl), dim=-1).mean()
+                amplitude_kl = kl_divergence(Beta(a[:, :dimension], b[:, :dimension]), amplitude)
+                phase_kl = kl_divergence(Beta(a[:, dimension:], b[:, dimension:]), phase)
+                loss = torch.cat((amplitude_kl, phase_kl), dim=-1).mean()
                 if not torch.isfinite(loss):
                     raise ValueError("non-finite receive-beam KL")
                 optimizer.zero_grad(set_to_none=True)

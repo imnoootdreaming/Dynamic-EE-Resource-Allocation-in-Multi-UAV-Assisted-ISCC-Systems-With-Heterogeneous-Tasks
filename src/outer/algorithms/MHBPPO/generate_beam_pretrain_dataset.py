@@ -184,6 +184,8 @@ def restore_parameters(metadata, *, seed=42, scene_seed_offset=0):
             raise ValueError("conflicting native/adapter parameter: " + name)
         setattr(base, name, copy.deepcopy(value))
     madrl = SimpleNamespace(**copy.deepcopy(metadata["madrl_args"]))
+    if getattr(madrl, "receive_beam_phase_mode", "absolute") != "absolute":
+        raise ValueError("offline beam dataset reconstruction does not support phase_residual mapping")
     if int(getattr(madrl, "total_time_slots", -1)) != 40:
         raise ValueError("this dataset contract requires complete 40-slot episodes")
     for name in ("randomize_layout_per_episode", "randomize_cu_traj_per_episode",
@@ -231,7 +233,7 @@ def reconstruct_raw_state(env, slot, uavs_pos_before):
         env.base_args.targets_num)
     env._refresh_channels()
     raw = np.asarray(env._build_bs_observation(), dtype=np.float32).copy()
-    if raw.shape != (1017,) or not np.all(np.isfinite(raw)):
+    if raw.shape != env.observation_space["bs"].shape or not np.all(np.isfinite(raw)):
         raise ValueError("invalid recovered raw observation")
     return raw
 
@@ -406,6 +408,8 @@ def build_dataset(args):
     action_path, diagnostic_path = directory/"mhbppo_train_actions.jsonl", directory/"mhbppo_train_env.jsonl"
     metadata, _, metadata_hash = read_log_metadata(diagnostic_path)
     action_metadata, _, action_metadata_hash = read_log_metadata(action_path)
+    if any(m.get("log_compaction_contract") for m in (metadata, action_metadata)):
+        raise ValueError("exact offline dataset reconstruction requires --log_detail_level full logs")
     for key in ("base_args", "inner_parameter_source", "madrl_args", "shared_exogenous_scene", "source_sha256"):
         if metadata.get(key) != action_metadata.get(key):
             raise ValueError("action/diagnostic source metadata mismatch: " + key)

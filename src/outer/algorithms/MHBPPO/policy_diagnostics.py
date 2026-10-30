@@ -97,7 +97,47 @@ def summarize_policy_distribution(traces, continuous_splits):
     return output
 
 
-def log_policy_distribution(logger, writer, summary, iteration, weights_version):
+def merge_policy_distribution_summaries(summaries):
+    """Pool episode moments without transferring per-slot policy arrays to learner."""
+    if not summaries or all(not s.get("available", False) for s in summaries):
+        return {"available": False, "steps": 0}
+    if any(not s.get("available", False) for s in summaries):
+        raise ValueError("partial policy summaries in rollout batch")
+    first = summaries[0]
+    if any(s["contract"] != first["contract"] or s["distribution"] != first["distribution"]
+           or s["steps"] <= 0 for s in summaries):
+        raise ValueError("incompatible policy summaries")
+    counts = np.asarray([s["steps"] for s in summaries], dtype=np.float64)
+    weights = counts / counts.sum()
+    def average(values):
+        return np.tensordot(weights, np.asarray(values, dtype=np.float64), axes=1)
+    def pooled_std(means, stds):
+        means = np.asarray(means, dtype=np.float64)
+        return np.sqrt(average(np.asarray(stds, dtype=np.float64)**2 + (means - average(means))**2))
+    output = {"available": True, "contract": first["contract"], "distribution": first["distribution"],
+              "steps": int(counts.sum()), "continuous": {}, "discrete": {}}
+    for name, initial in first["continuous"].items():
+        entries = [s["continuous"][name] for s in summaries]
+        if any(e["active"] != initial["active"] or e["dim"] != initial["dim"] for e in entries):
+            raise ValueError("incompatible policy heads")
+        result = dict(initial)
+        if initial["active"]:
+            for key in ("mean", "std", "entropy", "sampled_action_mean", "concentration"):
+                if key in initial:
+                    result[key] = average([e[key] for e in entries]).tolist()
+            for std_key, mean_key in (("state_mean_std", "mean"), ("sampled_action_std", "sampled_action_mean"),
+                                      ("marginal_std", "mean")):
+                if std_key in initial:
+                    result[std_key] = pooled_std([e[mean_key] for e in entries],
+                                                [e[std_key] for e in entries]).tolist()
+        output["continuous"][name] = result
+    for name in first["discrete"]:
+        output["discrete"][name] = {key: average([s["discrete"][name][key] for s in summaries]).tolist()
+                                    for key in first["discrete"][name]}
+    return output
+
+
+def log_policy_distribution(logger, writer, summary, iteration, weights_version, *, log_vectors=True):
     """Log rollout-policy moments, never recompute with updated learner weights."""
     if not summary.get("available", False):
         return
@@ -105,21 +145,27 @@ def log_policy_distribution(logger, writer, summary, iteration, weights_version)
     for name, stats in summary["continuous"].items():
         if not stats["active"]:
             continue
-        message = (f"[POLICY] iter={iteration} wv={weights_version} head={name} "
-                   f"space={stats['space']} mean={vector(stats['mean'])} "
-                   f"std={vector(stats['std'])} state_mean_std={vector(stats['state_mean_std'])} "
-                   f"sample_std_u01={vector(stats['sampled_action_std'])}")
-        if "concentration" in stats:
-            message += f" concentration={vector(stats['concentration'])}"
-        logger.info(message)
+        if log_vectors:
+            message = (f"[POLICY] iter={iteration} wv={weights_version} head={name} "
+                       f"space={stats['space']} mean={vector(stats['mean'])} "
+                       f"std={vector(stats['std'])} state_mean_std={vector(stats['state_mean_std'])} "
+                       f"sample_std_u01={vector(stats['sampled_action_std'])}")
+            if "concentration" in stats:
+                message += f" concentration={vector(stats['concentration'])}"
+            logger.info(message)
         prefix = f"PolicyDistribution/{name}"
         for metric in ("mean", "std", "state_mean_std", "sampled_action_std", "concentration"):
             if metric not in stats:
                 continue
             writer.add_scalar(f"{prefix}/{metric}_avg", float(np.mean(stats[metric])), iteration)
-            for dim, value in enumerate(stats[metric]):
-                writer.add_scalar(f"{prefix}/{metric}/dim_{dim}", float(value), iteration)
+            if log_vectors:
+                for dim, value in enumerate(stats[metric]):
+                    writer.add_scalar(f"{prefix}/{metric}/dim_{dim}", float(value), iteration)
         writer.add_scalar(f"{prefix}/entropy_avg", float(np.mean(stats["entropy"])), iteration)
+        if not log_vectors:
+            logger.info(f"[POLICY] iter={iteration} wv={weights_version} head={name} "
+                        f"mean_avg={np.mean(stats['mean']):.4f} std_avg={np.mean(stats['std']):.4f} "
+                        f"state_mean_std_avg={np.mean(stats['state_mean_std']):.4f}")
     discrete_text = []
     for name, stats in summary["discrete"].items():
         discrete_text.append(f"{name}:entropy={stats['entropy']:.4f},pmax={stats['max_probability']:.4f}")

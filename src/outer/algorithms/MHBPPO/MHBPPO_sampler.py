@@ -23,6 +23,8 @@ IMPALA 式 actor-learner 架构中的采样端：
         "avg_obj_fun": float,
         "avg_bs_reward": float,
         "completion_rate": float,
+        "all_slots_success": bool,
+        "episode_success_bonus_total": float,
         "weights_version": int,      # 本 episode 采样时使用的参数版本（-1 = 从未收到权重）
         "weights_checksum": float,   # 本进程 actor 加载后的参数指纹（供学习端比对验证）
     }
@@ -59,6 +61,8 @@ if _OUTER_ROOT not in sys.path:
 from algorithms.MHBPPO.policy_diagnostics import (
     single_state_policy_distribution, summarize_policy_distribution,
 )
+from algorithms.MHBPPO.log_compaction import compact_action_trace, compact_env_trace, compact_episode_payload
+from algorithms.MHBPPO.energy_statistics import ENERGY_OUTCOME_KEYS, summarize_energy
 from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
 from algorithms.MHBPPO.policy_initialization import actor_architecture_metadata
 from algorithms.MHBPPO.rollout_batch import (
@@ -103,13 +107,14 @@ def summarize_sensing_penalty(action_traces):
               and np.isfinite(outcome["sensing_penalty_score"])]
     unavailable = sum(outcome.get("sensing_penalty_status") == "unavailable"
                       for outcome in outcomes)
+    removed = any(outcome.get("sensing_penalty_status") == "removed" for outcome in outcomes)
     base_rewards = [float(outcome.get("base_reward", outcome["total_reward"]))
                     for outcome in outcomes]
     applied = [float(outcome.get("sensing_penalty_applied", 0.0)) for outcome in outcomes]
     return {
         "avg_base_reward": float(np.mean(base_rewards)) if outcomes else float("nan"),
         "avg_sensing_penalty_score": float(np.mean(scores)) if scores else
-            (float("nan") if unavailable else 0.0),
+            (float("nan") if unavailable or removed else 0.0),
         "avg_sensing_penalty_applied": float(np.mean(applied)) if outcomes else 0.0,
         "sensing_penalty_score_valid_count": len(scores),
         "sensing_penalty_unavailable_count": unavailable,
@@ -145,6 +150,10 @@ def _load_latest_weights(weight_queue, actor):
 def _validate_payload_architecture(payload, actor):
     """New broadcasts declare the class; legacy payloads retain strict state loading."""
     declared = payload.get("actor_architecture")
+    if declared is None and (actor.receive_beam_mapping["receive_beam_phase_mode"] != "absolute" or
+                             actor.receive_beam_mapping["receive_beam_mapping_version"] in
+                             ("mvdr_complex_residual_v1", "mvdr_aligned_mix_v1", "matched_unit_norm_v1")):
+        raise ValueError("beam mapping requires explicit learner action mapping metadata")
     if declared is not None and declared != actor_architecture_metadata(actor):
         raise ValueError("sampling actor architecture differs from learner broadcast")
 
@@ -271,6 +280,11 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             discrete_action_dims=bs_discrete_action_space.nvec,
             continuous_dist_type="beta",
             structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
+            receive_beam_phase_mode=getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
+            mvdr_residual=getattr(madrl_args, "mvdr_residual", False),
+            mvdr_residual_radius=getattr(madrl_args, "mvdr_residual_radius", 0.2),
+            structured_beam_reference=getattr(madrl_args, "structured_beam_reference", "mvdr"),
+            receive_beam_phase_limit_deg=getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
         ).to(device)
         if getattr(madrl_args, "receive_beam_encoder", "shared") == "dedicated":
             from algorithms.MHBPPO.beam_branch import build_branch_actor
@@ -340,6 +354,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             obj_fun_total = []
             success_slots = 0
             episode_reward_bs = 0.0
+            episode_success_bonus_total = 0.0
             finite_obj_slots = 0
             no_solution_slots = 0
             collision_slots = 0
@@ -399,22 +414,35 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                         "success": int(success_flag),
                         "done": bool(done),
                         "solver_status_kind": str(r_dict.get("components", {}).get("solver_status_kind", "other")),
+                        **{key: r_dict["components"][key] for key in ENERGY_OUTCOME_KEYS
+                           if key in r_dict.get("components", {})},
                         **{key: r_dict["components"][key] for key in (
                             "solver_status", "raw_solver_status", "raw_solver_status_kind",
                             "raw_problem_status", "status_source", "optimizer_response_code",
+                            "presolve_contract", "solver_skipped", "pc3p_called", "presolve_seconds",
+                            "presolve_certificate",
                             "infeasibility_certificate",
                             "base_reward", "base_no_solution_penalty", "no_solution_penalty",
                             "sensing_penalty_score", "sensing_penalty_applied",
                             "sensing_penalty_per_uav", "sensing_margin",
                             "sensing_penalty_status", "sensing_penalty_reason",
                             "sensing_penalty_contract",
+                            "slot_success", "episode_all_success",
+                            "slot_reward_before_episode_bonus",
+                            "episode_success_bonus", "episode_success_bonus_applied",
+                            "episode_success_bonus_contract",
                         ) if key in r_dict.get("components", {})},
                     },
                 })
                 if env.env_diagnostics:
                     if env.last_env_diagnostic is None:
                         raise RuntimeError("env.step 未产生已启用的环境诊断")
-                    diagnostic_traces.append(env.last_env_diagnostic)
+                    diagnostic_traces.append(
+                        compact_env_trace(env.last_env_diagnostic)
+                        if getattr(madrl_args, "log_detail_level", "compact") == "compact"
+                        else env.last_env_diagnostic)
+                if getattr(madrl_args, "log_detail_level", "compact") == "compact":
+                    action_traces[-1] = compact_action_trace(action_traces[-1], keep_policy=True)
                 success_slots += success_flag
                 finite_obj_slots += int(np.isfinite(obj_fun))
                 no_solution_slots += int(r_dict.get("components", {}).get("no_solution_penalty", 0) > 0)
@@ -429,6 +457,8 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 episode_rewards_total.append(float(total_reward))
                 obj_fun_total.append(float(obj_fun))
                 episode_reward_bs += r_bs
+                episode_success_bonus_total += float(
+                    r_dict.get("components", {}).get("episode_success_bonus_applied", 0.0))
 
                 raw_next_state_bs = np.asarray(next_s["bs"], dtype=np.float32)
                 next_state_bs_norm = (raw_next_state_bs - state_norm_mean) / (state_norm_std + 1e-8)
@@ -481,7 +511,10 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "episode_idx": int(episode_idx),
                 "avg_total_reward": avg_total_reward,
                 "avg_obj_fun": float(np.mean(obj_fun_total)),
+                "energy_statistics": summarize_energy(action_traces),
                 "avg_bs_reward": episode_reward_bs / len(episode_rewards_total),
+                "all_slots_success": bool(success_slots == madrl_args.total_time_slots),
+                "episode_success_bonus_total": episode_success_bonus_total,
                 **summarize_sensing_penalty(action_traces),
                 "completion_rate": (success_slots / madrl_args.total_time_slots) * 100.0,
                 "finite_obj_rate": (finite_obj_slots / len(episode_rewards_total)) * 100.0,
@@ -500,6 +533,10 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 "action_probability_metadata": actor.action_probability_metadata(),
             }
 
+            if getattr(madrl_args, "log_detail_level", "compact") == "compact":
+                sample_result = compact_episode_payload(sample_result)
+                action_traces = sample_result["action_traces"]
+                diagnostic_traces = sample_result["diagnostic_traces"]
             # 有界队列：队列满时阻塞在此（背压 => staleness 上限 = maxsize 个参数版本）
             if not _put_with_stop(sample_queue, sample_result, stop_event):
                 break

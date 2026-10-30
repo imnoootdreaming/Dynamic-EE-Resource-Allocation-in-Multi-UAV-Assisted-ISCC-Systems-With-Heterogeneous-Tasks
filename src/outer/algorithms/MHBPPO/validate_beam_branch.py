@@ -84,7 +84,7 @@ def main(argv=None):
             nonbeam_distributions &= all(torch.equal(x.logits,y.logits) for x,y in zip(oc,mc))
         direct=branch_dists(branch,small);via_view=beam_dists(view,small);full,_=branch._get_dists(small)
         dispatch_exact=all(torch.equal(x.concentration1,y.concentration1) and torch.equal(x.concentration0,y.concentration0) for x,y in zip(direct,via_view))
-        dispatch_exact &= all(torch.equal(direct[i].concentration1,full[name].concentration1) and torch.equal(direct[i].concentration0,full[name].concentration0) for i,name in enumerate(("uav_rec_beam_dir_real","uav_rec_beam_dir_imag")))
+        dispatch_exact &= all(torch.equal(direct[i].concentration1,full[name].concentration1) and torch.equal(direct[i].concentration0,full[name].concentration0) for i,name in enumerate(("uav_rec_beam_amplitude","uav_rec_beam_phase")))
         with torch.random.fork_rng(devices=[]):
             torch.manual_seed(reg["test"]["seed"])
             sampled=branch.sample(small[:8])

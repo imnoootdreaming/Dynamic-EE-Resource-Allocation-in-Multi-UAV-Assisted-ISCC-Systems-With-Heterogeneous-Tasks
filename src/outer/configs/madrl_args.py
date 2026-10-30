@@ -8,6 +8,9 @@ import argparse
 import json
 import math
 from pathlib import Path
+from environment.cu_tasks import TASK_RANGES, task_settings
+from environment.mapping import receive_beam_mapping_metadata
+from algorithms.MHBPPO.log_compaction import validate_logging_settings
 
 
 def validate_parallel_settings(args):
@@ -66,22 +69,41 @@ def get_madrl_args(argv=None):
     madrl_parser.add_argument("--num_samplers", type=int, default=1, help="rollout 采样进程数；同步模式单次聚合 N 个完整 episode")
     madrl_parser.add_argument("--sync_training", action=argparse.BooleanOptionalAction, default=True,
                               help="严格同步训练：全体 worker 固定同一版本采完 episode，learner 聚合更新并广播后才允许下一轮")
-    # NOTE - 接收波束结构化：默认 1.0（完全使用 actor 输出的波束）。随机初始策略的波束是
-    # 各向同性方向，感知 SINR 约束几乎恒不可行（可行域极薄）；调小该值会把波束向
-    # 「指定目标的匹配波束」混合，实测内层 optimal 率由 ~3% 提升到 ~37%。
-    # 必须与生成 BC 数据集时使用的 --structured_beam_alpha 保持一致。
+    # alpha controls MVDR/actor mixing when the residual switch is off.
     madrl_parser.add_argument("--structured_beam_alpha", type=float, default=1.0,
-                              help="接收波束混合系数：0=完全匹配波束，1=完全使用 actor 输出")
+                              help="残差关闭时：0=MVDR，0<alpha<1=MVDR与actor相位对齐混合，1=actor输出")
+    madrl_parser.add_argument("--structured_beam_reference", choices=("mvdr", "matched"), default="mvdr",
+                              help="结构化波束参考；matched仅支持alpha=0且不启用MVDR残差")
+    madrl_parser.add_argument("--mvdr_residual", action=argparse.BooleanOptionalAction, default=False,
+                              help="启用MVDR加网络复数残差；开启时覆盖alpha的波束映射")
+    madrl_parser.add_argument("--mvdr_residual_radius", type=float, default=0.2,
+                              help="每架UAV正交复数残差的范数上限，范围(0,1]")
+    madrl_parser.add_argument("--receive_beam_phase_mode", choices=("absolute", "phase_residual"),
+                              default="absolute", help="absolute保留原相位；phase_residual使用目标导向相位加受限修正")
+    madrl_parser.add_argument("--receive_beam_phase_limit_deg", type=float, default=45.0,
+                              help="phase_residual的相位修正半宽（度），固定范围±该值")
     madrl_parser.add_argument("--receive_beam_encoder", choices=("shared", "dedicated"), default="shared",
                               help="shared保留原网络；dedicated使用可训练的接收波束专属编码分支")
     madrl_parser.add_argument("--policy_initialization", type=str, default="",
                               help="可选actor/critic/精确状态归一化初始化包目录；从PPO第0次更新开始，并非续训")
     madrl_parser.add_argument("--max_updates", type=int, default=0,
                               help="完成此数量PPO更新后保存并停止；0保留原来的持续训练")
-    madrl_parser.add_argument("--sensing_penalty_coef", type=float, default=1.0,
-                              help="无解时新增的归一化感知短缺惩罚权重，范围[0,1]；0关闭")
+    madrl_parser.add_argument("--sensing_penalty_coef", type=float, default=0.0,
+                              help="已移除感知短缺惩罚；兼容旧配置仅允许0")
     madrl_parser.add_argument("--sensing_penalty_reference_factor", type=float, default=10.0,
                               help="感知所需功率达到上限此倍数时，单UAV短缺评分为0.5；须大于1")
+    madrl_parser.add_argument("--episode_success_bonus", type=float, default=0.0,
+                              help="已移除回合全成功奖励；兼容旧配置仅允许0")
+    madrl_parser.add_argument("--cu_task_profile", choices=("random_fixed", "constant"),
+                              default="random_fixed",
+                              help="random_fixed初始化一次CU任务表并跨回合复用，槽长固定；constant恢复旧常量")
+    madrl_parser.add_argument("--cu_task_slot_duration", type=float, default=0.65,
+                              help="random_fixed任务模式的固定槽长（秒），须不小于CU最大deadline")
+    for name, bounds in TASK_RANGES.items():
+        for suffix, value in zip(("min", "max"), bounds):
+            madrl_parser.add_argument("--cu_task_" + name + "_" + suffix,
+                                      type=float, default=value,
+                                      help="固定任务表的均匀分布边界：L单位kbit，C单位cycles/bit，D单位s")
     # NOTE - BC 暖机：用 generate_bc_dataset 产出的可行 (s, a) 演示做 actor 监督预训练
     madrl_parser.add_argument("--bc_dataset", type=str, default="",
                               help="BC 暖机数据集 .npz 路径；为空则不预热")
@@ -92,6 +114,10 @@ def get_madrl_args(argv=None):
                               help="BC 阶段 actor 学习率（应小于 actor_lr）")
     madrl_parser.add_argument("--checkpoint_interval", type=int, default=1000, help="每隔多少次 iteration (外层更新) 保存一次完整训练 CSV 与 checkpoint")
     madrl_parser.add_argument("--log_file", type=str, default="logs/MHBPPO/mhbppo_train.log", help="训练日志基础路径（相对 src/outer；每次在父目录下建立 YYYY-MM-DD_HH-mm-ss 独立目录，文件名固定，另存 _actions.jsonl 和 _env.jsonl）")
+    madrl_parser.add_argument("--log_detail_level", choices=("compact", "full"), default="compact",
+                              help="compact保留逐槽物理量与回合策略摘要，去除重复数组/完整快照；full恢复逐槽完整诊断")
+    madrl_parser.add_argument("--log_policy_vector_interval", type=int, default=100,
+                              help="compact模式每隔多少次更新记录逐维策略文本/TensorBoard；0关闭逐维，头均值始终记录")
     madrl_parser.add_argument("--env_diagnostics", action=argparse.BooleanOptionalAction, default=True,
                               help="记录独立 _env.jsonl 可行性与原始约束诊断；不改变奖励或 success")
     madrl_parser.add_argument("--diagnostic_candidate_interval", type=int, default=1,
@@ -102,8 +128,8 @@ def get_madrl_args(argv=None):
     # 最早保留记录与当前 iteration 的差距不超过 (log_rotate_backup_segments + 1) * log_rotate_iterations。
     madrl_parser.add_argument("--log_rotate_iterations", type=int, default=1000,
                               help="每隔多少次 iteration 归档一次 _actions.jsonl/_env.jsonl 并开始新段；0 关闭该触发")
-    madrl_parser.add_argument("--log_rotate_max_bytes", type=int, default=2 * 1024 ** 3,
-                              help="单个 JSONL 段达到该字节数即归档换新段（0 关闭该触发）；与轮次触发择先")
+    madrl_parser.add_argument("--log_rotate_max_bytes", type=int, default=64 * 1024 ** 2,
+                              help="JSONL每段字节阈值（默认64MiB）；更新边界换段，允许一个update超量；0关闭该触发")
     madrl_parser.add_argument("--log_rotate_backup_segments", type=int, default=1,
                               help="除当前段外额外保留的历史归档段数；0 表示只保留当前段")
     madrl_parser.add_argument("--log_min_free_bytes", type=int, default=5 * 1024 ** 3,
@@ -156,6 +182,12 @@ def get_madrl_args(argv=None):
     args = madrl_parser.parse_args(argv)
     try:
         validate_parallel_settings(args)
+        task_settings(args)
+        validate_logging_settings(args)
+        receive_beam_mapping_metadata(args.receive_beam_phase_mode,
+                                      args.receive_beam_phase_limit_deg, args.structured_beam_alpha,
+                                      args.mvdr_residual, args.mvdr_residual_radius,
+                                      args.structured_beam_reference)
     except ValueError as exc:
         madrl_parser.error(str(exc))
     for key in ("batch_size", "hidden_dim", "epochs", "episodes"):
@@ -171,6 +203,9 @@ def get_madrl_args(argv=None):
         madrl_parser.error("lr_min_ratio must lie in (0, 1]")
     if args.receive_beam_encoder not in ("shared", "dedicated"):
         madrl_parser.error("receive_beam_encoder must be shared or dedicated")
+    if args.mvdr_residual and (args.receive_beam_encoder != "shared" or
+                               args.policy_initialization or args.bc_dataset):
+        madrl_parser.error("mvdr_residual requires a fresh shared actor; initialization/BC/dedicated are unsupported")
     if args.max_updates < 0:
         madrl_parser.error("max_updates must be nonnegative")
     if args.policy_initialization and args.bc_dataset:
@@ -179,9 +214,14 @@ def get_madrl_args(argv=None):
         madrl_parser.error("policy_initialization requires synchronous shared-scene sampling")
     if args.receive_beam_encoder == "dedicated" and args.structured_beam_alpha != 1.0:
         madrl_parser.error("dedicated receive_beam_encoder requires structured_beam_alpha=1")
-    if not math.isfinite(args.sensing_penalty_coef) or not 0 <= args.sensing_penalty_coef <= 1:
-        madrl_parser.error("sensing_penalty_coef must lie in [0, 1] and be finite")
+    if args.receive_beam_phase_mode == "phase_residual" and (
+            args.receive_beam_encoder != "shared" or args.policy_initialization or args.bc_dataset):
+        madrl_parser.error("phase_residual requires a fresh shared actor; initialization/BC/dedicated are unsupported")
+    if not math.isfinite(args.sensing_penalty_coef) or args.sensing_penalty_coef != 0:
+        madrl_parser.error("sensing shortfall penalty was removed; sensing_penalty_coef must be 0")
     if (not math.isfinite(args.sensing_penalty_reference_factor)
             or args.sensing_penalty_reference_factor <= 1):
         madrl_parser.error("sensing_penalty_reference_factor must be greater than 1 and finite")
+    if not math.isfinite(args.episode_success_bonus) or args.episode_success_bonus != 0:
+        madrl_parser.error("episode success bonus was removed; episode_success_bonus must be 0")
     return args

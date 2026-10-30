@@ -1,0 +1,488 @@
+\documentclass[11pt,a4paper]{ctexart}
+\usepackage{amsmath,amssymb,bm,mathtools,geometry,enumitem,booktabs,xcolor,hyperref,fancyhdr,microtype}
+\geometry{left=25mm,right=25mm,top=23mm,bottom=23mm,headheight=15pt}
+\definecolor{ink}{HTML}{18334B}\definecolor{accent}{HTML}{176B77}
+\hypersetup{colorlinks=true,linkcolor=ink,urlcolor=accent}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small MVDR 与原问题的最优性}\fancyhead[R]{\small 理论分析}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0.3pt}
+\setlength{\parindent}{2em}\setlength{\parskip}{3pt}\setlist{itemsep=2pt,topsep=3pt}
+\allowdisplaybreaks
+\title{\textbf{MVDR 接收波束的最优性证明}\\[4pt]\large 基于多 UAV 辅助 ISCC 论文原式的条件与证明}
+\author{多 UAV 辅助 ISCC 系统}
+\date{2026 年 10 月 28 日}
+\begin{document}\maketitle
+\noindent\textbf{结论。}在第\,三\,节列出的模型条件下，\textbf{MVDR 接收波束可以作为系统能耗最小化问题的最优接收波束}。如果原问题存在全局最优解，那么至少有一个全局最优方案使用 MVDR 接收波束；在优化其他变量时，根据对应的位置、匹配和功率计算 MVDR 接收波束，仍能达到原问题的最低系统能耗。
+
+证明思路是：先求出使感知信干噪比最大的接收波束，再证明通过调整感知发射波束，可以保持原有感知性能，同时不增加发射能耗，也不降低通信性能。由此得到使用 MVDR 接收波束的最优方案。
+
+\noindent\textbf{符号约定。}下文沿用系统模型的原符号。上标 $H$ 表示共轭转置，$\bm h_{c_j,u_i}(t)$ 为 $1\times N$ 行向量。推导中的 $t$ 和 $i$ 为任意时隙和任意 UAV，结论对所有时隙和 UAV 分别适用。
+\begingroup\small\tableofcontents\endgroup
+\newpage
+
+\section{论文中接收波束影响哪些量}
+\subsection{问题 P0 的完整形式}
+\begingroup\small
+\begin{align}
+    \mathrm{P0}:&
+    \notag\\
+    \min&
+    \frac{1}{t_{\max}}
+    \sum_{t=1}^{t_{\max}}
+    \Bigg[
+    \omega_{1}\kappa
+    \Bigg(
+        \sum_{u_i\in\mathcal{U}}
+        C^{\mathrm{sen}}\bar{D}^{\mathrm{sen}}
+        R_i^{\mathrm{sen}}(t)
+        \left(f_{u_i}(t)\right)^2
+        +\sum_{c_j\in\mathcal{C}}
+        C_j(t)L_j(t)
+        \left(f_{c_j}(t)\right)^2
+    \Bigg)
+    \notag\\
+    &
+    +\omega_{2}
+    \sum_{u_i\in\mathcal{U}}
+    \Bigg(
+        \bar{D}^{\mathrm{sen}}
+        \left\|\mathbf{w}_i(t)\right\|^2
+        +D_{u_i}^{\mathrm{off}}(t)
+        \left\|\mathbf{b}_i(t)\right\|^2
+        +\frac{
+            \varrho_{1}
+            \left\|
+                \mathbf{q}_{u_i}(t+1)-\mathbf{q}_{u_i}(t)
+            \right\|^3
+        }{\tau^2}
+        +\frac{
+            \varrho_{2}\tau^2
+        }{
+            \left\|
+                \mathbf{q}_{u_i}(t+1)-\mathbf{q}_{u_i}(t)
+            \right\|
+        }
+    \Bigg)
+    \notag\\
+    &
+    +\omega_{3}
+    \sum_{c_j\in\mathcal{C}}
+    D_{c_j}^{\mathrm{off}}(t)p_j(t)
+    \Bigg]
+    \notag\\
+    %
+    \text{s.t.}&
+    \sum_{j=1}^{J}\eta_{i,j}(t)=1,
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \sum_{i=1}^{I}\eta_{i,j}(t)\leq1,
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    V_{\min}\tau
+    \leq
+    \left\|
+        \mathbf{q}_{u_i}(t+1)-\mathbf{q}_{u_i}(t)
+    \right\|
+    \leq V_{\max}\tau,
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \left\|
+        \mathbf{q}_{u_{i_1}}(t)-\mathbf{q}_{u_{i_2}}(t)
+    \right\|
+    \geq d_{\min}^{\mathrm{UAV}},
+    \forall u_{i_1},u_{i_2}\in\mathcal{U},
+    u_{i_1}\neq u_{i_2},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \left\|\mathbf{w}_i(t)\right\|^2
+    \leq P_{\mathrm{UAV}}^{\max},
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \left\|\mathbf{g}_i(t)\right\|^2=1,
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \frac{
+        \left|
+            \mathbf{g}_i^H(t)
+            \mathbf{A}(\theta_i(t))
+            \mathbf{w}_i(t)
+        \right|^2
+    }{
+        \displaystyle
+        \sum_{j=1}^{J}
+        \eta_{i,j}(t)p_j(t)
+        \left|
+            \mathbf{g}_i^H(t)
+            \mathbf{h}_{c_j,u_i}^H(t)
+        \right|^2
+        +\sigma^2
+    }
+    \geq\epsilon,
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \left\|\mathbf{b}_i(t)\right\|^2
+    \leq P_{\mathrm{UAV}}^{\max},
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    D_{u_i}^{\mathrm{off}}(t)
+    R_i^{\mathrm{off}}(t)
+    \geq
+    \bar{D}^{\mathrm{sen}}
+    R_i^{\mathrm{sen}}(t),
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \bar{D}^{\mathrm{sen}}
+    +D_{u_i}^{\mathrm{off}}(t)
+    \leq
+    \sum_{j=1}^{J}
+    \eta_{i,j}(t)D_{c_j}^{\mathrm{off}}(t),
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \sum_{i=1}^{I}
+    \eta_{i,j}(t)
+    \bar{D}^{\mathrm{sen}}
+    R_{i,j}^{(1)}(t)
+    +\sum_{i=1}^{I}
+    \eta_{i,j}(t)
+    D_{u_i}^{\mathrm{off}}(t)
+    R_{i,j}^{(2)}(t)
+    \notag\\
+    &
+    +\Bigg(
+        D_{c_j}^{\mathrm{off}}(t)
+        -\sum_{i=1}^{I}
+        \eta_{i,j}(t)\bar{D}^{\mathrm{sen}}
+        -\sum_{i=1}^{I}
+        \eta_{i,j}(t)D_{u_i}^{\mathrm{off}}(t)
+    \Bigg)
+    R_j^{(3)}(t)
+    \geq L_j(t),
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    p_j(t)\leq P_{\mathrm{CU}}^{\max},
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \bar{D}^{\mathrm{sen}}
+    +D_{u_i}^{\mathrm{off}}(t)
+    +\frac{
+        C^{\mathrm{sen}}
+        \bar{D}^{\mathrm{sen}}
+        R_i^{\mathrm{sen}}(t)
+    }{
+        f_{u_i}(t)
+    }
+    \leq D_{\max}^{\mathrm{sen}},
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    D_{c_j}^{\mathrm{off}}(t)
+    +\frac{
+        C_j(t)L_j(t)
+    }{
+        f_{c_j}(t)
+    }
+    \leq D_j^{\max}(t),
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    \sum_{u_i\in\mathcal{U}}f_{u_i}(t)
+    +\sum_{c_j\in\mathcal{C}}f_{c_j}(t)
+    \leq F_{\max},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    \text{var.}&
+    \mathbf{w}_i(t)\geq0,
+    \mathbf{b}_i(t)\geq0,
+    \mathbf{g}_i(t)\geq0,
+    \mathbf{q}_{u_i}(t),
+    D_{u_i}^{\mathrm{off}}(t)>0,
+    f_{u_i}(t)>0,
+    \forall u_i\in\mathcal{U},
+    \forall t\in\mathcal{T},
+    \notag\\
+    %
+    &
+    p_j(t)>0,
+    D_{c_j}^{\mathrm{off}}(t)>0,
+    f_{c_j}(t)>0,
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T},
+    \eta_{i,j}(t)\in\{0,1\},
+    \forall u_i\in\mathcal{U},
+    \forall c_j\in\mathcal{C},
+    \forall t\in\mathcal{T}.
+    \notag
+\end{align}
+\endgroup
+
+\subsection{接收波束对约束和目标的影响}
+接收波束 $\bm g_i(t)$ 在 $P0$ 中直接受到单位范数约束
+\begin{equation}\label{eq:norm}
+\|\bm g_i(t)\|^2=1.
+\end{equation}
+在感知 SINR 约束中，$\bm g_i(t)$ 同时影响分子中的目标回波增益与分母中的 CU 干扰功率：
+\begin{equation}\label{eq:sinr}
+\frac{\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2}
+{\displaystyle\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}\ge\epsilon.
+\end{equation}
+其中，论文采用的感知信道为
+\begin{equation}\label{eq:A}
+\mathbf A(\theta_i(t))=\sqrt{\xi_0\rho d_i^{-4}(t)}\,
+\bm a_r(\theta_i(t))\bm a_t^H(\theta_i(t)).
+\end{equation}
+感知信息速率由同一感知 SINR 决定：
+\begin{equation}\label{eq:rate}
+R_i^{\rm sen}(t)=\frac{\delta}{2\nu}\log_2\!\left(
+1+\frac{2\sigma_{\rm pre}^2\gamma^2B^3\nu
+\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2}
+{\displaystyle\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}\right).
+\end{equation}
+因此，$\bm g_i(t)$ 还通过 $R_i^{\rm sen}(t)$ 间接影响感知任务的卸载约束与计算时延约束：
+\begin{align}
+D_{u_i}^{\rm off}(t)R_i^{\rm off}(t)&\ge\bar D^{\rm sen}R_i^{\rm sen}(t),\label{eq:impact-off}\\
+\bar D^{\rm sen}+D_{u_i}^{\rm off}(t)+
+\frac{C^{\rm sen}\bar D^{\rm sen}R_i^{\rm sen}(t)}{f_{u_i}(t)}
+&\le D_{\max}^{\rm sen}.\label{eq:impact-delay}
+\end{align}
+原因是感知数据量为 $\bar D^{\rm sen}R_i^{\rm sen}(t)$：它决定需要卸载和计算的数据量，也出现在 $P0$ 目标函数的 BS 感知计算能耗中。其他约束在其余变量固定时不直接含 $\bm g_i(t)$；在联合优化时，卸载、计算和功率等变量仍会相互耦合。
+
+\section{MVDR 为什么不依赖尚未求得的发射波束}
+\subsection{代入论文原式，不省略物理变量}
+由式\,(\ref{eq:A}) 直接得到
+\begin{align}
+&\left|\bm g_i^H(t)\mathbf A(\theta_i(t))\bm w_i(t)\right|^2\notag\\
+&=\xi_0\rho d_i^{-4}(t)
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.\label{eq:factor}
+\end{align}
+因此原 SINR 完整地等于
+\begin{equation}\label{eq:factored}
+\frac{\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2
+\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+考虑固定 UAV 位置、频谱共享变量 $\eta_{i,j}(t)$、CU 功率 $p_j(t)$ 和感知发射波束 $\bm w_i(t)$ 的情况。式\,(\ref{eq:factored}) 的分子中，下面这一项表示发射波束指向目标的增益及感知信道的路径增益：
+\begin{equation}\label{eq:tx-factor}
+\xi_0\rho d_i^{-4}(t)
+\left|\bm a_t^H(\theta_i(t))\bm w_i(t)\right|^2.
+\end{equation}
+这一项只包含目标参数、位置及发射波束，没有接收波束 $\bm g_i(t)$；所以改变 $\bm g_i(t)$ 时，式\,(\ref{eq:tx-factor}) 的值不变。若该值大于零，将其作为正因子从最大化问题中提出，不改变最大值对应的接收波束。因此，求解接收波束时只需最大化：
+\begin{equation}\label{eq:receive-optimization}
+\max_{\|\bm g_i(t)\|^2=1}
+\frac{\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2}.
+\end{equation}
+式\,(\ref{eq:receive-optimization}) 中不再出现 $\bm w_i(t)$，这说明最优接收方向由目标接收导向、CU 信道、匹配、功率及噪声决定，与发射波束的具体取值无关。若式\,(\ref{eq:tx-factor}) 为零，所有接收波束的感知 SINR 均为零，另见本节的退化情形。
+
+\subsection{最大 SINR 方向及严格上界}
+为求解式\,(\ref{eq:receive-optimization})，先将分母中的干扰和噪声统一写成关于 $\bm g_i(t)$ 的二次型。由于接收波束满足 $\|\bm g_i(t)\|^2=1$，所以
+\begin{equation}
+\sigma^2=\sigma^2\bm g_i^H(t)\bm g_i(t)
+=\bm g_i^H(t)(\sigma^2\mathbf I)\bm g_i(t).
+\end{equation}
+将噪声和每个 CU 的干扰一起写入括号，原分母等于
+\begin{align}\label{eq:denominator}
+&\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm g_i^H(t)\bm h_{c_j,u_i}^{H}(t)\right|^2+\sigma^2\notag\\
+&=\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t).
+\end{align}
+假设 $\sigma^2>0$ 且 $\eta_{i,j}(t)p_j(t)\ge0$。对任意非零向量 $\bm v\in\mathbb C^{N\times1}$，有
+\begin{align}
+&\bm v^H\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm v\notag\\
+&=\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\left|\bm h_{c_j,u_i}(t)\bm v\right|^2+\sigma^2\|\bm v\|^2>0.
+\end{align}
+\begin{samepage}
+因此，式\,(\ref{eq:denominator}) 括号中的矩阵为 Hermitian 正定矩阵，其正定平方根及逆平方根均存在。为了把分子和这个分母联系起来，在分子的内积中插入该矩阵的平方根及逆平方根，得到
+\begin{align}\label{eq:sqrt-insertion}
+&\bm g_i^H(t)\bm a_r(\theta_i(t))\notag\\
+&=\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right]^H\notag\\
+&\quad\times\left[\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right].
+\end{align}
+\end{samepage}
+\begin{samepage}
+这里两个矩阵相乘为单位矩阵。对式\,(\ref{eq:sqrt-insertion}) 右侧的两个向量应用复数 Cauchy--Schwarz 不等式 $|\bm x^H\bm y|^2\le\|\bm x\|^2\|\bm y\|^2$，得到
+\begin{align}\label{eq:cs-norms}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{\frac12}\!\bm g_i(t)\right\|^2\notag\\
+&\quad\times\left\|\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-\frac12}\!\bm a_r(\theta_i(t))\right\|^2.
+\end{align}
+\end{samepage}
+将两个范数平方分别展开，就得到：
+\begin{align}
+&\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2\notag\\
+&\le\bm g_i^H(t)\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)\!\bm g_i(t)\notag\\
+&\quad\times\bm a_r^H(\theta_i(t))\!\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}\!\bm a_r(\theta_i(t)).\label{eq:cs}
+\end{align}
+式\,(\ref{eq:cs}) 右侧第一项恰好是式\,(\ref{eq:denominator}) 的分母；将式\,(\ref{eq:cs}) 两侧除以该正数，就得到式\,(\ref{eq:receive-optimization}) 的上界。Cauchy--Schwarz 不等式取等当且仅当式\,(\ref{eq:sqrt-insertion}) 中的两个向量线性相关；将这一条件两侧乘以对应的逆平方根，可得 $\bm g_i(t)$ 与下式同方向，即相差非零复数倍：
+\begin{equation}\label{eq:direction}
+\left(\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t)).
+\end{equation}
+由此，满足论文单位范数要求的一个解为
+\begin{equation}\label{eq:mvdr}
+\bm g_i^{\rm MVDR}(t)=
+\frac{\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))}
+{\left\|\left(\displaystyle\sum_{j=1}^J\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I\right)^{-1}
+\bm a_r(\theta_i(t))\right\|}.
+\end{equation}
+其任意整体相位旋转也达到相同 SINR。经典无失真 MVDR 采用 $\bm g_i^H(t)\bm a_r(\theta_i(t))=1$ 的幅度归一化；式\,(\ref{eq:mvdr}) 采用论文要求的单位范数，方向相同，约束不同。Capon [1] 是相关的原始文献；Vorobyov [2, 第 2 节] 讨论最大 SINR、MVDR 和模型误差。
+
+\textbf{退化情形。}若式\,(\ref{eq:tx-factor}) 为零，包括 $\bm a_t^H(\theta_i(t))\bm w_i(t)=0$ 的情形，则回波分子为零，所有接收方向的 SINR 都为零；在 $\epsilon>0$ 时该方案不可行。上面的唯一方向结论针对目标增益非零、目标导向矢量非零的情况。
+
+\section{MVDR 接收波束的全局最优性证明}
+
+\noindent\textbf{定理。}考虑论文中的问题 $P0$。设 $P0$ 存在全局最优解，且感知信道满足式~\eqref{eq:A}，$\sigma^2>0$，$p_j(t)\ge 0$，$\bm a_r(\theta_i(t))\ne\bm 0$，$\omega_2\ge 0$。感知发射波束可以按 $[0,1]$ 内的系数缩放，且不存在未列出的发射功率下限、波束硬件约束或其他依赖波束的约束。感知发射、卸载发射和接收波束的定义域均为复向量空间 $\mathbb C^{N\times1}$。
+则 $P0$ 至少存在一个全局最优解，其每个 UAV 在每个时隙的接收波束均为式~\eqref{eq:mvdr} 所给的单位范数 MVDR 接收波束。
+
+\medskip
+\noindent\textbf{证明。}任取问题 $P0$ 的可行解 $\tilde{\bm\zeta}$，保留其中所有时隙的轨迹、频谱匹配、CU 功率、卸载波束、卸载时长及计算频率。下面构造新的感知发射波束和接收波束，并证明所得方案仍可行且目标值不增。
+
+首先，任取 $i$ 和 $t$，令
+\begin{equation}\label{eq:new-cov}
+\mathbf R_i(t)=\sum_{j=1}^{J}\eta_{i,j}(t)p_j(t)
+\bm h_{c_j,u_i}^{H}(t)\bm h_{c_j,u_i}(t)+\sigma^2\mathbf I.
+\end{equation}
+由于 $\sigma^2>0$ 且 $p_j(t)\ge0$，有 $\mathbf R_i(t)\succ0$。将式~\eqref{eq:A} 代入感知 SINR，并利用式~\eqref{eq:cs} 的 Cauchy--Schwarz 不等式，可得对任意单位范数接收波束 $\bm g_i(t)$，
+\begin{align}\label{eq:new-sinr-bound}
+\operatorname{SINR}_i(t)
+&=\xi_0\rho d_i^{-4}(t)\left|\bm a_t^H(\theta_i(t))\tilde{\bm w}_i(t)\right|^2
+\frac{\left|\bm g_i^H(t)\bm a_r(\theta_i(t))\right|^2}
+{\bm g_i^H(t)\mathbf R_i(t)\bm g_i(t)}\notag\\
+&\le\xi_0\rho d_i^{-4}(t)\left|\bm a_t^H(\theta_i(t))\tilde{\bm w}_i(t)\right|^2
+\bm a_r^H(\theta_i(t))\mathbf R_i^{-1}(t)\bm a_r(\theta_i(t)).
+\end{align}
+选择 $\bm g_i^{\rm MVDR}(t)$ 为式~\eqref{eq:mvdr} 的单位范数向量时，式~\eqref{eq:new-sinr-bound} 取等。若发射目标增益为零，各接收波束的感知 SINR 均为零，式~\eqref{eq:mvdr} 仍为一个最大 SINR 的接收波束。
+
+记原方案的感知 SINR 为 $\tilde s_i(t)$，在保持 $\tilde{\bm w}_i(t)$ 不变时，将原接收波束替换为 $\bm g_i^{\rm MVDR}(t)$ 后的感知 SINR 为 $\hat s_i(t)$。由式~\eqref{eq:new-sinr-bound} 可知
+\begin{equation}\label{eq:new-ineq}
+\hat s_i(t)\ge\tilde s_i(t)\ge0.
+\end{equation}
+构造新的感知发射波束 $\bm w'_i(t)=c_i(t)\tilde{\bm w}_i(t)$，其中
+\begin{equation}\label{eq:new-scale}
+c_i(t)=
+\begin{cases}
+\sqrt{\tilde s_i(t)/\hat s_i(t)},&\hat s_i(t)>0,\\
+0,&\hat s_i(t)=0.
+\end{cases}
+\end{equation}
+由式~\eqref{eq:new-ineq}，$0\le c_i(t)\le1$；当 $\hat s_i(t)=0$ 时，必有 $\tilde s_i(t)=0$。故新方案的感知 SINR $s'_i(t)$ 和发射功率满足
+\begin{samepage}
+\begin{align}\label{eq:new-same-sinr}
+s'_i(t)&=c_i^2(t)\hat s_i(t)=\tilde s_i(t),\\
+\|\bm w'_i(t)\|^2&=c_i^2(t)\|\tilde{\bm w}_i(t)\|^2\le\|\tilde{\bm w}_i(t)\|^2.\label{eq:new-power}
+\end{align}
+\end{samepage}
+对所有 UAV 和时隙分别执行上述构造，所得方案记为 $\bm\zeta'$。接下来验证 $\bm\zeta'$ 满足 $P0$ 的约束。
+
+首先，$\bm g_i^{\rm MVDR}(t)$ 满足单位范数约束；式~\eqref{eq:new-power} 表明感知发射功率上限仍成立。根据式~\eqref{eq:new-same-sinr}，感知 SINR 阈值仍满足，且式~\eqref{eq:rate} 给出的感知速率和数据量不变，即
+\begin{equation}\label{eq:new-same-rate}
+R_i^{\rm sen\prime}(t)=\tilde R_i^{\rm sen}(t),\qquad
+\bar D^{\rm sen}R_i^{\rm sen\prime}(t)=\bar D^{\rm sen}\tilde R_i^{\rm sen}(t).
+\end{equation}
+由于卸载波束、卸载时长和计算频率均保持原值，根据原可行解满足式~\eqref{eq:impact-off} 和~\eqref{eq:impact-delay}，有
+\begin{align}
+\bar D^{\rm sen}R_i^{\rm sen\prime}(t)
+&=\bar D^{\rm sen}\tilde R_i^{\rm sen}(t)
+\le \tilde D_{u_i}^{\rm off}(t)\tilde R_i^{\rm off}(t),\label{eq:new-off}\\
+\bar D^{\rm sen}+\tilde D_{u_i}^{\rm off}(t)
++\frac{C^{\rm sen}\bar D^{\rm sen}R_i^{\rm sen\prime}(t)}{\tilde f_{u_i}(t)}
+&=\bar D^{\rm sen}+\tilde D_{u_i}^{\rm off}(t)
++\frac{C^{\rm sen}\bar D^{\rm sen}\tilde R_i^{\rm sen}(t)}{\tilde f_{u_i}(t)}
+\le D_{\max}^{\rm sen}.\label{eq:new-delay}
+\end{align}
+因此，感知数据卸载约束和计算时延约束仍成立，且 BS 感知计算能耗不变。
+
+其次，对于与 UAV $u_i$ 共享频谱的 CU $c_j$，感知期间 UAV 对 BS 的干扰满足
+\begin{equation}\label{eq:new-interference}
+\left|\bm h_{u_i,\mathrm{BS}}^H(t)\bm w'_i(t)\right|^2
+=c_i^2(t)\left|\bm h_{u_i,\mathrm{BS}}^H(t)\tilde{\bm w}_i(t)\right|^2
+\le\left|\bm h_{u_i,\mathrm{BS}}^H(t)\tilde{\bm w}_i(t)\right|^2.
+\end{equation}
+因此，CU 的第一阶段卸载速率不降低，即 $R_{i,j}^{(1)\prime}(t)\ge\tilde R_{i,j}^{(1)}(t)$。第二、第三阶段速率及各阶段时长保持不变，因此 CU 成功卸载约束仍成立。其余变量和约束均未改变，包括跨时隙轨迹约束，故 $\bm\zeta'$ 是 $P0$ 的可行解。
+
+令 $E_{P0}(\cdot)$ 表示 $P0$ 的长期平均加权能耗。根据式~\eqref{eq:new-same-rate} 和~\eqref{eq:new-power}，BS 计算能耗、CU 能耗、UAV 卸载能耗与飞行能耗均不变，而感知发射能耗不增加。因此
+\begin{align}\label{eq:new-objective}
+E_{P0}(\bm\zeta')-E_{P0}(\tilde{\bm\zeta})
+&=-\frac{\omega_2\bar D^{\rm sen}}{t_{\max}}
+\sum_{t=1}^{t_{\max}}\sum_{u_i\in\mathcal U}
+\bigl(1-c_i^2(t)\bigr)\left\|\tilde{\bm w}_i(t)\right\|^2
+\le0.
+\end{align}
+
+最后，令 $\bm\zeta^\star$ 为 $P0$ 的一个全局最优解，$E_{P0}^\star=E_{P0}(\bm\zeta^\star)$ 为其最优值。对 $\bm\zeta^\star$ 执行上述构造，得到使用 MVDR 接收波束的可行解 $\bm\zeta^{\rm MVDR}$。由式~\eqref{eq:new-objective}，有
+\begin{equation}\label{eq:new-opt-upper}
+E_{P0}(\bm\zeta^{\rm MVDR})\le E_{P0}(\bm\zeta^\star)=E_{P0}^\star.
+\end{equation}
+另一方面，由于 $\bm\zeta^{\rm MVDR}$ 对 $P0$ 可行，且 $E_{P0}^\star$ 为全局最小值，有
+\begin{equation}\label{eq:new-opt-lower}
+E_{P0}(\bm\zeta^{\rm MVDR})\ge E_{P0}^\star.
+\end{equation}
+结合式~\eqref{eq:new-opt-upper} 和~\eqref{eq:new-opt-lower}，得到
+\begin{equation}
+E_{P0}(\bm\zeta^{\rm MVDR})=E_{P0}^\star.
+\end{equation}
+因此，$\bm\zeta^{\rm MVDR}$ 是 $P0$ 的一个全局最优解，定理得证。\hfill$\square$
+
+\section*{参考与可核查来源}
+\begin{enumerate}[label={[\arabic*]},leftmargin=*]
+\item J. Capon, “High-Resolution Frequency-Wavenumber Spectrum Analysis,” \textit{Proceedings of the IEEE}, vol. 57, no. 8, pp. 1408--1418, 1969. DOI: \href{https://doi.org/10.1109/PROC.1969.7278}{10.1109/PROC.1969.7278}. \href{https://epsc.wustl.edu/~ggeuler/reading/cam_noise_biblio/capon_1969-ieee-high-resolution_frequency-wavenumber_spectrum_analysis.pdf}{原文 PDF}。
+\item S. A. Vorobyov, “Principles of Minimum Variance Robust Adaptive Beamforming Design,” \textit{Signal Processing}, vol. 93, no. 12, pp. 3264--3277, 2013. DOI: \href{https://doi.org/10.1016/j.sigpro.2012.10.021}{10.1016/j.sigpro.2012.10.021}. \href{https://users.aalto.fi/~vorobys1/SP13.pdf}{作者 PDF}。
+\item 系统模型：多 UAV 辅助 ISCC 系统的感知信道、感知速率、能耗目标和 $P0$ 约束。本文第三节给出基于该模型的构造证明。
+\end{enumerate}
+\end{document}

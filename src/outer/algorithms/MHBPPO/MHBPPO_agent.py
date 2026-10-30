@@ -7,6 +7,7 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 
 from algorithms.MHBPPO.policy_diagnostics import capture_policy_distribution
+from environment.mapping import receive_beam_mapping_metadata
 
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
@@ -45,12 +46,19 @@ class GaussianHead(nn.Module):
 
 class MultiHeadActor(nn.Module):
     RECEIVE_BEAM_HEADS = frozenset({
-        "uav_rec_beam_dir_real", "uav_rec_beam_dir_imag",
+        "uav_rec_beam_amplitude", "uav_rec_beam_phase",
     })
 
     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
-                 continuous_dist_type="beta", structured_beam_alpha=1.0):
+                 continuous_dist_type="beta", structured_beam_alpha=1.0,
+                 receive_beam_phase_mode="absolute", receive_beam_phase_limit_deg=45.0,
+                 mvdr_residual=False, mvdr_residual_radius=0.2, structured_beam_reference="mvdr"):
         super(MultiHeadActor, self).__init__()
+        self.receive_beam_mapping = receive_beam_mapping_metadata(
+            receive_beam_phase_mode, receive_beam_phase_limit_deg, structured_beam_alpha,
+            mvdr_residual, mvdr_residual_radius, structured_beam_reference)
+        if {"uav_rec_beam_dir_real", "uav_rec_beam_dir_imag"}.intersection(continuous_action_splits):
+            raise ValueError("Cartesian receive-beam actions are obsolete; use amplitude/phase and a new checkpoint")
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.activate_func = nn.Tanh()
@@ -69,7 +77,8 @@ class MultiHeadActor(nn.Module):
         self.structured_beam_alpha_effective = float(np.clip(configured_alpha, 0.0, 1.0))
         self.masked_continuous_head_names = tuple(
             name for name in self.continuous_head_names
-            if self.structured_beam_alpha_effective == 0.0 and name in self.RECEIVE_BEAM_HEADS
+            if self.structured_beam_alpha_effective == 0.0 and not mvdr_residual
+            and name in self.RECEIVE_BEAM_HEADS
         )
         self.active_continuous_head_names = tuple(
             name for name in self.continuous_head_names
@@ -103,6 +112,10 @@ class MultiHeadActor(nn.Module):
     def action_probability_metadata(self):
         """Runtime configuration, deliberately absent from parameter state_dict."""
         return {
+            # Keep legacy absolute contracts byte-compatible with saved packages.
+            **(self.receive_beam_mapping if self.receive_beam_mapping[
+                "receive_beam_phase_mode"] == "phase_residual" or self.receive_beam_mapping[
+                "receive_beam_mapping_version"] in ("mvdr_complex_residual_v1", "mvdr_aligned_mix_v1", "matched_unit_norm_v1") else {}),
             "action_probability_contract": "inactive_receive_beam_heads_excluded_v1",
             "structured_beam_alpha_effective": self.structured_beam_alpha_effective,
             "active_continuous_heads": list(self.active_continuous_head_names),
@@ -275,7 +288,9 @@ class HPPO:
                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
                  continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1,
-                 structured_beam_alpha=1.0, batch_size=32):
+                 structured_beam_alpha=1.0, batch_size=32,
+                 receive_beam_phase_mode="absolute", receive_beam_phase_limit_deg=45.0,
+                 mvdr_residual=False, mvdr_residual_radius=0.2, structured_beam_reference="mvdr"):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
         self.actor = MultiHeadActor(
@@ -285,6 +300,10 @@ class HPPO:
             discrete_action_dims=self.discrete_action_dims,
             continuous_dist_type=continuous_dist_type,
             structured_beam_alpha=structured_beam_alpha,
+            receive_beam_phase_mode=receive_beam_phase_mode,
+            receive_beam_phase_limit_deg=receive_beam_phase_limit_deg,
+            mvdr_residual=mvdr_residual, mvdr_residual_radius=mvdr_residual_radius,
+            structured_beam_reference=structured_beam_reference,
         ).to(device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
 

@@ -142,32 +142,62 @@ def compute_rank1_gap(W_sen_beam, B_off_beam):
     return compute_rank1_gap_sen(W_sen_beam) + compute_rank1_gap_off(B_off_beam)
 
 
-def compute_pure_energy(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
-    """P4 原目标函数中**不含秩一罚项**的能量部分（单位：J）。
+ENERGY_CONTRACT = "six_components_j_v1"
+ENERGY_COMPONENT_KEYS = (
+    "bs_sensing_computation_energy_j", "bs_cu_computation_energy_j",
+    "uav_sensing_energy_j", "uav_offloading_energy_j", "uav_flight_energy_j",
+    "cu_offloading_energy_j",
+)
+ENERGY_TOTAL_KEYS = ("physical_total_energy_j", "weighted_total_energy_j")
 
-    即 ω_1(①+②) + ω_2·③ + ω_3·④，是 PC3P / GC3P 公平比较时使用的真实能量指标：
-        - PC3P 的目标里还叠加了 ρ 倍秩一间隙，只有收敛到秩一时两者才一致；
-        - GC3P 的松弛子问题 ρ ≡ 0，其迭代判据与秩一候选优选都直接使用本函数。
+
+def compute_energy_breakdown(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
+    """Six unweighted candidate energies and their totals, in joules.
+
+    ``z_aux_rate`` is already sensing data in bits, including sensing duration.
+    Preserve the original weighted objective's operation order exactly: the
+    six diagnostic components must not introduce rounding changes to rewards
+    or the optimizer's convergence criterion. This is covariance energy, not
+    a claim that the returned solution passes physical validation.
     """
     # ω_1 κ [ Σ_{u_i} C^sen z_i (f_{u_i})² + Σ_{c_j} ( C_j L_j )³ / ( D^max_j - D_{c_j}^{off} )² ]
     # 其中 ( z_i + f_{u_i}² )² / 2 - z_i² / 2 - (f_{u_i})⁴ / 2 = z_i f_{u_i}²，取乘积形式避免大数相消
-    bs_energy = ctx.omega_1 * ctx.kappa_cpu * (
-        np.sum(ctx.C_sen * z_aux_rate * f_uav_freq ** 2)
-        + np.sum((ctx.C_cu_cycles * ctx.L_cu_task) ** 3 / (ctx.D_max_cu - D_cu_off) ** 2)
-    )
+    bs_sensing_work = np.sum(ctx.C_sen * z_aux_rate * f_uav_freq ** 2)
+    bs_cu_work = np.sum((ctx.C_cu_cycles * ctx.L_cu_task) ** 3 / (ctx.D_max_cu - D_cu_off) ** 2)
+    bs_energy = ctx.omega_1 * ctx.kappa_cpu * (bs_sensing_work + bs_cu_work)
 
     # ω_2 Σ_{u_i} ( D̄^sen Tr(W_i) + D_{u_i}^{off} Tr(B_i) + E_{u_i}^{fly} )
+    sensing = [ctx.D_bar_sen * np.real(np.trace(W_sen_beam[i])) for i in range(ctx.I)]
+    offloading = [ctx.D_uav_off[i] * np.real(np.trace(B_off_beam[i])) for i in range(ctx.I)]
     uav_energy = ctx.omega_2 * sum(
-        ctx.D_bar_sen * np.real(np.trace(W_sen_beam[i]))
-        + ctx.D_uav_off[i] * np.real(np.trace(B_off_beam[i]))
-        + ctx.E_uav_fly[i]
-        for i in range(ctx.I)
-    )
+        sensing[i] + offloading[i] + ctx.E_uav_fly[i] for i in range(ctx.I))
 
     # ω_3 Σ_{c_j} D_{c_j}^{off} p_j
-    cu_energy = ctx.omega_3 * float(np.sum(D_cu_off * ctx.p_cu_power))
+    cu_offloading = float(np.sum(D_cu_off * ctx.p_cu_power))
+    cu_energy = ctx.omega_3 * cu_offloading
 
-    return float(bs_energy + uav_energy + cu_energy)
+    result = dict(zip(ENERGY_COMPONENT_KEYS, (
+        float(ctx.kappa_cpu * bs_sensing_work), float(ctx.kappa_cpu * bs_cu_work),
+        float(sum(sensing)), float(sum(offloading)), float(np.sum(ctx.E_uav_fly)),
+        cu_offloading,
+    )))
+    result["physical_total_energy_j"] = float(sum(result.values()))
+    result["weighted_total_energy_j"] = float(bs_energy + uav_energy + cu_energy)
+    return result
+
+
+def unavailable_energy_breakdown(flight_energy):
+    """Unknown service energy is null, never zero or infinite physical energy."""
+    result = {key: None for key in ENERGY_COMPONENT_KEYS + ENERGY_TOTAL_KEYS}
+    result["uav_flight_energy_j"] = float(flight_energy)
+    return result
+
+
+def compute_pure_energy(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):
+    """P4 energy objective in J, excluding the rank-one penalty (unchanged)."""
+    return compute_energy_breakdown(
+        ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off
+    )["weighted_total_energy_j"]
 
 
 def compute_p4_objective(ctx, W_sen_beam, B_off_beam, f_uav_freq, z_aux_rate, D_cu_off):

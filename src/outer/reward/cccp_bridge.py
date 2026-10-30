@@ -21,7 +21,7 @@
     uavs_rec_beam_vectors           -> g_rec_beam            (I,N)
 
 g_rec_beam（UAV 接收波束，‖g_i‖²=1）由**外层动作空间产出**（my_env 追加的
-uav_rec_beam_dir_real / uav_rec_beam_dir_imag 动作头，逐 UAV L2 归一化），与其他外层给定
+uav_rec_beam_amplitude / uav_rec_beam_phase 动作头，逐 UAV L2 归一化），与其他外层给定
 量（eta_share / p_cu_power / D_uav_off）并列注入内层参与能耗计算。调用方未传
 ``uavs_rec_beam_vectors`` 时，回退取**指定感知目标信道 A_i 的主特征向量**（A_i 秩一分解后的
 匹配接收波束 a_i/‖a_i‖），使接收增益 |a_i^H g_i| 最大。
@@ -37,6 +37,7 @@ from time import perf_counter
 
 from reward.solver_status import (
     classify_solver_status as _classify_solver_status, resolve_solver_status,
+    sensing_infeasibility_certificate, SENSING_PRESOLVE_CONTRACT,
 )
 
 from reward.feasibility_diagnostics import (
@@ -81,7 +82,8 @@ def _load_inner_environment():
 _ensure_inner_on_path()
 from parameters import Parameters                                    # noqa: E402
 from variables import InnerVariables, InnerContext                   # noqa: E402
-from pc3p import compute_pure_energy                                 # noqa: E402
+from pc3p import (compute_energy_breakdown, unavailable_energy_breakdown,
+                  ENERGY_CONTRACT)                                  # noqa: E402
 # 求解后端：MOSEK Fusion（fusion_pc3p）——与 cvxpy 后端共用同一套线性化量，
 # 返回的 result 结构完全一致；此处以别名 run_pc3p 导入，调用点无需改动。
 from fusion_pc3p import run_pc3p_fusion as run_pc3p                  # noqa: E402
@@ -120,7 +122,8 @@ def _distance_from_sensing_matrix(A, params):
 
 
 # ── 参数映射 ─────────────────────────────────────────────────────────────────
-def build_inner_parameters(base_args, cus_entertaining_task_size=None):
+def build_inner_parameters(base_args, cus_entertaining_task_size=None, *,
+                           cu_task_cycles=None, cu_task_deadlines=None, slot_duration=None):
     """把外层 base_args 映射为内层 Parameters。
 
     只对齐**物理场景参数**（必须与 my_env 用的一致）；PC3P 求解器超参（gamma_1/2、
@@ -138,6 +141,7 @@ def build_inner_parameters(base_args, cus_entertaining_task_size=None):
         "deploy_radius": _pick(base_args, "radius", d.deploy_radius),
         "area_length": _pick(base_args, "radius", d.area_length),
         "uav_height": _pick(base_args, "uav_height", d.uav_height),
+        "bs_pos": tuple(np.asarray(_pick(base_args, "bs_pos", d.bs_pos), dtype=float)),
         # UAV 飞行
         "uav_max_speed": _pick(base_args, "uav_max_speed", d.uav_max_speed),
         "uav_min_speed": _pick(base_args, "uav_min_speed", d.uav_min_speed),
@@ -185,9 +189,19 @@ def build_inner_parameters(base_args, cus_entertaining_task_size=None):
     if isinstance(threads, bool) or not isinstance(threads, (int, np.integer)) or threads < 0:
         raise ValueError("mosek_num_threads must be a nonnegative integer")
     params.mosek_num_threads = int(threads)
-    # CU 娱乐任务数据量：外层逐 CU 给出，覆盖 Parameters 中由 L_cu_task_bits 铺平的结果
-    if cus_entertaining_task_size is not None:
-        params.L_cu_task = np.asarray(cus_entertaining_task_size, dtype=float).reshape(-1)
+    # Only CU arrays are overridden: UAV sensing's C_sen stays unchanged.
+    for field, value in (("L_cu_task", cus_entertaining_task_size),
+                         ("C_cu_cycles", cu_task_cycles), ("D_max_cu", cu_task_deadlines)):
+        if value is not None:
+            vector = np.asarray(value, dtype=float).reshape(-1).copy()
+            if vector.shape != (params.J,) or not np.isfinite(vector).all() or np.any(vector <= 0):
+                raise ValueError(field + " must have J positive finite entries")
+            setattr(params, field, vector)
+    if slot_duration is not None:
+        params.tau_slot = float(slot_duration)
+        if (not np.isfinite(params.tau_slot) or params.tau_slot <= 0
+                or np.any(params.D_max_cu > params.tau_slot + 1e-12)):
+            raise ValueError("CU deadlines must fit inside the positive slot duration")
     return params
 
 
@@ -221,7 +235,8 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
                        uavs_rec_beam_vectors=None, return_solution=True, *,
                        collect_diagnostics=True, diagnostic_candidates=True,
                        diagnostic_cu_min_power=None, capture_failed_solution=False,
-                       collect_sensing_reward=False):
+                       collect_sensing_reward=False, cu_task_cycles=None,
+                       cu_task_deadlines=None, slot_duration=None, enable_sensing_presolve=True):
     """外层场景 -> 内层 PC3P 求解 -> 返回与旧 penalty_based_cccp 一致的 12 元组。
 
     :param uavs_rec_beam_vectors: 可选，(I, N) 复数，外层智能体产出的接收波束 g_i
@@ -231,8 +246,12 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     无可行解时 energy_opt = inf，各明细为空。
     collect_sensing_reward 仅回传同源感知裕量，不修改内层输入或求解结果；
     该轻量计算独立于 collect_diagnostics（诊断日志开关）。
+    enable_sensing_presolve 仅在严格C03/C05/C06证书成立时跳过PC3P；False用于同输入对照。
     """
-    params = build_inner_parameters(args, cus_entertaining_task_size)
+    params = build_inner_parameters(args, cus_entertaining_task_size,
+                                    cu_task_cycles=cu_task_cycles,
+                                    cu_task_deadlines=cu_task_deadlines,
+                                    slot_duration=slot_duration)
     I, J, N = params.I, params.J, params.N
     num_targets = int(np.asarray(uavs_2_targets_channels).shape[1])
 
@@ -318,21 +337,44 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
                 "reason": "{}: {}".format(type(exc).__name__, exc),
             }
     diagnostic_pre_seconds = perf_counter() - diagnostic_start
-    solver_start = perf_counter()
-    result = run_pc3p(ctx)
-    solver_seconds = perf_counter() - solver_start
+    presolve_start = perf_counter()
+    certificate = (sensing_infeasibility_certificate(ctx) if enable_sensing_presolve
+                   else {"evaluated": False, "certified": False, "reason": "disabled"})
+    presolve_seconds = perf_counter() - presolve_start
+    skipped = certificate["certified"]
+    if skipped:
+        # No PC3P initialization, Fusion model access, or optimizer call occurs.
+        result = {"status": "analytic_infeasible:c03_c05_c06", "W_sen_beam": None,
+                  "iterations": 0, "converged": False}
+        solver_seconds = 0.0
+        resolved = {
+            "solver_status": result["status"], "solver_status_kind": "infeasible",
+            "raw_solver_status": None, "raw_solver_status_kind": "not_run",
+            "raw_problem_status": None, "optimizer_response_code": None,
+            "status_source": "analytic_presolve_c03_c05_c06",
+            "infeasibility_certificate": certificate,
+        }
+    else:
+        solver_start = perf_counter()
+        result = run_pc3p(ctx)
+        solver_seconds = perf_counter() - solver_start
+        resolved = resolve_solver_status(result.get("status"), ctx,
+                                         result.get("solver_diagnostics"))
     # Resolve unknown using actual P5 inputs even when diagnostics are disabled.
     # Raw MOSEK statuses remain available; optimal is accepted unchanged.
     solver_diagnostic = {
         **result.get("solver_diagnostics", {}),
-        **resolve_solver_status(result.get("status"), ctx,
-                                result.get("solver_diagnostics")),
+        **resolved,
         "solver_converged": bool(result.get("converged", False)),
         "solver_iterations": int(result.get("iterations", 0) or 0),
+        "presolve_contract": SENSING_PRESOLVE_CONTRACT,
+        "solver_skipped": bool(skipped), "pc3p_called": not skipped,
+        "presolve_seconds": presolve_seconds, "presolve_certificate": certificate,
     }
     if collect_sensing_reward:
         solver_diagnostic["sensing_reward_metrics"] = sensing_reward_metrics
 
+    validation = None
     if collect_diagnostics:
         validation_start = perf_counter()
         validation = validate_original_solution(params, environment, result)
@@ -350,14 +392,29 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
             "validation": validation,
         })
         env_diagnostic["diagnostic_seconds"] = (
-            diagnostic_pre_seconds + perf_counter() - validation_start)
+            diagnostic_pre_seconds + presolve_seconds + perf_counter() - validation_start)
         if capture_failed_solution and result["W_sen_beam"] is not None and (
                 not validation["physical_solution_verified"]):
             env_diagnostic["problem_snapshot"] = _diagnostic_problem_snapshot(
                 params, environment, result, target_idx)
         solver_diagnostic["env_diagnostic"] = env_diagnostic
 
+    # Diagnostic validity never changes legacy success, solver status or reward.
+    physical_verified = (bool(validation["physical_solution_verified"])
+                         if validation is not None else None)
+    strict_feasible = (bool(physical_verified and env_diagnostic["outer_action"]["passed"])
+                       if validation is not None else None)
+    energy_metadata = {
+        "energy_contract": ENERGY_CONTRACT,
+        "energy_physical_solution_verified": physical_verified,
+        "energy_strict_feasible": strict_feasible,
+    }
     if result["W_sen_beam"] is None:
+        solver_diagnostic["energy_breakdown"] = {
+            **unavailable_energy_breakdown(np.sum(ctx.E_uav_fly)),
+            **energy_metadata, "energy_solution_status": "no_solution",
+            "energy_finite_candidate": False,
+        }
         return (float("inf"), None, None, None, None, None, None,
                 [], [], [], np.array([]), solver_diagnostic)
 
@@ -367,7 +424,12 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     z_aux_rate = np.asarray(result["z_aux_rate"], dtype=float)
     D_cu_off = np.asarray(result["D_cu_off"], dtype=float)
 
-    energy_opt = compute_pure_energy(ctx, W_sen, B_off, f_uav_freq, z_aux_rate, D_cu_off)
+    energy_breakdown = compute_energy_breakdown(ctx, W_sen, B_off, f_uav_freq, z_aux_rate, D_cu_off)
+    energy_opt = energy_breakdown["weighted_total_energy_j"]
+    energy_breakdown.update(energy_metadata)
+    energy_breakdown.update(
+        energy_finite_candidate=bool(np.isfinite(energy_opt)),
+        energy_solution_status="finite_candidate" if np.isfinite(energy_opt) else "nonfinite_candidate")
 
     per_uav_sen_power_list = [float(np.real(np.trace(W_sen[i]))) for i in range(I)]
     per_uav_off_power_list = [float(np.real(np.trace(B_off[i]))) for i in range(I)]
@@ -379,6 +441,7 @@ def solve_inner_energy(args, uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_c
     solution_payload = {
         "auxiliary_variable_z": z_aux_rate / z_scale,
         "z_aux_rate_bits": z_aux_rate,
+        "energy_breakdown": energy_breakdown,
         **solver_diagnostic,
     }
 

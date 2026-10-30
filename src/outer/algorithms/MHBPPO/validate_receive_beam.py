@@ -17,6 +17,7 @@ from torch.distributions import Beta
 
 from algorithms.MHBPPO.beam_pretraining import (
     load_dataset, build_actor_from_checkpoint, beam_dists,
+    amplitude_phase_beams, teacher_beta_parameters,
 )
 from algorithms.MHBPPO.checkpoint import load_state_normalization
 
@@ -25,15 +26,9 @@ def file_sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def complex_beams(real, imag, uavs, antennas):
-    """Preserve original real-all-UAVs then imaginary-all-UAVs layout."""
-    y = torch.complex(2*real-1, 2*imag-1).reshape(*real.shape[:-1], uavs, antennas)
-    norm = torch.linalg.vector_norm(y, dim=-1, keepdim=True)
-    bad = norm < 1e-12
-    g = y / norm.clamp_min(1e-12)
-    fallback = torch.zeros_like(g)
-    fallback[..., 0] = 1
-    return torch.where(bad, fallback, g), bad.squeeze(-1)
+def complex_beams(amplitude, phase_unit, uavs, antennas):
+    """Preserve amplitude-all-UAVs then phase-all-UAVs action layout."""
+    return amplitude_phase_beams(amplitude, phase_unit, uavs, antennas)
 
 
 def sensing_metrics(g, target, distance, h_selected, p_selected, params):
@@ -110,28 +105,27 @@ def evaluate_branch(actor, states, teacher, distance, h, powers, params,
         for start in range(0,n,batch_size):
             stop=min(n,start+batch_size)
             target = teacher[start:stop]
+            teacher_params = teacher_beta_parameters(target.real, target.imag, rho=rho, kappa=kappa)
+            amplitude_target = torch.tensor(teacher_params["mean"][:, :uavs*antennas], dtype=torch.float32)
+            phase_target = torch.tensor(teacher_params["mean"][:, uavs*antennas:], dtype=torch.float32)
+            q_amplitude=Beta(kappa*amplitude_target,kappa*(1-amplitude_target))
+            q_phase=Beta(kappa*phase_target,kappa*(1-phase_target))
             if teacher_policy:
-                mu_r = torch.tensor((1+rho*target.real.reshape(-1,uavs*antennas))/2, dtype=torch.float32)
-                mu_i = torch.tensor((1+rho*target.imag.reshape(-1,uavs*antennas))/2, dtype=torch.float32)
-                real, imag = Beta(kappa*mu_r,kappa*(1-mu_r)), Beta(kappa*mu_i,kappa*(1-mu_i))
+                amplitude, phase = q_amplitude, q_phase
             else:
-                real,imag = beam_dists(actor, torch.tensor(states[start:stop],dtype=torch.float32))
-            mu_r_target=torch.tensor((1+rho*target.real.reshape(-1,uavs*antennas))/2,dtype=torch.float32)
-            mu_i_target=torch.tensor((1+rho*target.imag.reshape(-1,uavs*antennas))/2,dtype=torch.float32)
-            qr=Beta(kappa*mu_r_target,kappa*(1-mu_r_target))
-            qi=Beta(kappa*mu_i_target,kappa*(1-mu_i_target))
+                amplitude,phase = beam_dists(actor, torch.tensor(states[start:stop],dtype=torch.float32))
             from torch.distributions import kl_divergence
-            values["teacher_kl"][start:stop]=torch.cat((kl_divergence(qr,real),kl_divergence(qi,imag)),dim=1).mean(dim=1).numpy()
-            values["raw_mean_mse"][start:stop]=torch.cat(((real.mean-mu_r_target)**2,(imag.mean-mu_i_target)**2),dim=1).mean(dim=1).numpy()
-            g,bad=complex_beams(real.sample((draws,)),imag.sample((draws,)),uavs,antennas)
-            mean_g,_=complex_beams(real.mean,imag.mean,uavs,antennas)
+            values["teacher_kl"][start:stop]=torch.cat((kl_divergence(q_amplitude,amplitude),kl_divergence(q_phase,phase)),dim=1).mean(dim=1).numpy()
+            values["raw_mean_mse"][start:stop]=torch.cat(((amplitude.mean-amplitude_target)**2,(phase.mean-phase_target)**2),dim=1).mean(dim=1).numpy()
+            g,bad=complex_beams(amplitude.sample((draws,)),phase.sample((draws,)),uavs,antennas)
+            mean_g,_=complex_beams(amplitude.mean,phase.mean,uavs,antennas)
             metrics=sensing_metrics(g.numpy().astype(np.complex128),target,distance[start:stop],h[start:stop],powers[start:stop],params)
             for key in ("gain","margin","gamma","Q","joint_pass"):
                 values[key][start:stop]=metrics[key].mean(axis=0)
             values["draw_mean_gain_variance"][start:stop]=metrics["gain"].mean(axis=2).var(axis=0,ddof=1)/draws if draws>1 else np.nan
             values["mean_gain"][start:stop]=np.abs(np.einsum("bin,bin->bi",target.conj(),mean_g.numpy()))**2
-            values["coordinate_std"][start:stop]=torch.cat((real.stddev,imag.stddev),dim=1).mean(dim=1).numpy()
-            values["concentration"][start:stop]=torch.cat((real.concentration1+real.concentration0,imag.concentration1+imag.concentration0),dim=1).mean(dim=1).numpy()
+            values["coordinate_std"][start:stop]=torch.cat((amplitude.stddev,phase.stddev),dim=1).mean(dim=1).numpy()
+            values["concentration"][start:stop]=torch.cat((amplitude.concentration1+amplitude.concentration0,phase.concentration1+phase.concentration0),dim=1).mean(dim=1).numpy()
             values["fallbacks"] += int(bad.sum())
     if any(not np.all(np.isfinite(value)) for key,value in values.items() if key != "fallbacks"):
         raise ValueError("nonfinite stochastic physical evaluation")

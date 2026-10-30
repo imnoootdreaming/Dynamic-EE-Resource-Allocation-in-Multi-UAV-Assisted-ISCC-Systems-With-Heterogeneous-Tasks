@@ -24,7 +24,7 @@ def db_2_watt(db):
 
 def compute_com_channel_gain(uavs_pos, cus_pos, ref_path_loss, frac_d_lambda,
                              alpha_uav_link, alpha_cu_link, rician_factor, antenna_nums,
-                             nlos_components=None):
+                             nlos_components=None, *, bs_pos):
     """计算 UAV-CU / UAV-BS / CU-BS 三类通信链路信道。
 
     :param uavs_pos: (I, 3) UAV 位置
@@ -35,11 +35,14 @@ def compute_com_channel_gain(uavs_pos, cus_pos, ref_path_loss, frac_d_lambda,
     :param alpha_cu_link: CU 链路路径损耗指数
     :param rician_factor: Rician 因子 K（线性值）
     :param antenna_nums: UAV 天线数 N
+    :param bs_pos: (3,) 实际 BS 坐标，由同一场景参数源显式传入
     :param nlos_components: 可选，预生成的时隙级 NLoS 高斯分量字典
         （键 `uavs_2_cus` / `uavs_2_bs` / `cus_2_bs`）；未提供时在线采样。
     :return: (uavs_2_cus_channels, uavs_2_bs_channels, cus_2_bs_channels)
     """
-    bs_pos = np.array([0, 0, 0])
+    bs_pos = np.asarray(bs_pos, dtype=np.float64)
+    if bs_pos.shape != (3,) or not np.all(np.isfinite(bs_pos)):
+        raise ValueError("bs_pos must be a finite three-dimensional position")
 
     def get_rician_channel(pos1, pos2, alpha, K, is_mimo=True, nlos_component=None):
         diff = pos1[:, np.newaxis, :] - pos2[np.newaxis, :, :]

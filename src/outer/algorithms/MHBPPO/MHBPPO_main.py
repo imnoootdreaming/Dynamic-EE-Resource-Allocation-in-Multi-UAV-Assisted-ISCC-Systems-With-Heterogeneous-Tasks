@@ -59,6 +59,9 @@ from algorithms.MHBPPO.checkpoint import (
 from algorithms.MHBPPO.policy_diagnostics import (
     POLICY_DISTRIBUTION_CONTRACT, log_policy_distribution,
 )
+from algorithms.MHBPPO.energy_statistics import (
+    ENERGY_STATISTICS_CONTRACT, energy_scalar_metrics, log_energy_statistics, summarize_energy,
+)
 from algorithms.MHBPPO.MHBPPO_agent import HPPO
 from algorithms.MHBPPO.MHBPPO_sampler import sampler_worker
 from algorithms.MHBPPO.rollout_batch import (
@@ -73,7 +76,9 @@ from algorithms.MHBPPO.policy_initialization import (
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
-from reward.sensing_penalty import SENSING_PENALTY_CONTRACT
+from environment.observation import BS_OBSERVATION_CONTRACT, format_bs_observation_layout
+from reward.my_reward import SENSING_PENALTY_CONTRACT
+EPISODE_SUCCESS_BONUS_CONTRACT = "removed_v1"
 
 
 def setSeed(seed):
@@ -131,7 +136,7 @@ def setup_logger(log_path):
     stream_handler = logging.StreamHandler(sys.stdout)
     class LearnerUpdateFilter(logging.Filter):
         def filter(self, record):
-            return record.getMessage().startswith("[learner] iter=")
+            return record.getMessage().startswith(("[learner] iter=", "[startup]"))
 
     stream_handler.addFilter(LearnerUpdateFilter())
     stream_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -151,6 +156,20 @@ _TRANSITION_KEYS = (
     "states", "continuous_actions", "discrete_actions", "next_states",
     "rewards", "old_cont_log_probs", "old_disc_log_probs", "dones", "real_dones",
 )
+
+
+def summarize_receive_beams(action_traces):
+    """Summarize actual collection beams, independent of the updated actor."""
+    records = [trace["receive_beam_diagnostics"] for trace in action_traces]
+    gains = np.asarray([record["target_direction_gain"] for record in records], dtype=float)
+    boundary = [record["phase_residual_boundary_fraction"] for record in records
+                if "phase_residual_boundary_fraction" in record]
+    return {
+        "receive_beam_gain_mean": float(np.mean(gains)),
+        "receive_beam_gain_p10": float(np.quantile(gains, 0.1)),
+        "receive_beam_gain_p90": float(np.quantile(gains, 0.9)),
+        "phase_residual_boundary_fraction": float(np.mean(boundary)) if boundary else float("nan"),
+    }
 
 
 def validate_sample(item, expected_probability_metadata=None, expected_architecture=None):
@@ -308,6 +327,7 @@ def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, complet
         **(training_metadata or {}),
         **file_hashes,
         "actor_architecture": _optional_actor_architecture(agent.actor),
+        "receive_beam_mapping": dict(agent.actor.receive_beam_mapping),
         "iteration": int(iteration), "weights_version": int(iteration),
         "seed": int(seed), "checkpoint_policy": "after_completed_update",
         "actor_signature": actor_state_signature(agent.actor),
@@ -368,6 +388,8 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
         "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
         "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
+        "episode_success_bonus": float(getattr(madrl_args, "episode_success_bonus", 0.0)),
+        "episode_success_bonus_contract": EPISODE_SUCCESS_BONUS_CONTRACT,
         "lr_min_ratio": agent.lr_min_ratio,
         "lr_decay_horizon": agent.num_episodes,
         "continuous_dist_type": agent.actor.continuous_dist_type,
@@ -380,6 +402,8 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
             else max(1, madrl_args.sample_queue_maxsize),
         **agent.actor.action_probability_metadata(),
         "actor_architecture": actor_architecture_metadata(agent.actor),
+        "observation_contract": BS_OBSERVATION_CONTRACT,
+        "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
         "policy_initialization": getattr(agent, "policy_initialization_metadata", None),
     }
     params = getattr(base_args, "_params", None)
@@ -389,8 +413,12 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "effective": effective,
         "environment": {
             "base_args": base_args.as_dict(),
+            "bs_position": np.asarray(base_args.bs_pos, dtype=float).tolist(),
+            "bs_position_source": "base_args.bs_pos; supplied to outer channels and observations",
+            "observation_contract": BS_OBSERVATION_CONTRACT,
             "inner_parameters": None if params is None else vars(params).copy(),
             "initial_target_layout": None if initial_scene is None else initial_scene["target_layout"],
+            "cu_tasks": None if initial_scene is None else initial_scene.get("cu_tasks"),
         },
         "run": {
             "started_at": None if started_at is None else started_at.isoformat(),
@@ -426,6 +454,12 @@ def save_environment_plot(output_dir, scene, *, trajectory=None,
     try:
         ax.add_patch(plt.Circle(center, radius, fill=False, color="0.55",
                                 linewidth=1.2, linestyle="--"))
+        layout = scene.get("target_layout", {})
+        if layout.get("layout") == "global_ring":
+            ring_center = np.asarray(layout["center"], dtype=float)[:2]
+            ax.add_patch(plt.Circle(ring_center, layout["ring_radius"], fill=False,
+                                    color="0.35", linewidth=1.0, alpha=0.65,
+                                    label=f"Target ring (r={layout['ring_radius']:g} m)"))
         for sector in range(len(uavs)):
             color = colors(sector % colors.N)
             if trajectory is not None:
@@ -438,12 +472,17 @@ def save_environment_plot(output_dir, scene, *, trajectory=None,
             mask = sectors == sector
             ax.scatter(targets[mask, 0], targets[mask, 1], s=32, color=color,
                        label=f"Sector {sector + 1} targets", zorder=3)
+            if layout.get("layout") == "global_ring":
+                order = layout["visit_order"][sector]
+                if len(order) > 1:
+                    ax.annotate("", xy=targets[order[1], :2], xytext=targets[order[0], :2],
+                                arrowprops=dict(arrowstyle="->", color=color, lw=1.5),
+                                zorder=4)
             if len(uavs) > 1:
                 angle = sector * 2.0 * np.pi / len(uavs)
                 ax.plot([center[0], center[0] + radius * np.cos(angle)],
                         [center[1], center[1] + radius * np.sin(angle)],
                         color="0.8", linewidth=0.7, linestyle=":", zorder=1)
-            layout = scene.get("target_layout", {})
             if layout.get("layout") == "sector_ring":
                 ring_center = np.asarray(layout["centers"][sector])[:2]
                 ax.add_patch(plt.Circle(ring_center, layout["ring_radius"], fill=False,
@@ -467,7 +506,12 @@ def save_environment_plot(output_dir, scene, *, trajectory=None,
         ax.set_ylim(lower[1], upper[1])
         ax.set_xlabel("x (m)")
         ax.set_ylabel("y (m)")
-        ax.set_title(title or f"Initial environment | UAVs: {len(uavs)}, targets: {len(targets)}")
+        if title is None:
+            title = f"Initial environment | UAVs: {len(uavs)}, targets: {len(targets)}"
+            if layout.get("layout") == "global_ring":
+                title += (f"\nGlobal ring | beta={layout['radius_ratio']:g} | "
+                          f"{layout['direction']} | hold={layout.get('hold_slots', '?')} slots/target")
+        ax.set_title(title)
         ax.grid(alpha=0.15)
         if trajectory is None:
             ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
@@ -591,6 +635,7 @@ if __name__ == "__main__":
 
     # Use sampler-0's episode-0 scene for dimensions and the startup diagram.
     env = MyEnv(base_args=base_args, madrl_args=madrl_args, seed_offset=scene_seed_offset)
+    base_args = env.base_args  # Persist the resolved global-ring physical window length.
     shared_scene = env.get_exogenous_scene_signature()
     state_dim_bs = env.observation_space["bs"].shape[0]
     bs_continuous_action_splits = env.bs_continuous_action_splits
@@ -613,12 +658,32 @@ if __name__ == "__main__":
         "continuous_high": bs_continuous_action_space.high.tolist(),
         "discrete_action_dims": bs_discrete_action_space.nvec.tolist(),
         "structured_beam_alpha_configured": float(madrl_args.structured_beam_alpha),
+        **env.receive_beam_mapping,
         "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
         "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
         "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
+        "episode_success_bonus": float(getattr(madrl_args, "episode_success_bonus", 0.0)),
+        "episode_success_bonus_contract": EPISODE_SUCCESS_BONUS_CONTRACT,
         "physical_units": {"uav_angles": "rad", "uav_distances": "m",
-                           "uav_off_durations": "s", "cu_off_powers": "W"},
-        "continuous_mapping": "env.step uses continuous_low + clip(raw, 0, 1) * (continuous_high - continuous_low)",
+                           "uav_off_durations": "s", "cu_off_powers": "W",
+                           "uav_rec_beam_amplitude": "MVDR residual real latent [0,1]" if env.mvdr_residual_enabled else "dimensionless, before per-UAV L2 normalization",
+                           "uav_rec_beam_phase": "MVDR residual imaginary latent [0,1]" if env.mvdr_residual_enabled else "residual rad" if env.phase_residual_enabled else "absolute rad"},
+        "receive_beam_parameterization": (
+            "matched_unit_norm_v1: g=principal_eigenvector(target_channel)"
+            if getattr(madrl_args, "structured_beam_reference", "mvdr") == "matched" else
+            "mvdr_complex_residual_v1: g=normalize(g_mvdr+rho*project(u)/max(1,norm(project(u))))"
+            if env.mvdr_residual_enabled else
+            "mvdr_unit_norm_v1: g=normalize(solve(R,a)), R=noise*I+sum(eta*p*conj(h)*h.T)"
+            if float(madrl_args.structured_beam_alpha) <= 0.0 else
+            "mvdr_aligned_mix_v1: g=normalize((1-alpha)*g_mvdr+alpha*phase_aligned_actor)"
+            if float(madrl_args.structured_beam_alpha) < 1.0 else
+            "target_phase_residual_v1: g=normalize(amplitude*g_ref*exp(1j*residual)), per UAV"
+            if env.phase_residual_enabled else
+            "amplitude_phase_v1: g=a*exp(1j*phase)/norm(a), per UAV"),
+        "cu_tasks": env.cu_tasks.metadata(),
+        "observation_contract": BS_OBSERVATION_CONTRACT,
+        "bs_position": np.asarray(base_args.bs_pos, dtype=float).tolist(),
+        "continuous_mapping": "step low + clip(raw,0,1)*(step high-step low); distance bounds=v_min/max*slot_seconds; metadata Box is episode envelope; step records actual bounds",
         "index_convention": "iteration: 1-based intended update; sampler/episode/step/time_slot/CU/target: 0-based",
         "capture_semantics": "Actual env.step values before reward_compute; learner logs consumed episodes before update",
         "non_finite_encoding": "NaN/Inf diagnostics are strings: nan, inf, -inf",
@@ -633,6 +698,7 @@ if __name__ == "__main__":
         "bs_position": np.asarray(base_args.bs_pos, dtype=float).copy(),
         "seed_offset": scene_seed_offset,
         "exogenous_scene": shared_scene,
+        "cu_tasks": env.cu_tasks.metadata(),
     }
     del env  # 主进程不需要环境实例，尽早释放
 
@@ -657,6 +723,11 @@ if __name__ == "__main__":
         discrete_entropy_coef=madrl_args.discrete_entropy_coef,
         lr_min_ratio=madrl_args.lr_min_ratio,
         structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
+        receive_beam_phase_mode=getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
+        receive_beam_phase_limit_deg=getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
+        mvdr_residual=getattr(madrl_args, "mvdr_residual", False),
+        mvdr_residual_radius=getattr(madrl_args, "mvdr_residual_radius", 0.2),
+        structured_beam_reference=getattr(madrl_args, "structured_beam_reference", "mvdr"),
     )
     loaded_initialization = None
     initialization_path = str(getattr(madrl_args, "policy_initialization", "") or "")
@@ -788,6 +859,33 @@ if __name__ == "__main__":
             f"mean_nll={bc_info['mean_nll']:.4f} | ck={actor_checksum(agent_bs.actor)} | {bc_actor_path}"
         )
 
+    # Persist the validated observation layout, then show actual runtime
+    # input widths in both the console and this run's text log before sampling.
+    logger.info(format_bs_observation_layout(base_args))
+    logger.info(
+        "[startup] BS position=%s | observation_contract=%s | energy_statistics_contract=%s",
+        initial_scene["bs_position"].tolist(), BS_OBSERVATION_CONTRACT, ENERGY_STATISTICS_CONTRACT,
+    )
+    logger.info(
+        "[startup] target_layout=%s | center=%s | ring_radius=%s | "
+        "targets=%d | UAVs=%d | hold_slots=%d | total_time_slots=%d",
+        initial_scene["target_layout"]["layout"], initial_scene["center"].tolist(),
+        initial_scene["target_layout"].get("ring_radius"), base_args.targets_num,
+        base_args.uavs_num, base_args.target_hold_slots, madrl_args.total_time_slots,
+    )
+    logger.info(
+        "[startup] BS observation_dim=%d | actor_input=%d | critic_input=%d | "
+        "state_norm_dim=%d | structured_beam_alpha=%.6g | "
+        "receive_beam_phase_mode=%s | phase_residual_limit_deg=%s | beam_mapping=%s | "
+        "log_detail_level=%s | jsonl_segment_mib=%.1f | jsonl_backups=%d",
+        state_dim_bs, agent_bs.actor.fc1.in_features, agent_bs.critic.fc1.in_features,
+        state_norm_stats.mean.size, agent_bs.actor.structured_beam_alpha_effective,
+        agent_bs.actor.receive_beam_mapping["receive_beam_phase_mode"],
+        agent_bs.actor.receive_beam_mapping["receive_beam_phase_limit_deg"],
+        agent_bs.actor.receive_beam_mapping["receive_beam_mapping_version"],
+        madrl_args.log_detail_level, madrl_args.log_rotate_max_bytes / 2**20,
+        madrl_args.log_rotate_backup_segments,
+    )
     checksum_by_version[0] = broadcast_weights(
         weight_queues, agent_bs, version=0, state_norm_stats=state_norm_stats
     )
@@ -828,7 +926,8 @@ if __name__ == "__main__":
     logger.info(f"[learner] 超参数配置: {hyperparameters_path}")
     logger.info(f"[learner] 初始环境图: {env_plot_path}（sampler-0 / episode-0，二维）")
     logger.info(f"[learner] 实时日志: {log_path}")
-    logger.info(f"[learner] 动作日志: {action_log_path}（每条 transition 包含原始与环境处理后的动作）")
+    logger.info(f"[learner] 动作日志: {action_log_path} | detail={madrl_args.log_detail_level} "
+                "（compact保存实际物理动作及回合策略摘要；full含原始/中间动作和逐槽策略数组）")
     if env_writer is not None:
         logger.info(f"[learner] 环境诊断日志: {env_log_path}（原始约束/恢复波束逐步复核；不改变 completion）")
 
@@ -918,7 +1017,7 @@ if __name__ == "__main__":
             # ── 磁盘水位保护：低位先归档裁剪一轮并暂停逐步详细日志，避免写满导致 Errno28 ──
             paused_before = detailed_logging_paused
             if min_free_bytes:
-                free_bytes = shutil.disk_usage(output_dir).free
+                free_bytes = min(shutil.disk_usage(os.path.dirname(w.path)).free for w in detailed_writers)
                 detailed_logging_paused = free_bytes < min_free_bytes
                 if detailed_logging_paused and not paused_before:
                     logger.warning(f"[learner] 可用空间 {free_bytes / 2 ** 30:.2f} GiB 低于 "
@@ -981,6 +1080,8 @@ if __name__ == "__main__":
             last_completed_item = item
             last_checkpoint_metadata = {
                 "actor_architecture": architecture_metadata,
+                "observation_contract": BS_OBSERVATION_CONTRACT,
+                "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
                 "policy_initialization": getattr(agent_bs, "policy_initialization_metadata", None),
                 "num_envs": num_samplers,
                 "transitions_last_update": n_transitions,
@@ -995,14 +1096,27 @@ if __name__ == "__main__":
                 "csv_episode_semantics": "zero_based_PPO_update_index",
             }
             append_reward_record(root_csv_path, iteration, item)
+            beam_summary = summarize_receive_beams(item["action_traces"])
+            energy_summary = (item["energy_statistics"] if "energy_statistics" in item
+                              else summarize_energy(item["action_traces"]))
             pd.DataFrame([{
+                **beam_summary,
+                **energy_scalar_metrics(energy_summary),
+                "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
                 "update": iteration, "env_steps": cumulative_env_steps,
                 "episodes": cumulative_episodes, "num_envs": num_samplers,
                 "transitions": n_transitions, "collection_policy_version": item["weights_version"],
                 "saved_policy_version": iteration,
                 "reward": item["avg_total_reward"], "base_reward": item.get("avg_base_reward", item["avg_total_reward"]),
                 "completion_rate": item["completion_rate"],
+                "all_slots_success_rate": item.get("all_slots_success_rate", float("nan")),
+                "episode_success_bonus": item.get("avg_episode_success_bonus", 0.0),
                 "optimal_count": item.get("solver_status_counts", {}).get("optimal", 0),
+                **{f"solver_{kind}_count": item.get("solver_status_counts", {}).get(kind, 0)
+                   for kind in ("infeasible", "unknown", "error", "other")},
+                **{key: diag_summary[key] for key in (
+                    "sensing_infeasible_rate", "covariance_pass_rate", "recovered_beam_pass_rate",
+                    "physical_solution_pass_rate", "solver_seconds", "presolve_seconds")},
                 "sensing_Q": item.get("avg_sensing_penalty_score", float("nan")),
                 "collection_wait_seconds": collection_wait_cost,
                 "worker_collection_seconds_max": max(float(e.get("collection_seconds", 0)) for e in episodes),
@@ -1068,6 +1182,8 @@ if __name__ == "__main__":
             lr_actor = agent_bs.actor_optimizer.param_groups[0]["lr"]
             lr_critic = agent_bs.critic_optimizer.param_groups[0]["lr"]
             solver_counts = item.get("solver_status_counts", {})
+            finite_energy = energy_summary["cohorts"]["finite_candidate"]
+            strict_energy = energy_summary["cohorts"]["strict_feasible"]
             solver_total = max(1, sum(int(v) for v in solver_counts.values()))
             solver_status_rate = ",".join(
                 f"{k}:{100.0 * int(solver_counts.get(k, 0)) / solver_total:.1f}%"
@@ -1081,6 +1197,10 @@ if __name__ == "__main__":
                 f"| obj={item['avg_obj_fun']:.3f} "
                 f"completion={item['completion_rate']:.2f}% "
                 f"finite_obj={item.get('finite_obj_rate', float('nan')):.1f}% "
+                f"energy_finite={finite_energy['values']['weighted_total_energy_j']['mean']:.3f}J"
+                f"(n={finite_energy['count']}) "
+                f"energy_strict={strict_energy['values']['weighted_total_energy_j']['mean']:.3f}J"
+                f"(n={strict_energy['count']}) "
                 f"no_solution={item.get('no_solution_rate', float('nan')):.1f}% "
                 f"collision={item.get('collision_rate', float('nan')):.1f}% "
                 f"spectrum={item.get('spectrum_penalty_rate', float('nan')):.1f}% "
@@ -1091,42 +1211,45 @@ if __name__ == "__main__":
                 f"diag_cov_valid={diag_summary['covariance_pass_rate']:.1f}% "
                 f"diag_beam_valid={diag_summary['recovered_beam_pass_rate']:.1f}%"
                 f" | base_reward={item.get('avg_base_reward', item['avg_total_reward']):.3f} "
-                f"sensing_Q={item.get('avg_sensing_penalty_score', float('nan')):.4f} "
-                f"sensing_penalty={item.get('avg_sensing_penalty_applied', 0.0):.4f} "
-                f"sensing_Q_valid={item.get('sensing_penalty_score_valid_count', 0)} "
-                f"sensing_unavailable={item.get('sensing_penalty_unavailable_count', 0)}"
+                f"beam_gain={beam_summary['receive_beam_gain_mean']:.4f} "
+                f"phase_boundary={beam_summary['phase_residual_boundary_fraction']:.4f} "
+                f" episode_all_success={item.get('all_slots_success_rate', float('nan')):.1f}% "
                 f" | envs={num_samplers} env_steps={cumulative_env_steps} episodes={cumulative_episodes} "
                 f"collection_wait={collection_wait_cost:.3f}s log_cost={logging_cost:.3f}s "
                 f"steps_per_second={cumulative_env_steps / max(time.perf_counter() - training_loop_started, 1e-9):.3f}"
             )
-            if sync_training and num_samplers > 1:
+            vector_interval = madrl_args.log_policy_vector_interval
+            log_vectors = (madrl_args.log_detail_level == "full" or
+                           (vector_interval > 0 and (iteration == 1 or iteration % vector_interval == 0)))
+            if sync_training and num_samplers > 1 and log_vectors:
                 for episode in episodes:
                     logger.info(
                         f"[ENV] iter={iteration} worker={episode['worker_id']} "
                         f"episode={episode['episode_idx']} transitions={len(episode['transition_dict']['rewards'])} "
                         f"wv={episode['weights_version']} reward={episode['avg_total_reward']:.6f} "
                         f"completion={episode['completion_rate']:.2f}% "
+                        f"all_slots_success={bool(episode.get('all_slots_success', False))} "
                         f"solver_counts={episode.get('solver_status_counts', {})} "
                         f"collection={episode.get('collection_seconds', float('nan')):.3f}s"
                     )
             log_policy_distribution(
                 logger, writer, item.get("policy_distribution_summary", {}),
                 iteration, used_version,
+                log_vectors=log_vectors,
             )
             # ── 2. 队列个数日志：样本队列水位 / 有多少条权重队列积压待取（-1 表示平台不支持 qsize） ──
             pending_weights = sum(1 for q in weight_queues if safe_qsize(q) > 0)
-            logger.info(
-                f"iter={iteration} | 队列 | sample_queue={safe_qsize(sample_queue)}/{queue_maxsize} "
-                f"| weight_queues_pending={pending_weights}/{num_samplers}"
-            )
+            if log_vectors:
+                logger.info(
+                    f"iter={iteration} | 队列 | sample_queue={safe_qsize(sample_queue)}/{queue_maxsize} "
+                    f"| weight_queues_pending={pending_weights}/{num_samplers}"
+                )
 
             writer.add_scalar("Reward/iteration", item["avg_total_reward"], iteration)
             writer.add_scalar("Reward/base_reward", item.get("avg_base_reward", item["avg_total_reward"]), iteration)
-            writer.add_scalar("Reward/sensing_penalty_score", item.get("avg_sensing_penalty_score", float("nan")), iteration)
-            writer.add_scalar("Reward/sensing_penalty_applied", item.get("avg_sensing_penalty_applied", 0.0), iteration)
-            writer.add_scalar("Reward/sensing_penalty_score_valid_count", item.get("sensing_penalty_score_valid_count", 0), iteration)
-            writer.add_scalar("Reward/sensing_penalty_unavailable_count", item.get("sensing_penalty_unavailable_count", 0), iteration)
+            writer.add_scalar("Episode/all_slots_success_rate", item.get("all_slots_success_rate", float("nan")), iteration)
             writer.add_scalar("Obj/iteration", item["avg_obj_fun"], iteration)
+            log_energy_statistics(writer, energy_summary, iteration)
             writer.add_scalar("Completion Rate/iteration", item["completion_rate"], iteration)
             writer.add_scalar("Sampling/cumulative_env_steps", cumulative_env_steps, iteration)
             writer.add_scalar("Sampling/transitions_per_update", n_transitions, iteration)

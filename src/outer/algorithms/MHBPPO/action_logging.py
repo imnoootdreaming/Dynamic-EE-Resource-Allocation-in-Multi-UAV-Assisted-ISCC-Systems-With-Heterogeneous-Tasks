@@ -10,6 +10,10 @@ from time import perf_counter
 import math
 import os
 from datetime import datetime
+from algorithms.MHBPPO.log_compaction import (
+    LOG_COMPACTION_CONTRACT, compact_action_trace, compact_env_trace,
+)
+from algorithms.MHBPPO.energy_statistics import ENERGY_STATISTICS_CONTRACT, ENERGY_VALUE_KEYS
 
 
 def build_run_log_paths(outer_root, log_file, started_at):
@@ -47,8 +51,9 @@ class JsonlRotation:
     rotates them to the same segment index and keeps their records aligned by update.
     Whichever trigger fires first wins. Retained history therefore never spans more
     than (keep_segments + 1) windows, i.e. the oldest retained record lags the current
-    update by at most (keep_segments + 1) * iterations updates and no file exceeds
-    max_bytes. Set both triggers to 0 to restore the previous unbounded behaviour.
+    update by at most (keep_segments + 1) * iterations updates when that trigger
+    is enabled. Size is checked before an update, so max_bytes may be exceeded
+    by one update's records. Set both triggers to 0 for unbounded behaviour.
     """
 
     def __init__(self, iterations=0, max_bytes=0, keep_segments=1):
@@ -118,12 +123,18 @@ class ActionLogWriter:
     """Learner-only writer: one metadata line, then one line per consumed transition."""
 
     def __init__(self, path, metadata):
-        self._file = open(path, "x", encoding="utf-8")
         self._path = path
         self._metadata = dict(metadata)
+        self.detail_level = metadata.get("log_detail_level", metadata.get("madrl_args", {}).get("log_detail_level", "full"))
+        if self.detail_level not in ("compact", "full"):
+            raise ValueError("unknown logging detail level")
+        self.schema_version = 2 if self.detail_level == "compact" else 1
+        if self.detail_level == "compact":
+            self._metadata.update(log_detail_level="compact", log_compaction_contract=LOG_COMPACTION_CONTRACT)
+        self._file = open(path, "x", encoding="utf-8")
         self.run_id = metadata.get("run_id")
         try:
-            self._write({"record_type": "metadata", "schema_version": 1, **metadata})
+            self._write({**self._metadata, "record_type": "metadata", "schema_version": self.schema_version})
             self._file.flush()
             atexit.register(self.close)
         except BaseException:
@@ -149,7 +160,7 @@ class ActionLogWriter:
         archived = segment_path(self._path, segment_index)
         os.replace(self._path, archived)
         self._file = open(self._path, "x", encoding="utf-8")
-        self._write({"record_type": "metadata", "schema_version": 1, **self._metadata})
+        self._write({**self._metadata, "record_type": "metadata", "schema_version": self.schema_version})
         self._file.flush()
         return archived
 
@@ -176,6 +187,17 @@ class ActionLogWriter:
                 transitions["discrete_actions"], transitions["rewards"], traces)):
             raise RuntimeError("动作日志与 transition 数量不一致")
         logged_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        if self.detail_level == "full" and item.get("log_detail_level") == "compact":
+            raise ValueError("full writer cannot recover a compact worker payload")
+        if self.detail_level == "compact":
+            self._write({"record_type": "episode_summary", "run_id": self.run_id,
+                         "iteration": int(iteration), "sampler_id": int(item["sampler_id"]),
+                         "episode_idx": int(item["episode_idx"]), **_episode_identity(item),
+                         "steps": count, "policy_distribution_summary": item.get("policy_distribution_summary"),
+                         "energy_statistics": item.get("energy_statistics"),
+                         "completion_rate": item.get("completion_rate"),
+                         "all_slots_success": item.get("all_slots_success"),
+                         "collection_seconds": item.get("collection_seconds")})
         for step, trace in enumerate(traces):
             self._write({
                 "record_type": "action",
@@ -188,11 +210,11 @@ class ActionLogWriter:
                 "step_idx": step,  # 0-based, as are env time_slot and episode_idx
                 "weights_version": int(item["weights_version"]),
                 **_episode_identity(item),
-                "raw_action": {
+                **({"raw_action": {
                     "continuous": transitions["continuous_actions"][step],
                     "discrete": transitions["discrete_actions"][step],
-                },
-                "environment_action": trace,
+                }} if self.detail_level == "full" else {}),
+                "environment_action": compact_action_trace(trace) if self.detail_level == "compact" else trace,
                 "raw_bs_reward": transitions["rewards"][step],
             })
         self._file.flush()  # one flush per episode, before learner mutates rewards / updates
@@ -221,14 +243,17 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
     files = (
         "algorithms/MHBPPO/MHBPPO_main.py", "algorithms/MHBPPO/MHBPPO_sampler.py",
         "algorithms/MHBPPO/MHBPPO_agent.py", "algorithms/MHBPPO/action_logging.py",
+        "algorithms/MHBPPO/log_compaction.py",
         "configs/base_params.py", "configs/madrl_args.py", "configs/seed_manager.py",
         "environment/my_env.py", "environment/channel_models.py", "environment/topology.py",
-        "environment/observation.py", "environment/mapping.py",
+        "environment/observation.py", "environment/mapping.py", "environment/cu_tasks.py",
         "reward/my_reward.py", "reward/cccp_bridge.py", "reward/feasibility_diagnostics.py",
         "reward/solver_status.py", "reward/sensing_penalty.py",
+        "reward/episode_success_bonus.py",
         "algorithms/MHBPPO/checkpoint.py",
         "algorithms/MHBPPO/policy_diagnostics.py",
         "algorithms/MHBPPO/rollout_batch.py",
+        "algorithms/MHBPPO/energy_statistics.py",
         "algorithms/MHBPPO/policy_initialization.py",
         "algorithms/MHBPPO/beam_branch.py", "algorithms/MHBPPO/beam_pretraining.py",
         "../inner/parameters.py", "../inner/environment.py", "../inner/target_layout.py", "../inner/pc3p.py",
@@ -241,7 +266,17 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
     params = getattr(base_args, "_params", None)
     return {
         "runtime": versions, "source_sha256": fingerprints,
-        "solver_status_contract": "unknown_only_analytic_c03_c05_c06_v1",
+        "solver_status_contract": "strict_sensing_presolve_and_unknown_reclassification_v2",
+        "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
+        "energy_value_keys": ENERGY_VALUE_KEYS,
+        "energy_statistics_semantics": {
+            "finite_candidate": "finite_returned_objective_independent_of_success",
+            "strict_feasible": "finite_candidate_and_physical_solution_verified_and_outer_action_passed",
+            "missing_verification": "unknown_not_pass; separately_counted",
+            "missing_energy": "excluded_per_field; mean_nan_and_count_zero_if_empty",
+            "aggregation": "per_field_sums_and_counts_across_slots_and_workers",
+            "legacy_obj": "mean_of_all_returned_objectives_including_failure_inf; not_episode_total",
+        },
         "base_args": base_args.as_dict() if hasattr(base_args, "as_dict") else vars(base_args),
         "inner_parameter_source": None if params is None else vars(params).copy(),
         "madrl_args": vars(madrl_args).copy(),
@@ -268,6 +303,8 @@ class EnvDiagnosticLogWriter(ActionLogWriter):
 
     def write_episode(self, item, iteration):
         traces = item.get("diagnostic_traces", [])
+        if self.detail_level == "full" and item.get("log_detail_level") == "compact":
+            raise ValueError("full writer cannot recover a compact worker payload")
         count = len(item["transition_dict"]["rewards"])
         if len(traces) != count or len(item["action_traces"]) != count:
             raise RuntimeError("环境诊断与 transition 数量不一致")
@@ -288,6 +325,8 @@ class EnvDiagnosticLogWriter(ActionLogWriter):
             self._scenes.add(key)
         logged_at = datetime.now().astimezone().isoformat(timespec="milliseconds")
         for step, trace in enumerate(traces):
+            if self.detail_level == "compact":
+                trace = compact_env_trace(trace)
             self._write({"record_type": "env_diagnostic", "run_id": self.run_id,
                          "logged_at": logged_at, "iteration": int(iteration),
                          "sampler_id": int(item["sampler_id"]),
@@ -313,4 +352,6 @@ def summarize_diagnostics(traces):
         "physical_solution_pass_rate": rate(lambda t: t["validation"]["physical_solution_verified"]),
         "diagnostic_seconds": sum(float(t.get("diagnostic_seconds", 0)) for t in traces),
         "solver_seconds": sum(float(t["solver"].get("solve_seconds", 0)) for t in traces),
+        "solver_skipped_count": sum(t["solver"].get("solver_skipped") is True for t in traces),
+        "presolve_seconds": sum(float(t["solver"].get("presolve_seconds", 0)) for t in traces),
     }
