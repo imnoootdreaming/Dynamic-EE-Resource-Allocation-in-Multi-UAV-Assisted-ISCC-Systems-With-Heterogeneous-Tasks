@@ -52,7 +52,7 @@ from environment.topology import (
     generate_uav_target_schedule,
     get_num_target_windows,
     validate_target_schedule_requirements,
-    resolve_global_ring_hold_slots,
+    resolve_equal_target_hold_slots,
     print_precomputed_target_schedule,
 )
 from reward.my_reward import MyReward
@@ -83,7 +83,7 @@ class MyEnv(gym.Env):
                 params.mosek_num_threads = solver_threads
         else:
             self.base_args = (copy.deepcopy(base_args)
-                              if getattr(base_args, "target_layout", "random_sector") == "global_ring"
+                              if getattr(base_args, "target_layout", "random_sector") in ("global_ring", "random_sector")
                               else base_args)
         self.madrl_args = madrl_args
         self.receive_beam_mapping = receive_beam_mapping_metadata(
@@ -112,9 +112,10 @@ class MyEnv(gym.Env):
         self._diagnostic_scene = None
         self.target_layout = getattr(self.base_args, "target_layout", "random_sector")
         hold_slots = getattr(self.base_args, "target_hold_slots", 4)
-        if self.target_layout == "global_ring":
-            hold_slots = resolve_global_ring_hold_slots(
-                self.base_args.uavs_num, self.base_args.targets_num, madrl_args.total_time_slots)
+        if self.target_layout in ("global_ring", "random_sector"):
+            hold_slots = resolve_equal_target_hold_slots(
+                self.base_args.uavs_num, self.base_args.targets_num, madrl_args.total_time_slots,
+                layout=self.target_layout)
             # Keep the physical alias, effective configuration and schedule consistent.
             self.base_args.target_hold_slots = hold_slots
         if isinstance(hold_slots, bool) or int(hold_slots) != hold_slots or hold_slots <= 0:
@@ -283,7 +284,7 @@ class MyEnv(gym.Env):
             uav_safe_distance=self.base_args.uav_safe_distance,
             return_layout_info=True,
         )
-        if self.target_layout == "global_ring":
+        if self.target_layout in ("global_ring", "random_sector"):
             self.target_layout_info.update({
                 "hold_slots": self.target_hold_slots,
                 "total_time_slots": int(self.madrl_args.total_time_slots),

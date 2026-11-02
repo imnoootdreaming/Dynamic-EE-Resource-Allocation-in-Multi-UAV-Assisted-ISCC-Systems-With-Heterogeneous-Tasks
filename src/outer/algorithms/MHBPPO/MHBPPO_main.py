@@ -260,7 +260,9 @@ def broadcast_weights(weight_queues, agent, version=-1, state_norm_stats=None):
     """
     checksum = actor_checksum(agent.actor)
     payload = {
-        "actor_state_dict": {k: v.detach().cpu().clone() for k, v in agent.actor.state_dict().items()},
+        # Queue feeder threads must not concurrently move the same Tensor storages
+        # into shared memory. Send independent NumPy snapshots instead.
+        "actor_state_dict": {k: v.detach().cpu().numpy().copy() for k, v in agent.actor.state_dict().items()},
         "weights_version": int(version),
         "weights_checksum": checksum,
         "state_norm_mean": None if state_norm_stats is None else state_norm_stats.mean.copy(),
@@ -616,7 +618,13 @@ if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     madrl_args = get_madrl_args()
-    base_args = get_base_args(seed=int(getattr(madrl_args, "seed", 42)))
+    base_overrides = {
+        "seed": int(getattr(madrl_args, "seed", 42)),
+        "target_layout": madrl_args.target_layout,
+    }
+    if madrl_args.uavs_num is not None:
+        base_overrides["uavs_num"] = madrl_args.uavs_num
+    base_args = get_base_args(**base_overrides)
     sync_training = bool(getattr(madrl_args, "sync_training", True))
     num_samplers = max(1, int(madrl_args.num_samplers))
     randomized_episodes = any(

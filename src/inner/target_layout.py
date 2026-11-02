@@ -32,17 +32,21 @@ def _finite_number(name, value, *, positive=False, nonnegative=False):
     return number
 
 
-def resolve_global_ring_hold_slots(uavs_num, targets_num, total_time_slots):
+def resolve_equal_target_hold_slots(uavs_num, targets_num, total_time_slots, *, layout="global_ring"):
     """Equal responsibility and complete windows: h = T / (K / I)."""
     uavs_num = _positive_integer("uavs_num", uavs_num)
     targets_num = _positive_integer("targets_num", targets_num)
     total_time_slots = _positive_integer("total_time_slots", total_time_slots)
     if targets_num < uavs_num or targets_num % uavs_num:
-        raise ValueError("global_ring requires targets_num >= uavs_num and targets_num % uavs_num == 0")
+        raise ValueError(f"{layout} requires targets_num >= uavs_num and targets_num % uavs_num == 0")
     per_uav = targets_num // uavs_num
     if total_time_slots % per_uav:
-        raise ValueError("global_ring requires total_time_slots divisible by targets_num / uavs_num")
+        raise ValueError(f"{layout} requires total_time_slots divisible by targets_num / uavs_num")
     return total_time_slots // per_uav
+
+
+def resolve_global_ring_hold_slots(uavs_num, targets_num, total_time_slots):
+    return resolve_equal_target_hold_slots(uavs_num, targets_num, total_time_slots)
 
 
 def generate_global_ring_targets(uavs_num, targets_num, center, deploy_radius, *,

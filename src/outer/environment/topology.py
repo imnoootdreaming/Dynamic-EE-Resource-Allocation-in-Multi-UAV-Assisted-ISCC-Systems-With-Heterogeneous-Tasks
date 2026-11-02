@@ -17,7 +17,7 @@
 - `print_precomputed_target_schedule`：调度结果打印（仅 debug 模式调用）
 """
 
-import warnings
+import hashlib
 import importlib.util
 from pathlib import Path
 
@@ -50,6 +50,10 @@ def generate_global_ring_targets(*args, **kwargs):
 
 def resolve_global_ring_hold_slots(*args, **kwargs):
     return _load_target_layout().resolve_global_ring_hold_slots(*args, **kwargs)
+
+
+def resolve_equal_target_hold_slots(*args, **kwargs):
+    return _load_target_layout().resolve_equal_target_hold_slots(*args, **kwargs)
 
 
 # ── 扇区划分工具（对齐 src/inner/environment.py 的分区责任制语义） ─────────────
@@ -123,8 +127,7 @@ def assign_targets_for_window(reference_positions, candidate_target_indices, uav
     - 给定 `uav_sector` / `target_sector` 时：UAV i 只在 `target_sector == uav_sector[i]`
       的剩余候选中挑最近目标（扇区内链式最近邻，感知序列不跨区）。
     - 未给定扇区信息时：退化为全局剩余候选中的最近邻（兼容旧调用）。
-    - 扇区候选耗尽时回退到全局剩余候选（极端参数下的保护，正常参数
-      K == ceil(T/hold)·I 且 K % I == 0 时不会触发）。
+    - 给定扇区时若区内没有剩余目标，直接报错，不跨区回退。
     """
     pending_targets = list(candidate_target_indices)
     assigned_targets = np.full(uavs_num, -1, dtype=np.int64)
@@ -132,13 +135,14 @@ def assign_targets_for_window(reference_positions, candidate_target_indices, uav
 
     for uav_idx in range(uavs_num):
         candidates = pending_targets
-        fell_back = False
         if uav_sector is not None and target_sector is not None:
             candidates = [t for t in pending_targets
                           if int(target_sector[t]) == int(uav_sector[uav_idx])]
             if not candidates:
-                candidates = pending_targets
-                fell_back = True
+                raise ValueError(
+                    f"窗口目标分配失败：UAV-{uav_idx} 所在扇区 "
+                    f"{int(uav_sector[uav_idx])} 无剩余目标，禁止跨区分配"
+                )
         if not candidates:
             raise ValueError(
                 f"窗口目标分配失败：UAV-{uav_idx} 无任何剩余候选目标"
@@ -156,12 +160,6 @@ def assign_targets_for_window(reference_positions, candidate_target_indices, uav
         assigned_targets[uav_idx] = nearest_target_idx
         assigned_distances[uav_idx] = float(candidate_distances[nearest_local_idx])
         pending_targets.remove(nearest_target_idx)
-        if fell_back:
-            warnings.warn(
-                f"UAV-{uav_idx} 所在扇区目标已耗尽，回退全局剩余候选（分区参数不闭合，"
-                f"建议检查 targets_num / uavs_num / hold_slots 的配比）。"
-            )
-
     return assigned_targets, assigned_distances
 
 
@@ -334,14 +332,9 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
         return result + (layout_info,) if return_layout_info else result
 
     # ── 目标：均分到各扇区并在扇区内均匀采样 ──────────────────────────────
+    if uavs_num <= 0 or targets_num < uavs_num or targets_num % uavs_num:
+        raise ValueError("random_sector requires targets_num >= uavs_num and targets_num % uavs_num == 0")
     counts = [targets_num // uavs_num] * uavs_num
-    for i in range(targets_num % uavs_num):
-        counts[i] += 1
-    target_blocks = [
-        sample_in_sector(rng, counts[i], i, center, radius, uavs_num, 0.0)
-        for i in range(uavs_num)
-    ]
-    targets_pos = np.vstack(target_blocks)
     # 各目标的扇区编号：第 i 块连续 count_i 个目标属于扇区 i（拼接顺序即扇区顺序）
     target_sector = np.concatenate([np.full(counts[i], i, dtype=int) for i in range(uavs_num)])
 
@@ -349,31 +342,50 @@ def generate_pos(uavs_num, cus_num, targets_num, center, radius, uav_height, rng
     anchor_pos = np.vstack([
         sector_centroid(i, center, radius, uav_height, uavs_num) for i in range(uavs_num)
     ])
-    uavs_pos = np.zeros((uavs_num, 3))
-    used_target_indices = set()
-    for i in range(uavs_num):
-        sector_target_indices = np.flatnonzero(target_sector == i)
-        # 扇区内无目标时的保护：退化为全局目标（极端参数，正常 K >= I 不触发）
-        if sector_target_indices.size == 0:
-            sector_target_indices = np.arange(targets_num)
-        candidate_positions = targets_pos[sector_target_indices]
-        distances = np.linalg.norm(
-            candidate_positions[:, :2] - anchor_pos[i, :2], axis=1
-        )
-        # 已被其他 UAV 悬停占用的目标跳过，避免同扇区多机重叠
-        available = [k for k in range(sector_target_indices.size)
-                     if int(sector_target_indices[k]) not in used_target_indices]
-        if not available:
-            available = list(range(sector_target_indices.size))
-        nearest_local = available[int(np.argmin(distances[available]))]
-        nearest_global = int(sector_target_indices[nearest_local])
-        uavs_pos[i, :2] = targets_pos[nearest_global, :2]
-        uavs_pos[i, 2] = uav_height
-        used_target_indices.add(nearest_global)
+    def draw_targets(source):
+        return np.vstack([
+            sample_in_sector(source, counts[i], i, center, radius, uavs_num, 0.0)
+            for i in range(uavs_num)
+        ])
+
+    # 首次采样保持原有随机流；仅碰撞时以首次目标的摘要派生独立重试流，
+    # 不额外消耗后续 CU 轨迹和 NLoS 的随机数。受安全条件约束的分布不再无条件均匀。
+    targets_pos = draw_targets(rng)
+    retry_seed = int.from_bytes(hashlib.sha256(
+        np.asarray(targets_pos, dtype='<f8').tobytes()).digest(), 'big')
+    retry_rng = np.random.default_rng(retry_seed)
+    max_attempts = 128
+    for attempt in range(max_attempts):
+        if attempt:
+            targets_pos = draw_targets(retry_rng)
+        initial_target_indices = []
+        for i in range(uavs_num):
+            sector_target_indices = np.flatnonzero(target_sector == i)
+            distances = np.linalg.norm(
+                targets_pos[sector_target_indices, :2] - anchor_pos[i, :2], axis=1)
+            initial_target_indices.append(int(sector_target_indices[np.argmin(distances)]))
+        uavs_pos = targets_pos[initial_target_indices].copy()
+        uavs_pos[:, 2] = uav_height
+        # Exact center or floating-point sector boundaries must not silently
+        # assign an initial UAV to a different sector than its target block.
+        if not np.array_equal(sector_of(targets_pos, center, uavs_num), target_sector):
+            continue
+        if uavs_num <= 1:
+            break
+        distances = np.linalg.norm(uavs_pos[:, None, :] - uavs_pos[None, :, :], axis=2)
+        distances[np.diag_indices(uavs_num)] = np.inf
+        if np.min(distances) >= uav_safe_distance:
+            break
+    else:
+        raise ValueError(f"random_sector could not satisfy initial UAV safe distance "
+                         f"{uav_safe_distance} after {max_attempts} attempts")
 
     result = (uavs_pos, cus_pos, targets_pos, target_sector)
     layout_info = {"layout": "random_sector", "deploy_radius": float(radius),
-                   "direction": "nearest_neighbor", "target_rng_semantics": "random_sector"}
+                   "direction": "nearest_neighbor", "target_rng_semantics": "random_sector",
+                   "initial_target_indices": initial_target_indices,
+                   "initial_safety_attempts": attempt + 1,
+                   "initial_safety_retry_rng": "first_targets_sha256_v1"}
     return result + (layout_info,) if return_layout_info else result
 
 

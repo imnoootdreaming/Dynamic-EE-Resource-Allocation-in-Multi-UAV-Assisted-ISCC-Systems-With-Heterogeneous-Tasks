@@ -121,6 +121,11 @@ def summarize_sensing_penalty(action_traces):
     }
 
 
+def _numpy_state_dict_to_tensor(state_dict):
+    """将跨进程以 numpy 形式传递的 state_dict 还原为张量，供 load_state_dict 使用。"""
+    return {k: torch.as_tensor(np.asarray(v)) for k, v in state_dict.items()}
+
+
 def _load_latest_weights(weight_queue, actor):
     """清空 weight_queue 并加载最新一份 actor 权重（仅在本函数末尾 load，保证取到的是最新版本）。
 
@@ -143,7 +148,7 @@ def _load_latest_weights(weight_queue, actor):
             latest_mean = payload.get("state_norm_mean")
             latest_std = payload.get("state_norm_std")
     if latest_state_dict is not None:
-        actor.load_state_dict(latest_state_dict)
+        actor.load_state_dict(_numpy_state_dict_to_tensor(latest_state_dict))
     return latest_version, latest_mean, latest_std
 
 
@@ -197,7 +202,7 @@ def _load_weights_until(weight_queue, actor, target_version, stop_event, timeout
     if strict_version and stop_event.is_set():
         return None, None, None
     if latest_state_dict is not None:
-        actor.load_state_dict(latest_state_dict)
+        actor.load_state_dict(_numpy_state_dict_to_tensor(latest_state_dict))
     return latest_version, latest_mean, latest_std
 
 

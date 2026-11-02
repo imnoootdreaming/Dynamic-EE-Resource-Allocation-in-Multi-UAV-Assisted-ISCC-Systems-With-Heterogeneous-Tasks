@@ -44,6 +44,10 @@ def get_madrl_args(argv=None):
     madrl_parser = argparse.ArgumentParser(description="MADRL 超参数")
     madrl_parser.add_argument("--seed", type=int, default=42,
                               help="MHBPPO 主随机种子；仅覆盖本算法，不改变其他算法默认值")
+    madrl_parser.add_argument("--uavs_num", type=int, default=None,
+                              help="UAV 数量；不指定时沿用内层 Parameters.I（与采样环境数不同）")
+    madrl_parser.add_argument("--target_layout", choices=("random_sector", "global_ring", "sector_ring"),
+                              default="random_sector", help="目标布局；默认按扇区随机生成")
     madrl_parser.add_argument("--scene_seed_offset", type=int, default=0,
                               help="共同外生场景种子偏移；与 worker 身份及动作随机流独立")
     madrl_parser.add_argument("--worker_num_threads", type=int, default=0,
@@ -155,6 +159,16 @@ def get_madrl_args(argv=None):
             settings = payload.get("hyperparameters", payload) if isinstance(payload, dict) else None
             if not isinstance(settings, dict):
                 raise ValueError("JSON must be an object or contain a hyperparameters object")
+            # Older saved run recipes predate these CLI fields, but record the
+            # actual physical values in environment.inner_parameters. Preserve
+            # them on reload unless the editable hyperparameters override them.
+            settings = dict(settings)
+            environment = payload.get("environment", {}) if "hyperparameters" in payload else {}
+            inner = environment.get("inner_parameters", {}) if isinstance(environment, dict) else {}
+            if isinstance(inner, dict):
+                for key, inner_key in (("uavs_num", "I"), ("target_layout", "target_layout")):
+                    if key not in settings and inner_key in inner:
+                        settings[key] = inner[inner_key]
             actions = {action.dest: action for action in madrl_parser._actions
                        if action.dest not in ("help", "config")}
             unknown = set(settings) - set(actions)
@@ -167,6 +181,9 @@ def get_madrl_args(argv=None):
                     if not isinstance(value, bool):
                         raise ValueError(key + " must be a JSON boolean")
                 elif action.type is int:
+                    if key == "uavs_num" and value is None:
+                        defaults[key] = value
+                        continue
                     if isinstance(value, bool) or not isinstance(value, int):
                         raise ValueError(key + " must be a JSON integer")
                 elif action.type is float:
@@ -180,6 +197,10 @@ def get_madrl_args(argv=None):
         except (OSError, ValueError, TypeError) as exc:
             madrl_parser.error("Cannot read --config: " + str(exc))
     args = madrl_parser.parse_args(argv)
+    if args.uavs_num is not None and args.uavs_num <= 0:
+        madrl_parser.error("uavs_num must be positive")
+    if args.target_layout not in ("random_sector", "global_ring", "sector_ring"):
+        madrl_parser.error("target_layout must be random_sector, global_ring, or sector_ring")
     try:
         validate_parallel_settings(args)
         task_settings(args)

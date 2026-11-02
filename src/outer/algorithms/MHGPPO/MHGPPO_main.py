@@ -1,0 +1,325 @@
+"""Legacy Gaussian HPPO on the current environment, with synchronous workers.
+
+The agent and normalization modules are copied from outer_old.  One worker
+retains the original online normalization order. Multiple workers use a frozen
+state-normalization snapshot for each collection round and independent legacy
+reward scalers; their statistics and timing therefore differ from one worker.
+"""
+import csv
+import hashlib
+import json
+import multiprocessing as mp
+import os
+import queue
+import random
+import shutil
+import sys
+import time
+import traceback
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import torch
+
+_OUTER_ROOT = Path(__file__).resolve().parents[2]
+if str(_OUTER_ROOT) not in sys.path:
+    sys.path.insert(0, str(_OUTER_ROOT))
+
+from algorithms.MHGPPO.MHGPPO_agent import HPPO, MultiHeadActor
+from algorithms.MHGPPO.normalization import Normalization, RewardScaling
+from algorithms.MHBPPO.rollout_batch import derive_action_seed, actor_state_signature
+from configs.base_params import get_base_args
+from configs.madrl_args import get_madrl_args
+from environment.my_env import MyEnv
+
+
+TRANSITION_KEYS = ("states", "continuous_actions", "discrete_actions", "next_states",
+                   "rewards", "old_cont_log_probs", "old_disc_log_probs", "dones", "real_dones")
+
+
+def seed_process(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def snapshot_normalizer(normalizer):
+    stats = normalizer.running_ms
+    return {"n": stats.n, "mean": np.asarray(stats.mean).copy(),
+            "std": np.asarray(stats.std).copy(), "S": np.asarray(stats.S).copy()}
+
+
+def frozen_normalize(raw, snapshot):
+    # Before any observations, the legacy estimator's std is zero.  A unit
+    # initial scale avoids dividing unobserved multi-worker states by 1e-8.
+    mean = snapshot["mean"]
+    std = snapshot["std"] if snapshot["n"] else np.ones_like(mean)
+    return (np.asarray(raw, dtype=np.float32) - mean) / (std + 1e-8)
+
+
+def worker_main(base_args, args, worker_id, control, results):
+    """Own the environment and reward scaler for the entire worker lifetime."""
+    try:
+        if args.worker_num_threads:
+            torch.set_num_threads(args.worker_num_threads)
+        action_seed = derive_action_seed(base_args.seed, worker_id)
+        seed_process(action_seed)
+        env = MyEnv(base_args=base_args, madrl_args=args, seed_offset=args.scene_seed_offset)
+        actor = MultiHeadActor(env.observation_space["bs"].shape[0], args.hidden_dim,
+                               env.bs_continuous_action_splits,
+                               env.action_space["bs"]["discrete"].nvec,
+                               continuous_dist_type="gaussian")
+        normalizer = Normalization(env.observation_space["bs"].shape[0])
+        scaler = RewardScaling(shape=1, gamma=args.gamma)
+        while True:
+            command = control.get()
+            if command is None:
+                return
+            version = command["version"]
+            actor.load_state_dict({key: torch.from_numpy(value) for key, value in command["actor"].items()})
+            signature = actor_state_signature(actor)
+            if signature != command["signature"]:
+                raise RuntimeError("worker actor signature does not match dispatched weights")
+            snapshot = command["normalizer"]
+            state = env.reset(version)
+            scaler.reset()
+            transition = {key: [] for key in TRANSITION_KEYS}
+            raw_pairs, totals, objectives, successes, trajectory, solver_statuses = [], [], [], [], [], []
+            done = False
+            while not done:
+                raw = np.asarray(state["bs"], dtype=np.float32)
+                norm = normalizer(raw) if args.num_samplers == 1 else frozen_normalize(raw, snapshot)
+                with torch.no_grad():
+                    sample = actor.sample(torch.as_tensor(norm, dtype=torch.float32).unsqueeze(0))
+                action = {"continuous": sample[0].squeeze(0).numpy().astype(np.float32),
+                          "discrete": sample[1].squeeze(0).numpy().astype(np.int64)}
+                trajectory.append(np.asarray(env.getPosUAV(), dtype=float).copy())
+                next_state, total, reward, done, objective, success = env.step({"bs": action}, version)
+                raw_next = np.asarray(next_state["bs"], dtype=np.float32)
+                scaled_reward = float(np.asarray(scaler(float(reward["bs"]))).item())
+                norm_next = normalizer(raw_next) if args.num_samplers == 1 else frozen_normalize(raw_next, snapshot)
+                transition["states"].append(norm)
+                transition["continuous_actions"].append(action["continuous"])
+                transition["discrete_actions"].append(action["discrete"])
+                transition["next_states"].append(norm_next)
+                transition["rewards"].append(scaled_reward)
+                transition["old_cont_log_probs"].append(float(sample[3].item()))
+                transition["old_disc_log_probs"].append(float(sample[4].item()))
+                transition["dones"].append(bool(done))
+                transition["real_dones"].append(bool(done))
+                raw_pairs.append((raw, raw_next))
+                totals.append(float(total))
+                objectives.append(float(objective))
+                successes.append(float(success))
+                solver_statuses.append(str(reward.get("components", {}).get("solver_status_kind", "unknown")))
+                state = next_state
+            results.put({"worker_id": worker_id, "version": version, "signature": signature,
+                         "transition": transition, "raw_pairs": raw_pairs,
+                         "normalizer": snapshot_normalizer(normalizer) if args.num_samplers == 1 else None,
+                         "reward": float(np.mean(totals)), "objectives": objectives,
+                         "successes": successes, "solver_statuses": solver_statuses, "trajectory": np.asarray(trajectory),
+                         "scene_signature": env.get_exogenous_scene_signature(),
+                         "action_seed": int(action_seed)})
+    except BaseException:
+        results.put({"worker_id": worker_id, "error": traceback.format_exc()})
+
+
+def collect_round(results, processes, version, expected_signature):
+    episodes = {}
+    while len(episodes) < len(processes):
+        try:
+            item = results.get(timeout=1.0)
+        except queue.Empty:
+            failed = [(p.name, p.exitcode) for p in processes if not p.is_alive()]
+            if failed:
+                raise RuntimeError(f"sampler exited before completing round: {failed}")
+            continue
+        if "error" in item:
+            raise RuntimeError(f"worker {item['worker_id']} failed:\n{item['error']}")
+        wid = item["worker_id"]
+        if wid in episodes or not 0 <= wid < len(processes):
+            raise RuntimeError(f"unexpected or duplicate worker {wid}")
+        if item["version"] != version or item["signature"] != expected_signature:
+            raise RuntimeError("rollout policy version/signature mismatch")
+        transition = item["transition"]
+        lengths = {len(transition[key]) for key in TRANSITION_KEYS}
+        if len(lengths) != 1 or not lengths or next(iter(lengths)) < 2:
+            raise RuntimeError(f"invalid transition lengths: {lengths}")
+        if not transition["dones"][-1] or any(transition["dones"][:-1]):
+            raise RuntimeError("worker must return one complete episode")
+        episodes[wid] = item
+    return [episodes[i] for i in range(len(processes))]
+
+
+def merge_episodes(episodes):
+    return {key: [value for episode in episodes for value in episode["transition"][key]]
+            for key in TRANSITION_KEYS}
+
+
+def save_checkpoint(output, version, agent, norm, episodes, config):
+    path = output / f"iter_{version}"
+    path.mkdir(parents=True, exist_ok=True)
+    actor_path = path / "mhgppo_actor.pth"
+    torch.save(agent.actor.state_dict(), actor_path)
+    torch.save(agent.critic.state_dict(), path / "mhgppo_critic.pth")
+    actor_hash = hashlib.sha256(actor_path.read_bytes()).hexdigest()
+    np.savez(path / "state_normalization.npz", mean=norm["mean"], std=norm["std"],
+             S=norm["S"], count=norm["n"], epsilon=1e-8, iteration=version,
+             actor_sha256=actor_hash)
+    for episode in episodes:
+        np.save(path / f"uav_trajectory_worker_{episode['worker_id']}.npy", episode["trajectory"])
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        trajectory = episode["trajectory"]
+        for index in range(trajectory.shape[1]):
+            ax.plot(trajectory[:, index, 0], trajectory[:, index, 1], label=f"UAV {index}")
+        ax.set(xlabel="x (m)", ylabel="y (m)", title=f"Training rollout: policy v{version - 1}")
+        ax.legend()
+        fig.savefig(path / f"uav_trajectory_worker_{episode['worker_id']}.png", dpi=120, bbox_inches="tight")
+        plt.close(fig)
+    metadata = {**config, "iteration": version, "weights_version": version,
+                "trajectory_weights_version": version - 1, "actor_sha256": actor_hash,
+                "checkpoint_type": "evaluation_only_no_optimizer_or_rng"}
+    (path / "checkpoint_metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    shutil.copyfile(output / "training_updates.csv", path / "training_updates.csv")
+
+
+def run_training(args, *, output_dir=None):
+    if not args.sync_training:
+        raise ValueError("MHGPPO currently supports synchronous sampling only")
+    if args.policy_initialization or args.bc_dataset or args.receive_beam_encoder != "shared":
+        raise ValueError("MHGPPO preserves the old actor and does not support MHBPPO initialization/BC/encoder")
+    if (args.batch_size != 32 or args.continuous_entropy_coef != 0.05 or
+            args.discrete_entropy_coef != 0.01 or args.lr_min_ratio != 0.1):
+        raise ValueError("legacy MHGPPO fixes mini-batch=32, entropy coefficients=0.05/0.01, and has no lr floor; MHBPPO-only overrides are unsupported")
+    base_kw = {"seed": int(args.seed), "target_layout": args.target_layout}
+    if args.uavs_num is not None:
+        base_kw["uavs_num"] = args.uavs_num
+    base = get_base_args(**base_kw)
+    seed_process(base.seed)
+    probe = MyEnv(base_args=base, madrl_args=args, seed_offset=args.scene_seed_offset)
+    base = probe.base_args
+    state_dim = probe.observation_space["bs"].shape[0]
+    splits = dict(probe.bs_continuous_action_splits)
+    continuous = probe.action_space["bs"]["continuous"]
+    discrete = probe.action_space["bs"]["discrete"]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    agent = HPPO(state_dim, args.hidden_dim, splits, discrete.nvec, continuous.low, continuous.high,
+                 args.actor_lr, args.critic_lr, args.lmbda, args.eps, args.gamma, args.epochs,
+                 args.episodes, device, continuous_dist_type="gaussian")
+    normalizer = Normalization(state_dim)
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f") + "_" + uuid.uuid4().hex[:8]
+    output = Path(output_dir) if output_dir is not None else _OUTER_ROOT / "runs" / "gaussian-hppo" / stamp
+    output.mkdir(parents=True, exist_ok=False)
+    config = {"algorithm": "MHGPPO", "hyperparameters": vars(args), "state_dim": state_dim,
+              "initial_exogenous_scene": probe.get_exogenous_scene_signature(),
+              "continuous_action_splits": splits, "discrete_action_dims": discrete.nvec.tolist(),
+              "action_seeds": [int(derive_action_seed(base.seed, i)) for i in range(args.num_samplers)],
+              "scene_seed_offset": args.scene_seed_offset,
+              "normalization": "legacy_online" if args.num_samplers == 1 else "frozen_snapshot_per_round",
+              "reward_scaling": "legacy_per_worker_persistent_stats_reset_return_each_episode",
+              "effective_mini_batch_size": 32, "continuous_entropy_coef": 0.05,
+              "discrete_entropy_coef": 0.01, "lr_schedule": "legacy_no_floor",
+              "checkpoint_note": "evaluation only; no optimizer, RNG, or scaler state"}
+    (output / "configuration.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    from torch.utils.tensorboard import SummaryWriter
+    writer = SummaryWriter(log_dir=str(output / "tensorboard"))
+    context = mp.get_context("spawn")
+    results = context.Queue(maxsize=args.num_samplers)
+    controls = [context.Queue(maxsize=1) for _ in range(args.num_samplers)]
+    workers = [context.Process(target=worker_main, args=(base, args, i, controls[i], results),
+                               name=f"mhgppo-sampler-{i}") for i in range(args.num_samplers)]
+    completed, last_episodes, env_steps, checkpoint_ready = 0, None, 0, False
+    max_rounds = min(args.episodes, args.max_updates) if args.max_updates else args.episodes
+    try:
+        for worker in workers:
+            worker.start()
+        with (output / "training_updates.csv").open("w", newline="", encoding="utf-8") as stream, \
+                (output / "episode_metadata.jsonl").open("w", encoding="utf-8") as episode_stream, \
+                (output / "mhgppo_train.log").open("w", encoding="utf-8") as log_stream:
+            columns = ["iteration", "env_steps", "episodes", "reward", "completion_rate", "finite_obj_mean", "finite_obj_slots", "policy_version", "elapsed_seconds", "solver_status_counts"]
+            csv_writer = csv.DictWriter(stream, fieldnames=columns)
+            csv_writer.writeheader()
+            for version in range(max_rounds):
+                started = time.monotonic()
+                actor = {key: value.detach().cpu().numpy().copy() for key, value in agent.actor.state_dict().items()}
+                signature = actor_state_signature(agent.actor)
+                norm = snapshot_normalizer(normalizer)
+                command = {"version": version, "actor": actor, "signature": signature, "normalizer": norm}
+                for control in controls:
+                    control.put(command)
+                episodes = collect_round(results, workers, version, signature)
+                for ep in episodes:
+                    episode_stream.write(json.dumps({"iteration": version + 1, "worker_id": ep["worker_id"],
+                        "policy_version": ep["version"], "actor_signature": ep["signature"],
+                        "action_seed": ep["action_seed"], "scene": ep["scene_signature"],
+                        "steps": len(ep["transition"]["rewards"])}, ensure_ascii=False) + "\n")
+                episode_stream.flush()
+                transition = merge_episodes(episodes)
+                checkpoint_ready = False
+                agent.update(transition, version, writer, agent_name="BS")
+                if args.num_samplers == 1:
+                    state_stats = episodes[0]["normalizer"]
+                    stats = normalizer.running_ms
+                    stats.n, stats.mean, stats.std, stats.S = (state_stats[key] for key in ("n", "mean", "std", "S"))
+                else:
+                    for episode in episodes:
+                        for raw, raw_next in episode["raw_pairs"]:
+                            normalizer.running_ms.update(raw)
+                            normalizer.running_ms.update(raw_next)
+                completed = version + 1
+                last_episodes = episodes
+                checkpoint_ready = True
+                count = len(transition["rewards"])
+                env_steps += count
+                reward = sum(ep["reward"] * len(ep["transition"]["rewards"]) for ep in episodes) / count
+                completion = 100.0 * sum(sum(ep["successes"]) for ep in episodes) / count
+                solver_counts = {}
+                for ep in episodes:
+                    for status in ep["solver_statuses"]:
+                        solver_counts[status] = solver_counts.get(status, 0) + 1
+                finite_objectives = [value for ep in episodes for value in ep["objectives"] if np.isfinite(value)]
+                row = dict(iteration=completed, env_steps=env_steps, episodes=completed * args.num_samplers,
+                           reward=reward, completion_rate=completion,
+                           finite_obj_mean=float(np.mean(finite_objectives)) if finite_objectives else "",
+                           finite_obj_slots=len(finite_objectives), policy_version=version,
+                           elapsed_seconds=time.monotonic() - started,
+                           solver_status_counts=json.dumps(solver_counts, sort_keys=True))
+                csv_writer.writerow(row)
+                stream.flush()
+                writer.add_scalar("Reward/iteration", reward, completed)
+                writer.add_scalar("Completion Rate/iteration", completion, completed)
+                message = f"[MHGPPO] iter={completed} env_steps={env_steps} reward={reward:.4f} completion={completion:.2f}% solver={solver_counts}"
+                print(message, flush=True)
+                log_stream.write(message + "\n")
+                log_stream.flush()
+                if args.checkpoint_interval > 0 and completed % args.checkpoint_interval == 0:
+                    save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), episodes, config)
+    finally:
+        for control in controls:
+            try:
+                control.put_nowait(None)
+            except queue.Full:
+                pass
+        for worker in workers:
+            if worker.pid is not None:
+                worker.join(timeout=5)
+                if worker.is_alive():
+                    worker.terminate()
+                    worker.join(timeout=5)
+        if completed and last_episodes and checkpoint_ready:
+            save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), last_episodes, config)
+        writer.close()
+        for q in [*controls, results]:
+            q.cancel_join_thread()
+            q.close()
+    return output
+
+
+if __name__ == "__main__":
+    mp.freeze_support()
+    run_training(get_madrl_args())

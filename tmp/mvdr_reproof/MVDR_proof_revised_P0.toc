@@ -1,7 +1,0 @@
-\contentsline {section}{\numberline {1}论文中接收波束影响哪些量}{2}{section.1}%
-\contentsline {subsection}{\numberline {1.1}问题 P0 的完整形式}{2}{subsection.1.1}%
-\contentsline {subsection}{\numberline {1.2}接收波束对约束和目标的影响}{3}{subsection.1.2}%
-\contentsline {section}{\numberline {2}MVDR 为什么不依赖尚未求得的发射波束}{3}{section.2}%
-\contentsline {subsection}{\numberline {2.1}代入论文原式，不省略物理变量}{3}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}最大 SINR 方向及严格上界}{4}{subsection.2.2}%
-\contentsline {section}{\numberline {3}MVDR 接收波束的全局最优性证明}{6}{section.3}%

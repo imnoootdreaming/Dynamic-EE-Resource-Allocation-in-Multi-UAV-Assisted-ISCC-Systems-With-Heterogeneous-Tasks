@@ -415,18 +415,18 @@ class HPPO:
         }
 
     def update(self, transition_dict, step=None, writer=None, agent_name="Agent"):
-        states = torch.tensor(transition_dict["states"], dtype=torch.float32, device=self.device)
+        states = torch.tensor(np.asarray(transition_dict["states"]), dtype=torch.float32, device=self.device)
         continuous_actions = torch.tensor(
-            transition_dict["continuous_actions"], dtype=torch.float32, device=self.device
+            np.asarray(transition_dict["continuous_actions"]), dtype=torch.float32, device=self.device
         )
         discrete_actions = torch.tensor(
-            transition_dict["discrete_actions"], dtype=torch.long, device=self.device
+            np.asarray(transition_dict["discrete_actions"]), dtype=torch.long, device=self.device
         )
         rewards = torch.tensor(
             transition_dict["rewards"], dtype=torch.float32, device=self.device
         ).view(-1, 1)
         next_states = torch.tensor(
-            transition_dict["next_states"], dtype=torch.float32, device=self.device
+            np.asarray(transition_dict["next_states"]), dtype=torch.float32, device=self.device
         )
         # NOTE - 连续动作和离散动作各自的 log_probs
         old_cont_lps = torch.tensor(
@@ -457,7 +457,7 @@ class HPPO:
                 gae = delta + self.gamma * self.lmbda * gae * (1.0 - done)
                 adv.insert(0, gae)
 
-            adv = torch.tensor(adv, dtype=torch.float32, device=self.device).view(-1, 1)
+            adv = torch.tensor(np.asarray(adv), dtype=torch.float32, device=self.device).view(-1, 1)
             v_target = adv + self.critic(states)
             adv = (adv - adv.mean()) / (adv.std() + 1e-5)
 
