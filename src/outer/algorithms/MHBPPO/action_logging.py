@@ -17,7 +17,12 @@ from algorithms.MHBPPO.energy_statistics import ENERGY_STATISTICS_CONTRACT, ENER
 
 
 def build_run_log_paths(outer_root, log_file, started_at):
-    """Reserve one directory per run; keep configured log filenames stable."""
+    """Use the reserved background directory or create a foreground run directory."""
+    background_log = os.environ.get("ISCC_BACKGROUND_LOG_FILE")
+    if background_log:
+        path = os.path.abspath(background_log)
+        stem = os.path.splitext(path)[0]
+        return path, stem + "_actions.jsonl"
     configured_path = os.path.join(outer_root, log_file)
     directory, filename = os.path.split(configured_path)
     os.makedirs(directory, exist_ok=True)

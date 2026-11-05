@@ -20,9 +20,9 @@
     uavs_pos / uavs_pos_cur         -> q_uav_pos / q_uav_pos_next
     uavs_rec_beam_vectors           -> g_rec_beam            (I,N)
 
-g_rec_beam（UAV 接收波束，‖g_i‖²=1）由**外层动作空间产出**（my_env 追加的
-uav_rec_beam_amplitude / uav_rec_beam_phase 动作头，逐 UAV L2 归一化），与其他外层给定
-量（eta_share / p_cu_power / D_uav_off）并列注入内层参与能耗计算。调用方未传
+g_rec_beam（UAV 接收波束，‖g_i‖²=1）由外层环境计算。训练环境用当前信道、CU 匹配和
+功率构造解析 MVDR 接收波束，再和 eta_share / p_cu_power / D_uav_off 一起传入内层。
+调用方未传
 ``uavs_rec_beam_vectors`` 时，回退取**指定感知目标信道 A_i 的主特征向量**（A_i 秩一分解后的
 匹配接收波束 a_i/‖a_i‖），使接收增益 |a_i^H g_i| 最大。
 """

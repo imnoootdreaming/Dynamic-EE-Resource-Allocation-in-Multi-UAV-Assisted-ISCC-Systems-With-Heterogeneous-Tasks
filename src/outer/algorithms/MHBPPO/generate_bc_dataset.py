@@ -28,14 +28,11 @@ def _is_optimal(reward_dict):
 
 
 def _pool_action_to_actor(env, sample):
-    """Convert (g, eta, p, Doff, displacement) to actor normalized actions."""
-    g, eta, p_cu, d_off, displacement = sample
-    space = env.action_space["bs"]["continuous"]
-    low = np.asarray(space.low, dtype=np.float64)
-    high = np.asarray(space.high, dtype=np.float64)
+    """Map the pool's non-beam decisions to the analytic-MVDR actor."""
+    _, eta, p_cu, d_off, displacement = sample
+    low, high = env.get_current_action_bounds()
     I = env.base_args.uavs_num
     J = env.base_args.cus_num
-    N = env.base_args.antenna_nums
 
     distance = np.linalg.norm(np.asarray(displacement)[:, :2], axis=1)
     angle = np.mod(np.arctan2(displacement[:, 1], displacement[:, 0]), 2.0 * np.pi)
@@ -44,8 +41,6 @@ def _pool_action_to_actor(env, sample):
         distance,
         np.asarray(d_off, dtype=np.float64).reshape(I),
         np.asarray(p_cu, dtype=np.float64).reshape(J),
-        np.asarray(g).real.reshape(I * N),
-        np.asarray(g).imag.reshape(I * N),
     ])
     normalized = (raw - low) / np.maximum(high - low, 1e-12)
     normalized = np.clip(normalized, 0.0, 1.0).astype(np.float32)
@@ -53,7 +48,7 @@ def _pool_action_to_actor(env, sample):
     return {"continuous": normalized, "discrete": discrete}
 
 
-def _make_args(seed, total_time_slots, randomize, structured_beam_alpha=1.0):
+def _make_args(total_time_slots, randomize):
     return SimpleNamespace(
         total_time_slots=int(total_time_slots),
         hidden_dim=128,
@@ -61,7 +56,7 @@ def _make_args(seed, total_time_slots, randomize, structured_beam_alpha=1.0):
         randomize_cu_traj_per_episode=bool(randomize),
         randomize_nlos_per_episode=bool(randomize),
         debug_topology=False,
-        structured_beam_alpha=float(structured_beam_alpha),
+        analytic_receive_beam_only=True,
     )
 
 
@@ -89,10 +84,8 @@ def generate(args):
         raise RuntimeError("外层可行样本池为空")
 
     madrl = _make_args(
-        args.seed,
         args.total_time_slots,
         args.randomize_scenes,
-        args.structured_beam_alpha,
     )
     seed_offsets = _parse_seed_offsets(args)
     raw_states = []
@@ -232,7 +225,6 @@ def main():
         help="comma-separated explicit offsets; overrides --num_workers (0 is baseline)",
     )
     parser.add_argument("--randomize_scenes", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--structured_beam_alpha", type=float, default=1.0)
     generate(parser.parse_args())
 
 

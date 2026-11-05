@@ -86,16 +86,20 @@ class MyEnv(gym.Env):
                               if getattr(base_args, "target_layout", "random_sector") in ("global_ring", "random_sector")
                               else base_args)
         self.madrl_args = madrl_args
-        self.receive_beam_mapping = receive_beam_mapping_metadata(
-            getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
-            getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
-            getattr(madrl_args, "structured_beam_alpha", 1.0),
-            getattr(madrl_args, "mvdr_residual", False),
-            getattr(madrl_args, "mvdr_residual_radius", 0.2),
-            getattr(madrl_args, "structured_beam_reference", "mvdr"))
-        self.mvdr_residual_enabled = bool(getattr(madrl_args, "mvdr_residual", False))
-        self.phase_residual_enabled = self.receive_beam_mapping["receive_beam_phase_mode"] == "phase_residual"
-        phase_limit = np.deg2rad(self.receive_beam_mapping["receive_beam_phase_limit_deg"] or 45.0)
+        self.analytic_receive_beam_only = bool(getattr(madrl_args, "analytic_receive_beam_only", False))
+        if self.analytic_receive_beam_only:
+            self.receive_beam_mapping = {"receive_beam_mapping_version": "mvdr_unit_norm_v1"}
+        else:
+            self.receive_beam_mapping = receive_beam_mapping_metadata(
+                getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
+                getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
+                getattr(madrl_args, "structured_beam_alpha", 1.0),
+                getattr(madrl_args, "mvdr_residual", False),
+                getattr(madrl_args, "mvdr_residual_radius", 0.2),
+                getattr(madrl_args, "structured_beam_reference", "mvdr"))
+        self.mvdr_residual_enabled = (not self.analytic_receive_beam_only
+                                      and bool(getattr(madrl_args, "mvdr_residual", False)))
+        self.phase_residual_enabled = self.receive_beam_mapping.get("receive_beam_phase_mode") == "phase_residual"
         self.epsilon = 1e-4
         self.t = 0
         self.last_action_trace = None  # 最近一步动作的只读日志快照（不改变 step 返回契约）
@@ -149,6 +153,9 @@ class MyEnv(gym.Env):
             "uav_rec_beam_amplitude": self.base_args.uavs_num * self.base_args.antenna_nums,
             "uav_rec_beam_phase": self.base_args.uavs_num * self.base_args.antenna_nums,
         }
+        if self.analytic_receive_beam_only:
+            del self.bs_continuous_action_splits["uav_rec_beam_amplitude"]
+            del self.bs_continuous_action_splits["uav_rec_beam_phase"]
         # NOTE - UAV 个离散头: 每个 UAV 选择一个 CU 索引进行匹配
         self.bs_discrete_action_dims = np.full(self.base_args.uavs_num, self.base_args.cus_num, dtype=np.int64)
 
@@ -200,12 +207,18 @@ class MyEnv(gym.Env):
         ])
 
         if self.phase_residual_enabled:
+            phase_limit = np.deg2rad(self.receive_beam_mapping["receive_beam_phase_limit_deg"])
             beam_dim = self.base_args.uavs_num * self.base_args.antenna_nums
             bs_continuous_low[-beam_dim:] = -phase_limit
             bs_continuous_high[-beam_dim:] = phase_limit
         elif self.mvdr_residual_enabled:
             beam_dim = self.base_args.uavs_num * self.base_args.antenna_nums
             bs_continuous_high[-beam_dim:] = 1.0  # imaginary latent, not radians
+
+        if self.analytic_receive_beam_only:
+            active_dim = sum(self.bs_continuous_action_splits.values())
+            bs_continuous_low = bs_continuous_low[:active_dim]
+            bs_continuous_high = bs_continuous_high[:active_dim]
 
         self.action_space = {
             "bs": {
@@ -608,26 +621,26 @@ class MyEnv(gym.Env):
         offset += rec_beam_dim
         reference_beams = build_current_target_steering(
             self.uavs_2_targets_channels, self._get_current_uav_target_indices())
-        if self.phase_residual_enabled:
+        if self.analytic_receive_beam_only:
+            uavs_rec_beam_vectors = None
+        elif self.phase_residual_enabled:
             uavs_rec_beam_vectors = build_phase_residual_rec_beam(
                 rec_beam_amplitude_flat, rec_beam_phase_flat, reference_beams)
         else:
             uavs_rec_beam_vectors = build_unit_norm_rec_beam(
                 rec_beam_amplitude_flat, rec_beam_phase_flat,
                 self.base_args.uavs_num, self.base_args.antenna_nums)
-        normalized_rec_beam_vectors = uavs_rec_beam_vectors.copy()
+        normalized_rec_beam_vectors = None if uavs_rec_beam_vectors is None else uavs_rec_beam_vectors.copy()
         mvdr_beams = None
         # MVDR is conditioned on this slot's actual matching and CU power.
         uavs_cus_matched_matrix = build_uavs_cus_matched_matrix(
             discrete_actions, self.base_args.uavs_num, self.base_args.cus_num)
-        # Structured receive-beam reference.  The actor still samples the
-        # latent direction, so its PPO log-probability remains well-defined;
-        # this deterministic transform only changes the physical beam sent to
-        # the inner solver.
-        beam_alpha = float(np.clip(
+        # Training uses the analytic beam directly. Historical callers can
+        # still reconstruct their recorded action-to-beam mapping here.
+        beam_alpha = 0.0 if self.analytic_receive_beam_only else float(np.clip(
             getattr(self.madrl_args, "structured_beam_alpha", 1.0), 0.0, 1.0
         ))
-        matched_reference = getattr(self.madrl_args, "structured_beam_reference", "mvdr") == "matched"
+        matched_reference = self.receive_beam_mapping.get("structured_beam_reference") == "matched"
         if not matched_reference and (self.mvdr_residual_enabled or beam_alpha < 1.0):
             mvdr_beams = build_mvdr_rec_beam(
                 self.uavs_2_targets_channels, self._get_current_uav_target_indices(),
@@ -699,11 +712,11 @@ class MyEnv(gym.Env):
                     "imag": uavs_rec_beam_vectors.imag.tolist(),
                 },
             },
-            "normalized_rec_beam_vectors": None if self.mvdr_residual_enabled else {
+            "normalized_rec_beam_vectors": None if normalized_rec_beam_vectors is None or self.mvdr_residual_enabled else {
                 "real": normalized_rec_beam_vectors.real.tolist(),
                 "imag": normalized_rec_beam_vectors.imag.tolist(),
             },
-            "structured_beam_alpha": beam_alpha,
+            **({} if self.analytic_receive_beam_only else {"structured_beam_alpha": beam_alpha}),
             "receive_beam_diagnostics": beam_diagnostics,
             "mvdr_rec_beam_vectors": None if mvdr_beams is None else {
                 "real": mvdr_beams.real.tolist(),
@@ -789,7 +802,7 @@ class MyEnv(gym.Env):
                 "cu_tasks": self._current_task_record(),
                 "scene_id": self.get_diagnostic_scene()["scene_id"],
                 "target_indices": self._get_current_uav_target_indices().tolist(),
-                "structured_beam_alpha": beam_alpha,
+                **({} if self.analytic_receive_beam_only else {"structured_beam_alpha": beam_alpha}),
                 "receive_beam_diagnostics": beam_diagnostics,
                 "reward_components": reward.get("components", {}),
                 "legacy_reward": float(reward_components["slot_reward_before_episode_bonus"]),

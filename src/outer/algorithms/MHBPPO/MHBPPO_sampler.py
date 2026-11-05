@@ -155,10 +155,6 @@ def _load_latest_weights(weight_queue, actor):
 def _validate_payload_architecture(payload, actor):
     """New broadcasts declare the class; legacy payloads retain strict state loading."""
     declared = payload.get("actor_architecture")
-    if declared is None and (actor.receive_beam_mapping["receive_beam_phase_mode"] != "absolute" or
-                             actor.receive_beam_mapping["receive_beam_mapping_version"] in
-                             ("mvdr_complex_residual_v1", "mvdr_aligned_mix_v1", "matched_unit_norm_v1")):
-        raise ValueError("beam mapping requires explicit learner action mapping metadata")
     if declared is not None and declared != actor_architecture_metadata(actor):
         raise ValueError("sampling actor architecture differs from learner broadcast")
 
@@ -284,16 +280,8 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             continuous_action_splits=env.bs_continuous_action_splits,
             discrete_action_dims=bs_discrete_action_space.nvec,
             continuous_dist_type="beta",
-            structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
-            receive_beam_phase_mode=getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
-            mvdr_residual=getattr(madrl_args, "mvdr_residual", False),
-            mvdr_residual_radius=getattr(madrl_args, "mvdr_residual_radius", 0.2),
-            structured_beam_reference=getattr(madrl_args, "structured_beam_reference", "mvdr"),
-            receive_beam_phase_limit_deg=getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
+            structured_beam_alpha=0.0,
         ).to(device)
-        if getattr(madrl_args, "receive_beam_encoder", "shared") == "dedicated":
-            from algorithms.MHBPPO.beam_branch import build_branch_actor
-            actor = build_branch_actor(actor)
         actor_architecture = actor_architecture_metadata(actor)
 
         # 状态归一化统计量由 learner 统一维护；sampler 在一个 episode 内固定快照。

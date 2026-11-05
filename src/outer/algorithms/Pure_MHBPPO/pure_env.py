@@ -1,4 +1,4 @@
-"""Current scenario/observation with legacy Pure actions and direct P0 physics."""
+"""Current scenario and direct P0 physics with analytic sensing beams."""
 import numpy as np
 try:
     from gymnasium import spaces
@@ -18,8 +18,7 @@ class PureMyEnv(MyEnv):
         I, J, N = self.base_args.uavs_num, self.base_args.cus_num, self.base_args.antenna_nums
         self.bs_continuous_action_splits = {
             "uav_angles": I, "uav_distances": I, "uav_off_durations": I,
-            "uav_sen_beam_dir_real": I*N, "uav_sen_beam_dir_imag": I*N,
-            "uav_sen_beam_power": I, "uav_off_beam_dir_real": I*N,
+            "uav_off_beam_dir_real": I*N,
             "uav_off_beam_dir_imag": I*N, "uav_off_beam_power": I,
             "cu_off_powers": J, "cu_off_durations": J,
         }
@@ -39,11 +38,9 @@ class PureMyEnv(MyEnv):
         pmax = 10 ** ((float(a.cu_max_power_dbm)-30)/10)
         low = np.concatenate([np.zeros(I), np.full(I, a.uav_min_speed*slot), np.full(I, eps),
                               np.full(I*N, -1), np.full(I*N, -1), np.zeros(I),
-                              np.full(I*N, -1), np.full(I*N, -1), np.zeros(I),
                               np.full(J, eps), np.full(J, eps)]).astype(np.float32)
         high = np.concatenate([np.full(I, 2*np.pi), np.full(I, a.uav_max_speed*slot),
                                np.full(I, a.uav_max_delay-a.uav_sen_duration),
-                               np.ones(I*N), np.ones(I*N), np.ones(I),
                                np.ones(I*N), np.ones(I*N), np.ones(I),
                                np.full(J, pmax), np.asarray(deadlines)]).astype(np.float32)
         if np.any(high <= low):
@@ -85,10 +82,8 @@ class PureMyEnv(MyEnv):
             offset += n
             return value
         angle, distance, du = take(I), take(I), take(I)
-        w_real, w_imag, w_ratio = take(I*N).reshape(I, N), take(I*N).reshape(I, N), take(I)
         b_real, b_imag, b_ratio = take(I*N).reshape(I, N), take(I*N).reshape(I, N), take(I)
         p, dc = take(J), take(J)
-        w = self._beams(w_real, w_imag, w_ratio, self.base_args.uav_max_power)
         b = self._beams(b_real, b_imag, b_ratio, self.base_args.uav_max_power)
         eta = build_uavs_cus_matched_matrix(discrete, I, J)
         before = self.cur_uavs_pos.copy()
@@ -96,11 +91,12 @@ class PureMyEnv(MyEnv):
         target_indices = self._get_current_uav_target_indices()
         A = self.uavs_2_targets_channels[np.arange(I), target_indices]
         physical = evaluate_physical(params=self.base_args, eta=eta, p_cu=p, duration_uav=du, duration_cu=dc,
-            sensing_beams=w, offloading_beams=b, positions_before=before, positions_after=after,
+            sensing_beams=None, offloading_beams=b, positions_before=before, positions_after=after,
             h_cu_uav=self.uavs_2_cus_channels, h_uav_bs=self.uavs_2_bs_channels,
             h_cu_bs=self.cus_2_bs_channels, sensing_channels=A, task_bits=self.cus_entertaining_task_size,
             task_cycles=self.cus_task_cycles, task_deadlines=self.cus_task_deadlines,
             slot_seconds=float(self.current_slot_duration))
+        sensing_beams = physical.pop("sensing_transmit_beams", None)
         success = int(physical["feasible"])
         reward = float(physical["reward"])
         energy = physical["candidate_energy"]
@@ -108,7 +104,7 @@ class PureMyEnv(MyEnv):
             "discrete": discrete.tolist(), "mapped_continuous": mapped.tolist(),
             "continuous_low": low.tolist(), "continuous_high": high.tolist(),
             "position_before": before.tolist(), "position_after": after.tolist(),
-            "sensing_beams": {"real": w.real.tolist(), "imag": w.imag.tolist()},
+            "sensing_beams": sensing_beams,
             "offloading_beams": {"real": b.real.tolist(), "imag": b.imag.tolist()},
             "cu_tasks": self._current_task_record(), "physical": physical}
         self.last_env_diagnostic = physical

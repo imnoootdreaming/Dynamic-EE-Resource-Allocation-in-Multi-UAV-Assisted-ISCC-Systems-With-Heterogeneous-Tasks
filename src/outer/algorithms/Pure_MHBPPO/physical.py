@@ -2,6 +2,9 @@
 import numpy as np
 
 
+SENSING_SINR_TARGET_RATIO = 1.01
+
+
 def _check(values, scale, unit, tolerance=1e-6):
     raw = np.asarray(values, dtype=float).reshape(-1)
     scale = np.broadcast_to(np.asarray(scale, dtype=float), np.asarray(values).shape).reshape(-1)
@@ -31,6 +34,8 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
                       task_deadlines, slot_seconds):
     """Evaluate one complete physical candidate and all 15 P0 constraints.
 
+    With sensing_beams=None, construct the transmit beam for the rank-one
+    sensing channel produced by the environment.
     The CU-UAV channels are row vectors h: interference is |g.T @ h|^2.
     Energies are physical candidate values, never virtual power corrections.
     """
@@ -38,8 +43,9 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
     p = np.asarray(p_cu, dtype=float)
     du = np.asarray(duration_uav, dtype=float)
     dc = np.asarray(duration_cu, dtype=float)
-    w = np.asarray(sensing_beams, dtype=np.complex128)
     b = np.asarray(offloading_beams, dtype=np.complex128)
+    analytic_sensing = sensing_beams is None
+    w = np.zeros_like(b) if analytic_sensing else np.asarray(sensing_beams, dtype=np.complex128)
     q0, q1 = np.asarray(positions_before, dtype=float), np.asarray(positions_after, dtype=float)
     h = np.asarray(h_cu_uav, dtype=np.complex128)
     hu = np.asarray(h_uav_bs, dtype=np.complex128).reshape(w.shape)
@@ -72,6 +78,7 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
     if not np.isfinite(noise) or noise <= 0:
         raise ValueError("noise power must be positive and finite")
     threshold = 10 ** (float(params.sen_sinr) / 10)
+    target_sinr = SENSING_SINR_TARGET_RATIO * threshold
     g = np.empty((I, N), dtype=np.complex128)
     g_fallback = []
     for i in range(I):
@@ -79,7 +86,21 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
         for j in range(J):
             covariance += eta[i, j] * p[j] * np.outer(h[i, j].conj(), h[i, j])
         scale = np.max(np.abs(covariance))
-        direction = np.linalg.solve(covariance / scale, A[i] @ w[i])
+        if analytic_sensing:
+            # For A = c*a*a^H, its first column spans the optimal transmit direction.
+            steering = A[i, :, 0]
+            steering_norm = np.linalg.norm(steering)
+            unit_beam = steering / steering_norm if steering_norm > 0 else steering
+            echo = A[i] @ unit_beam
+        else:
+            echo = A[i] @ w[i]
+        direction = np.linalg.solve(covariance / scale, echo)
+        if analytic_sensing:
+            gain = float(np.vdot(echo, direction).real / scale)
+            power = min(params.uav_max_power, target_sinr / gain) if gain > 0 else 0.0
+            amplitude = np.sqrt(power)
+            w[i] = amplitude * unit_beam
+            direction *= amplitude
         norm = np.linalg.norm(direction)
         fallback = not np.isfinite(norm) or norm <= 1e-30
         g[i] = np.eye(1, N, 0, dtype=np.complex128)[0] if fallback else direction / norm
@@ -169,7 +190,7 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
     spectrum_penalty = float(np.sum(col_excess))
     collision_penalty = float(len(collided))
     reward = (float(np.exp(-energy/1000)) if energy is not None else 0.0) - spectrum_penalty - collision_penalty - float(service_failed)
-    return {"valid_input": True, "feasible": feasible, "candidate_energy": energy,
+    result = {"valid_input": True, "feasible": feasible, "candidate_energy": energy,
             "reward": float(reward), "solver_status_kind": "not_called", "backend": "direct_no_optimizer",
             "service_candidate_penalty": int(service_failed), "spectrum_penalty": spectrum_penalty,
             "collision_penalty": collision_penalty, "checks": checks,
@@ -181,3 +202,6 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
             "energy": {"bs_j": e_bs, "uav_j": e_uav, "cu_j": e_cu, "flight_j": flight,
                        "weighted_total_j": energy},
             "receive_beams": {"real": g.real.tolist(), "imag": g.imag.tolist(), "fallback": g_fallback}}
+    if analytic_sensing:
+        result["sensing_transmit_beams"] = {"real": w.real.tolist(), "imag": w.imag.tolist()}
+    return result

@@ -51,7 +51,8 @@ def verify(run_dir):
         assert np.load(final / f"uav_trajectory_worker_{worker}.npy").shape[0] > 1
         assert (final / f"uav_trajectory_worker_{worker}.png").is_file()
     traces = []
-    for path in root.glob("physical_traces*.jsonl"):
+    log_root = Path(config.get("run_paths", {}).get("log_dir", root))
+    for path in log_root.glob("physical_traces*.jsonl"):
         for line in path.read_text(encoding="utf-8").splitlines():
             value = json.loads(line)
             if value.get("record_type") == "physical_trace":

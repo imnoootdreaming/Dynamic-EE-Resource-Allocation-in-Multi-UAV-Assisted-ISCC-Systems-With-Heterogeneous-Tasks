@@ -9,8 +9,13 @@ import json
 import math
 from pathlib import Path
 from environment.cu_tasks import TASK_RANGES, task_settings
-from environment.mapping import receive_beam_mapping_metadata
 from algorithms.MHBPPO.log_compaction import validate_logging_settings
+
+_RETIRED_RECEIVE_BEAM_SETTINGS = (
+    "structured_beam_alpha", "structured_beam_reference", "mvdr_residual",
+    "mvdr_residual_radius", "receive_beam_phase_mode", "receive_beam_phase_limit_deg",
+    "receive_beam_encoder", "keep_legacy_receive_beam_actions", "analytic_receive_beam_only",
+)
 
 
 def validate_parallel_settings(args):
@@ -65,33 +70,18 @@ def get_madrl_args(argv=None):
     madrl_parser.add_argument("--batch_size", type=int, default=32, help="PPO mini-batch大小；实际取不超过本次采样条数的值")
     madrl_parser.add_argument("--continuous_entropy_coef", type=float, default=0.05, help="连续动作熵系数")
     madrl_parser.add_argument("--discrete_entropy_coef", type=float, default=0.01, help="离散动作熵系数")
+    madrl_parser.add_argument("--expected_duplicate_matching_coef", type=float, default=0.0,
+                              help="MHBPPO actor 的期望重复匹配惩罚权重，0 表示关闭")
     madrl_parser.add_argument("--lr_min_ratio", type=float, default=0.1, help="学习率下限相对初始学习率的比例")
     madrl_parser.add_argument("--config", type=str, default="", help="读取保存的hyperparameters.json；命令行显式参数优先")
-    madrl_parser.add_argument("--episodes", type=int, default=10000, help="lr 衰减总轮次 (horizon)：iteration 在该值内学习率线性衰减至初始值的 10%% 下限，之后保持下限不变")
+    madrl_parser.add_argument("--episodes", type=int, default=10000, help="PPO 持续训练（max_updates=0）时的学习率衰减尺度；有限训练时由 max_updates 决定；MHSAC 不使用")
     # NOTE - 采样-更新分离；同步模式收齐同版本的 N 个完整 episode 后更新一次。
     madrl_parser.add_argument("--sample_queue_maxsize", type=int, default=1, help="样本队列容量（同步模式下应为 1）")
     madrl_parser.add_argument("--num_samplers", type=int, default=1, help="rollout 采样进程数；同步模式单次聚合 N 个完整 episode")
     madrl_parser.add_argument("--sync_training", action=argparse.BooleanOptionalAction, default=True,
                               help="严格同步训练：全体 worker 固定同一版本采完 episode，learner 聚合更新并广播后才允许下一轮")
-    # alpha controls MVDR/actor mixing when the residual switch is off.
-    madrl_parser.add_argument("--structured_beam_alpha", type=float, default=1.0,
-                              help="残差关闭时：0=MVDR，0<alpha<1=MVDR与actor相位对齐混合，1=actor输出")
-    madrl_parser.add_argument("--structured_beam_reference", choices=("mvdr", "matched"), default="mvdr",
-                              help="结构化波束参考；matched仅支持alpha=0且不启用MVDR残差")
-    madrl_parser.add_argument("--mvdr_residual", action=argparse.BooleanOptionalAction, default=False,
-                              help="启用MVDR加网络复数残差；开启时覆盖alpha的波束映射")
-    madrl_parser.add_argument("--mvdr_residual_radius", type=float, default=0.2,
-                              help="每架UAV正交复数残差的范数上限，范围(0,1]")
-    madrl_parser.add_argument("--receive_beam_phase_mode", choices=("absolute", "phase_residual"),
-                              default="absolute", help="absolute保留原相位；phase_residual使用目标导向相位加受限修正")
-    madrl_parser.add_argument("--receive_beam_phase_limit_deg", type=float, default=45.0,
-                              help="phase_residual的相位修正半宽（度），固定范围±该值")
-    madrl_parser.add_argument("--receive_beam_encoder", choices=("shared", "dedicated"), default="shared",
-                              help="shared保留原网络；dedicated使用可训练的接收波束专属编码分支")
-    madrl_parser.add_argument("--policy_initialization", type=str, default="",
-                              help="可选actor/critic/精确状态归一化初始化包目录；从PPO第0次更新开始，并非续训")
     madrl_parser.add_argument("--max_updates", type=int, default=0,
-                              help="完成此数量PPO更新后保存并停止；0保留原来的持续训练")
+                              help="外层训练轮数上限；0为持续训练。MHSAC按episode轮次计数，而非SAC梯度更新次数")
     madrl_parser.add_argument("--sensing_penalty_coef", type=float, default=0.0,
                               help="已移除感知短缺惩罚；兼容旧配置仅允许0")
     madrl_parser.add_argument("--sensing_penalty_reference_factor", type=float, default=10.0,
@@ -163,6 +153,11 @@ def get_madrl_args(argv=None):
             # actual physical values in environment.inner_parameters. Preserve
             # them on reload unless the editable hyperparameters override them.
             settings = dict(settings)
+            if settings.pop("policy_initialization", ""):
+                raise ValueError("legacy receive-beam initialization packages cannot initialize analytic MVDR training")
+            # Historical recipes may contain retired options. New training always uses MVDR.
+            for key in _RETIRED_RECEIVE_BEAM_SETTINGS:
+                settings.pop(key, None)
             environment = payload.get("environment", {}) if "hyperparameters" in payload else {}
             inner = environment.get("inner_parameters", {}) if isinstance(environment, dict) else {}
             if isinstance(inner, dict):
@@ -197,6 +192,7 @@ def get_madrl_args(argv=None):
         except (OSError, ValueError, TypeError) as exc:
             madrl_parser.error("Cannot read --config: " + str(exc))
     args = madrl_parser.parse_args(argv)
+    args.analytic_receive_beam_only = True
     if args.uavs_num is not None and args.uavs_num <= 0:
         madrl_parser.error("uavs_num must be positive")
     if args.target_layout not in ("random_sector", "global_ring", "sector_ring"):
@@ -205,10 +201,6 @@ def get_madrl_args(argv=None):
         validate_parallel_settings(args)
         task_settings(args)
         validate_logging_settings(args)
-        receive_beam_mapping_metadata(args.receive_beam_phase_mode,
-                                      args.receive_beam_phase_limit_deg, args.structured_beam_alpha,
-                                      args.mvdr_residual, args.mvdr_residual_radius,
-                                      args.structured_beam_reference)
     except ValueError as exc:
         madrl_parser.error(str(exc))
     for key in ("batch_size", "hidden_dim", "epochs", "episodes"):
@@ -217,27 +209,13 @@ def get_madrl_args(argv=None):
     for key in ("actor_lr", "critic_lr"):
         if not math.isfinite(getattr(args, key)) or getattr(args, key) <= 0:
             madrl_parser.error(key + " must be positive and finite")
-    for key in ("continuous_entropy_coef", "discrete_entropy_coef"):
+    for key in ("continuous_entropy_coef", "discrete_entropy_coef", "expected_duplicate_matching_coef"):
         if not math.isfinite(getattr(args, key)) or getattr(args, key) < 0:
             madrl_parser.error(key + " must be nonnegative and finite")
     if not math.isfinite(args.lr_min_ratio) or not 0 < args.lr_min_ratio <= 1:
         madrl_parser.error("lr_min_ratio must lie in (0, 1]")
-    if args.receive_beam_encoder not in ("shared", "dedicated"):
-        madrl_parser.error("receive_beam_encoder must be shared or dedicated")
-    if args.mvdr_residual and (args.receive_beam_encoder != "shared" or
-                               args.policy_initialization or args.bc_dataset):
-        madrl_parser.error("mvdr_residual requires a fresh shared actor; initialization/BC/dedicated are unsupported")
     if args.max_updates < 0:
         madrl_parser.error("max_updates must be nonnegative")
-    if args.policy_initialization and args.bc_dataset:
-        madrl_parser.error("policy_initialization and bc_dataset are mutually exclusive")
-    if args.policy_initialization and not args.sync_training:
-        madrl_parser.error("policy_initialization requires synchronous shared-scene sampling")
-    if args.receive_beam_encoder == "dedicated" and args.structured_beam_alpha != 1.0:
-        madrl_parser.error("dedicated receive_beam_encoder requires structured_beam_alpha=1")
-    if args.receive_beam_phase_mode == "phase_residual" and (
-            args.receive_beam_encoder != "shared" or args.policy_initialization or args.bc_dataset):
-        madrl_parser.error("phase_residual requires a fresh shared actor; initialization/BC/dedicated are unsupported")
     if not math.isfinite(args.sensing_penalty_coef) or args.sensing_penalty_coef != 0:
         madrl_parser.error("sensing shortfall penalty was removed; sensing_penalty_coef must be 0")
     if (not math.isfinite(args.sensing_penalty_reference_factor)

@@ -1,6 +1,7 @@
 """Legacy Gaussian HPPO on the current environment, with synchronous workers.
 
-The agent and normalization modules are copied from outer_old.  One worker
+The policy and normalization modules derive from outer_old; PPO learning rates
+use a floor for unlimited training. One worker
 retains the original online normalization order. Multiple workers use a frozen
 state-normalization snapshot for each collection round and independent legacy
 reward scalers; their statistics and timing therefore differ from one worker.
@@ -30,6 +31,8 @@ if str(_OUTER_ROOT) not in sys.path:
 from algorithms.MHGPPO.MHGPPO_agent import HPPO, MultiHeadActor
 from algorithms.MHGPPO.normalization import Normalization, RewardScaling
 from algorithms.MHBPPO.rollout_batch import derive_action_seed, actor_state_signature
+from algorithms.baseline_output import setup_run, check_scene, TraceLogs, atomic_checkpoint, capture, aggregate_metrics, METRIC_COLUMNS, log_scalar_metrics, training_log_stream, log_training_failure
+from algorithms.training_schedule import configure_ppo_lr_horizon, training_rounds
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
@@ -87,6 +90,7 @@ def worker_main(base_args, args, worker_id, control, results):
             scaler.reset()
             transition = {key: [] for key in TRANSITION_KEYS}
             raw_pairs, totals, objectives, successes, trajectory, solver_statuses = [], [], [], [], [], []
+            detailed_traces = []
             done = False
             while not done:
                 raw = np.asarray(state["bs"], dtype=np.float32)
@@ -97,6 +101,7 @@ def worker_main(base_args, args, worker_id, control, results):
                           "discrete": sample[1].squeeze(0).numpy().astype(np.int64)}
                 trajectory.append(np.asarray(env.getPosUAV(), dtype=float).copy())
                 next_state, total, reward, done, objective, success = env.step({"bs": action}, version)
+                detailed_traces.append(capture(env, reward, total, objective, success, done, args))
                 raw_next = np.asarray(next_state["bs"], dtype=np.float32)
                 scaled_reward = float(np.asarray(scaler(float(reward["bs"]))).item())
                 norm_next = normalizer(raw_next) if args.num_samplers == 1 else frozen_normalize(raw_next, snapshot)
@@ -120,7 +125,7 @@ def worker_main(base_args, args, worker_id, control, results):
                          "normalizer": snapshot_normalizer(normalizer) if args.num_samplers == 1 else None,
                          "reward": float(np.mean(totals)), "objectives": objectives,
                          "successes": successes, "solver_statuses": solver_statuses, "trajectory": np.asarray(trajectory),
-                         "scene_signature": env.get_exogenous_scene_signature(),
+                         "detailed_traces": detailed_traces, "scene_signature": env.get_exogenous_scene_signature(),
                          "action_seed": int(action_seed)})
     except BaseException:
         results.put({"worker_id": worker_id, "error": traceback.format_exc()})
@@ -158,6 +163,7 @@ def merge_episodes(episodes):
             for key in TRANSITION_KEYS}
 
 
+@atomic_checkpoint
 def save_checkpoint(output, version, agent, norm, episodes, config):
     path = output / f"iter_{version}"
     path.mkdir(parents=True, exist_ok=True)
@@ -189,13 +195,14 @@ def save_checkpoint(output, version, agent, norm, episodes, config):
 
 
 def run_training(args, *, output_dir=None):
+    configure_ppo_lr_horizon(args)
     if not args.sync_training:
         raise ValueError("MHGPPO currently supports synchronous sampling only")
-    if args.policy_initialization or args.bc_dataset or args.receive_beam_encoder != "shared":
-        raise ValueError("MHGPPO preserves the old actor and does not support MHBPPO initialization/BC/encoder")
+    if args.bc_dataset:
+        raise ValueError("MHGPPO does not support MHBPPO behavior cloning")
     if (args.batch_size != 32 or args.continuous_entropy_coef != 0.05 or
-            args.discrete_entropy_coef != 0.01 or args.lr_min_ratio != 0.1):
-        raise ValueError("legacy MHGPPO fixes mini-batch=32, entropy coefficients=0.05/0.01, and has no lr floor; MHBPPO-only overrides are unsupported")
+            args.discrete_entropy_coef != 0.01):
+        raise ValueError("legacy MHGPPO fixes mini-batch=32, entropy coefficients=0.05/0.01, MHBPPO-only mini-batch and entropy overrides are unsupported")
     base_kw = {"seed": int(args.seed), "target_layout": args.target_layout}
     if args.uavs_num is not None:
         base_kw["uavs_num"] = args.uavs_num
@@ -210,12 +217,11 @@ def run_training(args, *, output_dir=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     agent = HPPO(state_dim, args.hidden_dim, splits, discrete.nvec, continuous.low, continuous.high,
                  args.actor_lr, args.critic_lr, args.lmbda, args.eps, args.gamma, args.epochs,
-                 args.episodes, device, continuous_dist_type="gaussian")
+                 args.episodes, device, continuous_dist_type="gaussian", lr_min_ratio=args.lr_min_ratio)
     normalizer = Normalization(state_dim)
-    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f") + "_" + uuid.uuid4().hex[:8]
-    output = Path(output_dir) if output_dir is not None else _OUTER_ROOT / "runs" / "gaussian-hppo" / stamp
-    output.mkdir(parents=True, exist_ok=False)
-    config = {"algorithm": "MHGPPO", "hyperparameters": vars(args), "state_dim": state_dim,
+    output, log_dir, tb_dir, run_paths, expected_scene = setup_run(_OUTER_ROOT, "MHGPPO", "MHGPPO", args, probe, output_dir)
+    config = {"algorithm": "MHGPPO", "receive_beam": "analytic_mvdr_no_policy_actions",
+              "hyperparameters": {k: v for k, v in vars(args).items() if k not in ("config", "analytic_receive_beam_only")}, "state_dim": state_dim,
               "initial_exogenous_scene": probe.get_exogenous_scene_signature(),
               "continuous_action_splits": splits, "discrete_action_dims": discrete.nvec.tolist(),
               "action_seeds": [int(derive_action_seed(base.seed, i)) for i in range(args.num_samplers)],
@@ -223,28 +229,30 @@ def run_training(args, *, output_dir=None):
               "normalization": "legacy_online" if args.num_samplers == 1 else "frozen_snapshot_per_round",
               "reward_scaling": "legacy_per_worker_persistent_stats_reset_return_each_episode",
               "effective_mini_batch_size": 32, "continuous_entropy_coef": 0.05,
-              "discrete_entropy_coef": 0.01, "lr_schedule": "legacy_no_floor",
+              "discrete_entropy_coef": 0.01, "lr_schedule": "linear_with_floor",
               "checkpoint_note": "evaluation only; no optimizer, RNG, or scaler state"}
+    config["run_paths"] = run_paths
     (output / "configuration.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     from torch.utils.tensorboard import SummaryWriter
-    writer = SummaryWriter(log_dir=str(output / "tensorboard"))
+    writer = SummaryWriter(log_dir=str(tb_dir))
+    detailed = TraceLogs(log_dir, Path(run_paths["training_log"]).stem, {"algorithm": config["algorithm"], **run_paths, "log_detail_level": args.log_detail_level, "initial_exogenous_scene": expected_scene}, args)
     context = mp.get_context("spawn")
     results = context.Queue(maxsize=args.num_samplers)
     controls = [context.Queue(maxsize=1) for _ in range(args.num_samplers)]
     workers = [context.Process(target=worker_main, args=(base, args, i, controls[i], results),
                                name=f"mhgppo-sampler-{i}") for i in range(args.num_samplers)]
     completed, last_episodes, env_steps, checkpoint_ready = 0, None, 0, False
-    max_rounds = min(args.episodes, args.max_updates) if args.max_updates else args.episodes
     try:
         for worker in workers:
             worker.start()
         with (output / "training_updates.csv").open("w", newline="", encoding="utf-8") as stream, \
                 (output / "episode_metadata.jsonl").open("w", encoding="utf-8") as episode_stream, \
-                (output / "mhgppo_train.log").open("w", encoding="utf-8") as log_stream:
+                training_log_stream(run_paths["training_log"]) as log_stream:
             columns = ["iteration", "env_steps", "episodes", "reward", "completion_rate", "finite_obj_mean", "finite_obj_slots", "policy_version", "elapsed_seconds", "solver_status_counts"]
+            columns += METRIC_COLUMNS
             csv_writer = csv.DictWriter(stream, fieldnames=columns)
             csv_writer.writeheader()
-            for version in range(max_rounds):
+            for version in training_rounds(args.max_updates):
                 started = time.monotonic()
                 actor = {key: value.detach().cpu().numpy().copy() for key, value in agent.actor.state_dict().items()}
                 signature = actor_state_signature(agent.actor)
@@ -253,6 +261,20 @@ def run_training(args, *, output_dir=None):
                 for control in controls:
                     control.put(command)
                 episodes = collect_round(results, workers, version, signature)
+                log_event = detailed.begin_round(version + 1)
+                if log_event:
+                    log_stream.write(log_event + "\n"); log_stream.flush()
+                for ep in episodes:
+                    check_scene(expected_scene, ep["scene_signature"], args)
+                    for slot, (action_trace, diagnostic_trace) in enumerate(ep["detailed_traces"]):
+                        transition = ep["transition"]
+                        raw = ({"latent": transition["actions"][slot]} if "actions" in transition else
+                               {"continuous": transition["continuous_actions"][slot], "discrete": transition["discrete_actions"][slot]})
+                        detailed.record({"iteration": version + 1, "worker_id": ep["worker_id"], "episode": version,
+                                         "slot": slot, "policy_version": version, "actor_signature": ep["signature"],
+                                         "scene_signature": ep["scene_signature"]["signature"], "raw_action": raw},
+                                        action_trace, diagnostic_trace)
+                detailed.flush()
                 for ep in episodes:
                     episode_stream.write(json.dumps({"iteration": version + 1, "worker_id": ep["worker_id"],
                         "policy_version": ep["version"], "actor_signature": ep["signature"],
@@ -273,7 +295,6 @@ def run_training(args, *, output_dir=None):
                             normalizer.running_ms.update(raw_next)
                 completed = version + 1
                 last_episodes = episodes
-                checkpoint_ready = True
                 count = len(transition["rewards"])
                 env_steps += count
                 reward = sum(ep["reward"] * len(ep["transition"]["rewards"]) for ep in episodes) / count
@@ -289,6 +310,9 @@ def run_training(args, *, output_dir=None):
                            finite_obj_slots=len(finite_objectives), policy_version=version,
                            elapsed_seconds=time.monotonic() - started,
                            solver_status_counts=json.dumps(solver_counts, sort_keys=True))
+                metrics = aggregate_metrics([pair for ep in episodes for pair in ep["detailed_traces"]])
+                row.update(metrics)
+                log_scalar_metrics(writer, metrics, completed)
                 csv_writer.writerow(row)
                 stream.flush()
                 writer.add_scalar("Reward/iteration", reward, completed)
@@ -297,8 +321,12 @@ def run_training(args, *, output_dir=None):
                 print(message, flush=True)
                 log_stream.write(message + "\n")
                 log_stream.flush()
+                checkpoint_ready = True
                 if args.checkpoint_interval > 0 and completed % args.checkpoint_interval == 0:
                     save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), episodes, config)
+    except BaseException:
+        log_training_failure(run_paths["training_log"], traceback.format_exc())
+        raise
     finally:
         for control in controls:
             try:
@@ -313,6 +341,7 @@ def run_training(args, *, output_dir=None):
                     worker.join(timeout=5)
         if completed and last_episodes and checkpoint_ready:
             save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), last_episodes, config)
+        detailed.close()
         writer.close()
         for q in [*controls, results]:
             q.cancel_join_thread()

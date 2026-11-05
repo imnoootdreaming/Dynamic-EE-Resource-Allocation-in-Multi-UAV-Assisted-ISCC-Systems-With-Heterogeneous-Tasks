@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from torch.distributions import Beta
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
+from algorithms.training_schedule import ppo_lr_multiplier
+
 
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
@@ -90,7 +92,7 @@ class SHBPPO:
 
     def __init__(self, state_dim, hidden_dim, action_dim, action_low, action_high,
                  actor_lr, critic_lr, lmbda, eps, gamma, epochs, num_episodes,
-                 device, entropy_coef=0.01):
+                 device, entropy_coef=0.01, lr_min_ratio=0.1):
         self.action_dim = action_dim
         self.actor = SingleHeadActor(
             state_dim=state_dim,
@@ -107,6 +109,7 @@ class SHBPPO:
         self.eps = eps
         self.epochs = epochs
         self.num_episodes = num_episodes
+        self.lr_min_ratio = float(lr_min_ratio)
         self.device = device
         self.entropy_coef = entropy_coef
         self.action_low = np.asarray(action_low, dtype=np.float32)
@@ -209,8 +212,9 @@ class SHBPPO:
             writer.add_scalar(f"{agent_name}/KL_Divergence", kl, step)
 
     def lr_decay(self, total_steps):
-        lr_a_now = self.actor_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
-        lr_c_now = self.critic_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
+        decay = ppo_lr_multiplier(total_steps, self.num_episodes, self.lr_min_ratio)
+        lr_a_now = self.actor_optimizer.defaults["lr"] * decay
+        lr_c_now = self.critic_optimizer.defaults["lr"] * decay
 
         for param_group in self.actor_optimizer.param_groups:
             param_group["lr"] = lr_a_now

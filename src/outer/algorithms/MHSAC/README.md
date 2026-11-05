@@ -1,5 +1,7 @@
 # MHSAC：旧版混合 SAC 的当前环境入口
 
+接收波束由环境依据当前匹配、CU 功率和信道解析计算 MVDR。MHSAC 固定使用此模式，策略及双 Q 的连续动作不含接收波束幅度和相位。默认场景连续动作从 102 维变为 22 维。启动时将相关波束配置设为 MVDR、alpha=0、无残差，并把实际设置保存到配置。此前 102 维的 actor/critic checkpoint 与新网络不兼容，需重新训练；历史运行保留原配置。
+
 在仓库根目录启动（使用安装 PyTorch、Gymnasium、CVXPY、MOSEK 和 TensorBoard 的 Python）：
 
 ```powershell
@@ -10,7 +12,7 @@ python src/outer/algorithms/MHSAC/MHSAC_main.py --num_samplers 2 --worker_num_th
 
 多环境一个时隙的动作在同一次 learner 采样阶段产生；按 worker 顺序处理其 transition 时，后处理的样本可能落后于已完成的梯度更新，CSV 和 episode 元数据记录每一步的策略版本及滞后。多环境共用一个状态归一化器，按 worker 顺序更新；每个环境独立保留旧版 reward scaler 的统计并在 episode 起始重置折扣回报。各环境使用独立动作随机流；单环境使用旧式 learner 随机流。并行采样顺序与旧版单环境不完全相同。
 
-主要旧版默认参数：`--batch_size 128`、`--buffer_size 100000`、`--updates_per_step 1`、`--tau 0.005`、两个初始温度均为 0.2、`--alpha_lr 0.00003`。默认 `--minimal_size 0` 自动解析为 `max(4096, 200 * total_time_slots)`；40 时隙时预热为 8000 条 transition，在此之前不会更新 SAC 网络。`--episodes` 默认 8000 个同步 episode 轮次；`--max_updates` 是为兼容现有入口而设置的**episode 轮次上限**，不是 SAC 梯度更新次数。`--max_updates 0` 不另设上限。
+主要旧版默认参数：`--batch_size 128`、`--buffer_size 100000`、`--updates_per_step 1`、`--tau 0.005`、两个初始温度均为 0.2、`--alpha_lr 0.00003`。默认 `--minimal_size 0` 自动解析为 `max(4096, 200 * total_time_slots)`；40 时隙时预热为 8000 条 transition，在此之前不会更新 SAC 网络。`--max_updates` 设置同步 **episode 轮次上限**，不是 SAC 梯度更新次数；`--max_updates 0` 表示不限制训练轮数。`--episodes` 为兼容公共参数保留，不控制训练轮数或 SAC 学习率。
 
 需要短测梯度链路时可临时减小预热和 batch（属于测试配置）：
 
@@ -22,11 +24,21 @@ python src/outer/algorithms/MHSAC/MHSAC_main.py --num_samplers 2 --worker_num_th
 
 启动时会打印精确离散组合数、一个 float32 联合动作 batch 张量的大小，以及装满 replay 时状态和动作数组的估算大小；实际内存还包括 Python 容器、多个中间张量、Q 网络、优化器、环境和求解器。默认 4 UAV、10 CU 时共有 10,000 个联合动作。可用 `python src/outer/algorithms/MHSAC/benchmark_exact.py` 在 CPU 上测量实际默认维度的一次更新；该测量不代表并行完整训练峰值。
 
-产物位于 `src/outer/runs/mhsac/<时间及唯一标识>/`：配置、每轮 CSV、训练日志、TensorBoard、每 episode 逐时隙策略版本/滞后和场景身份。`iter_N/` 保存 actor、双 Q、目标 Q、温度、配对的状态归一化、训练 CSV 快照和轨迹（NPY、PNG）。SAC 轨迹可能在每个时隙使用不同策略版本，不能标成单一策略的轨迹；详见对应 episode 元数据。`completion_rate` 为当前环境成功时隙比例；有限目标值均值、样本数和求解状态分布分别记录。
+产物按同一 run_id 分开保存：`src/outer/ckpt/MHSAC/<run_id>/` 含启动时生成的 env.png、scene_signature.json、配置、逐轮 CSV、episode 元数据和 iter_N checkpoint；`src/outer/logs/MHSAC/<run_id>/` 含训练日志和逐时隙动作/环境 JSONL；`src/outer/runs/MHSAC/<run_id>/` 含 TensorBoard。checkpoint 为更新后的模型，PPO 轨迹为更新前策略；MHSAC 轨迹逐时隙记录策略版本。
 
-检查点仅用于评估，不保存优化器、随机数、奖励缩放器或 Replay Buffer，不支持精确续训。可用 `algorithms.MHSAC.checkpoint.load_normalization(iter_dir, expected_dim)` 校验 actor 哈希并加载状态归一化，再用 `normalize_state` 处理状态。当前仅保存逐轮摘要，不生成 MHBPPO 的逐时隙动作/环境诊断 JSONL 和日志轮转文件。
+检查点仅用于评估，不保存优化器、随机数、奖励缩放器或 Replay Buffer，不支持精确续训。可用 `algorithms.MHSAC.checkpoint.load_normalization(iter_dir, expected_dim)` 校验 actor 哈希并加载状态归一化，再用 `normalize_state` 处理状态。
 
 ```powershell
 python -m unittest discover -s src/outer/algorithms/MHSAC -p test_mhsac_contract.py -v
 python src/outer/algorithms/MHSAC/verify_run.py <运行目录>
 ```
+
+逐步日志的 `--log_detail_level`、`--env_diagnostics`、`--log_rotate_*` 和 `--log_min_free_bytes` 控制记录与保留；低磁盘空间暂停详细日志，训练 CSV 继续记录。`--log_file` 若显式指定自定义路径，则日志目录按其父目录和 run_id 建立。
+
+固定场景同步训练检查每个 worker 的场景签名；跨算法比较：
+
+```powershell
+python src/outer/algorithms/compare_baseline_scenes.py <MHBPPO运行目录> <baseline运行目录>
+```
+
+签名匹配表示记录覆盖的外生场景与物理常量一致；算法动作、策略轨迹、Pure 奖励及统计显著性仍需单独评估。

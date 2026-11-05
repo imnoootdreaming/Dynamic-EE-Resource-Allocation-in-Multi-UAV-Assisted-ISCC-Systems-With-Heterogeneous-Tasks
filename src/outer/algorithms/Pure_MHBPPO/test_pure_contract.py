@@ -145,6 +145,28 @@ class PureContract(unittest.TestCase):
         expected = abs(np.vdot(g, A@w))**2 / (noise+.1*abs(np.dot(g,h))**2)
         self.assertAlmostEqual(result["rates"]["sensing_sinr"][0], expected, places=10)
 
+    def test_analytic_sensing_transmit_targets_sinr_within_power_limit(self):
+        x = fixture()
+        x["params"].sen_sinr = 5.0
+        steering = np.array([1, 1j]) / np.sqrt(2)
+        x.update(sensing_beams=None, sensing_channels=np.array([1e-6 * np.outer(steering, steering.conj())]),
+                 offloading_beams=np.array([[1.+0j, 0j]]),
+                 h_cu_uav=np.array([[[1e-6+2e-6j, 3e-6-1e-6j]]]),
+                 h_uav_bs=np.array([[[.001+0j, .002j]]]))
+        result = evaluate_physical(**x)
+        beam = result["sensing_transmit_beams"]
+        w = np.array(beam["real"][0]) + 1j * np.array(beam["imag"][0])
+        power = np.vdot(w, w).real
+        np.testing.assert_allclose(w / np.sqrt(power), steering)
+        self.assertAlmostEqual(result["rates"]["sensing_sinr"][0], 1.01 * 10**0.5, places=10)
+        self.assertTrue(result["checks"]["sensing_sinr"]["passed"])
+
+        x["params"].uav_max_power = power / 2
+        capped = evaluate_physical(**x)
+        self.assertTrue(capped["checks"]["sensing_power"]["passed"])
+        self.assertAlmostEqual(capped["rates"]["sensing_sinr"][0], 1.01 * 10**0.5 / 2, places=10)
+        self.assertFalse(capped["checks"]["sensing_sinr"]["passed"])
+
     def test_frequency_infeasibility_and_invalid_boundaries(self):
         x = fixture(); x["params"].bs_max_freq = 1000.
         result = evaluate_physical(**x)
@@ -299,13 +321,15 @@ class PureContract(unittest.TestCase):
              patch.object(bridge, "solve_inner_energy", side_effect=AssertionError("inner solver called")):
             state = env.reset(0)
             self.assertEqual(state["bs"].shape, env.observation_space["bs"].shape)
-            self.assertEqual(env.action_space["bs"]["continuous"].shape, (200,))
-            action = {"continuous": np.full(200, .5, dtype=np.float32), "discrete": np.arange(4)}
+            self.assertEqual(env.action_space["bs"]["continuous"].shape, (116,))
+            action = {"continuous": np.full(116, .5, dtype=np.float32), "discrete": np.arange(4)}
             for i in range(10):
                 next_state, reward, details, done, energy, success = env.step({"bs": action}, 0)
                 self.assertTrue(np.isfinite(reward))
                 self.assertEqual(details["components"]["solver_status_kind"], "not_called")
                 self.assertEqual(len(details["components"]["constraint_checks"]), 15)
+                self.assertTrue(details["components"]["constraint_checks"]["sensing_power"]["passed"])
+                self.assertEqual(np.shape(env.last_action_trace["sensing_beams"]["real"]), (4, 10))
                 self.assertEqual(done, int(i == 9))
                 self.assertEqual(next_state["bs"].shape, state["bs"].shape)
 

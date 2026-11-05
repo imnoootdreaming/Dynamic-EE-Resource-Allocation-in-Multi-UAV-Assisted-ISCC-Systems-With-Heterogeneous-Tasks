@@ -110,13 +110,15 @@ def actor_architecture_metadata(actor):
     from algorithms.MHBPPO.MHBPPO_agent import MultiHeadActor
     if type(actor) is not MultiHeadActor:
         raise TypeError("unknown actor architecture")
-    return {"actor_class": "MultiHeadActor", "architecture_contract": SHARED_ARCHITECTURE_CONTRACT,
+    shared = {"actor_class": "MultiHeadActor", "architecture_contract": SHARED_ARCHITECTURE_CONTRACT,
         "state_dim": actor.fc1.in_features, "hidden_dim": actor.fc1.out_features,
         "continuous_action_splits": dict(actor.continuous_action_splits),
         "discrete_action_dims": list(actor.discrete_action_dims),
         "continuous_dist_type": actor.continuous_dist_type,
-        "structured_beam_alpha": actor.structured_beam_alpha_effective,
-        "base_actor_strict_load_compatible": True,
+        "base_actor_strict_load_compatible": True}
+    if actor.analytic_receive_beam_only:
+        return {**shared, "receive_beam_mapping_version": "mvdr_unit_norm_v1"}
+    return {**shared, "structured_beam_alpha": actor.structured_beam_alpha_effective,
         **(actor.receive_beam_mapping if actor.receive_beam_mapping[
             "receive_beam_phase_mode"] == "phase_residual" or actor.receive_beam_mapping[
             "receive_beam_mapping_version"] in ("mvdr_complex_residual_v1", "mvdr_aligned_mix_v1", "matched_unit_norm_v1") else {})}

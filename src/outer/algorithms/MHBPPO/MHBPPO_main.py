@@ -4,6 +4,7 @@ IMPALA 式 actor-learner 架构：
 - 采样进程（algorithms/MHBPPO/MHBPPO_sampler.sampler_worker）持续 rollout，
   episode 结果放入有界 sample_queue（满则阻塞 => staleness 上限 = maxsize）。
 - 同步模式每个环境采集一个同版本完整 episode，收齐 N*T 条再更新一次。
+- 环境用解析 MVDR 计算接收波束，actor 不输出波束幅度和相位。
 - 本进程（learner）消费队列执行 PPO 更新：iteration = 外层更新次数，
   每轮更新后向 weight_queue 广播最新 actor 权重（drain-then-put），采样进程在
   episode 边界加载，下一个 episode 即使用最新参数。
@@ -69,10 +70,8 @@ from algorithms.MHBPPO.rollout_batch import (
     validate_sync_episode, assemble_rollout_batch,
 )
 from algorithms.MHBPPO.behavior_cloning import load_behavior_cloning_dataset
-from algorithms.MHBPPO.policy_initialization import (
-    actor_architecture_metadata, load_policy_initialization, apply_policy_initialization,
-    restore_initial_state_normalization, convert_agent_to_dedicated,
-)
+from algorithms.MHBPPO.policy_initialization import actor_architecture_metadata
+from algorithms.training_schedule import configure_ppo_lr_horizon
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
@@ -99,9 +98,8 @@ def get_tensorboard_writer(log_dir):
 def setup_logger(log_path):
     """实时日志：训练摘要输出到控制台与本次运行的 .log 文件。
 
-    - logging 的 FileHandler 在每条记录 emit 后立即 flush，因此 `tail -f` 可实时看到
-      最新日志，无需缓冲到进程结束。
-    - tqdm 进度条默认走 stderr，不进入日志文件，避免 `\\r` 刷新刷爆文件。
+    - 前台通过 FileHandler 写文件，并向控制台输出训练摘要。
+    - 后台使用已重定向的标准输出写一份完整日志，并关闭 tqdm 进度条。
     """
     log_dir = os.path.dirname(log_path)
     if log_dir:
@@ -130,6 +128,13 @@ def setup_logger(log_path):
             return f"{self.formatTime(record, self.datefmt)} | [{layer}] | {message}"
 
     fmt = LayerFormatter(datefmt="%Y-%m-%d %H:%M:%S")
+    if os.environ.get("ISCC_BACKGROUND_LOG_FILE"):
+        # The shell has already redirected stdout and stderr to the run log.
+        # Use one handler so each training record appears exactly once.
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setFormatter(fmt)
+        logger.addHandler(stream_handler)
+        return logger
     file_handler = logging.FileHandler(log_path, mode="x", encoding="utf-8")
     file_handler.setFormatter(fmt)
     logger.addHandler(file_handler)
@@ -162,13 +167,10 @@ def summarize_receive_beams(action_traces):
     """Summarize actual collection beams, independent of the updated actor."""
     records = [trace["receive_beam_diagnostics"] for trace in action_traces]
     gains = np.asarray([record["target_direction_gain"] for record in records], dtype=float)
-    boundary = [record["phase_residual_boundary_fraction"] for record in records
-                if "phase_residual_boundary_fraction" in record]
     return {
         "receive_beam_gain_mean": float(np.mean(gains)),
         "receive_beam_gain_p10": float(np.quantile(gains, 0.1)),
         "receive_beam_gain_p90": float(np.quantile(gains, 0.9)),
-        "phase_residual_boundary_fraction": float(np.mean(boundary)) if boundary else float("nan"),
     }
 
 
@@ -329,7 +331,7 @@ def save_artifacts(output_dir, seed, iteration, reward_res, obj_fun_res, complet
         **(training_metadata or {}),
         **file_hashes,
         "actor_architecture": _optional_actor_architecture(agent.actor),
-        "receive_beam_mapping": dict(agent.actor.receive_beam_mapping),
+        "receive_beam_mapping": {"receive_beam_mapping_version": "mvdr_unit_norm_v1"},
         "iteration": int(iteration), "weights_version": int(iteration),
         "seed": int(seed), "checkpoint_policy": "after_completed_update",
         "actor_signature": actor_state_signature(agent.actor),
@@ -371,7 +373,8 @@ def _configuration_json_default(value):
 def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at=None,
                          num_samplers=None, sample_queue_maxsize=None, initial_scene=None):
     """Save an editable recipe plus the effective runtime/physical configuration."""
-    configured = {key: value for key, value in vars(madrl_args).items() if key != "config"}
+    configured = {key: value for key, value in vars(madrl_args).items()
+                  if key not in ("config", "analytic_receive_beam_only")}
     effective = {
         "actor_lr": agent.actor_optimizer.defaults["lr"],
         "critic_lr": agent.critic_optimizer.defaults["lr"],
@@ -387,6 +390,7 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "eps": agent.eps,
         "continuous_entropy_coef": agent.continuous_entropy_coef,
         "discrete_entropy_coef": agent.discrete_entropy_coef,
+        "expected_duplicate_matching_coef": agent.expected_duplicate_matching_coef,
         "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
         "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
         "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
@@ -395,6 +399,7 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "lr_min_ratio": agent.lr_min_ratio,
         "lr_decay_horizon": agent.num_episodes,
         "continuous_dist_type": agent.actor.continuous_dist_type,
+        "analytic_receive_beam_only": madrl_args.analytic_receive_beam_only,
         "optimizer": "Adam",
         "optimizer_eps": agent.actor_optimizer.defaults["eps"],
         "max_grad_norm": 1.0,
@@ -406,7 +411,6 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
         "actor_architecture": actor_architecture_metadata(agent.actor),
         "observation_contract": BS_OBSERVATION_CONTRACT,
         "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
-        "policy_initialization": getattr(agent, "policy_initialization_metadata", None),
     }
     params = getattr(base_args, "_params", None)
     payload = {
@@ -430,7 +434,7 @@ def save_hyperparameters(output_dir, base_args, madrl_args, agent, *, started_at
             "config_source": str(getattr(madrl_args, "config", "") or ""),
             "command": [sys.executable, *sys.argv],
         },
-        "usage": "Edit hyperparameters; load with --config <this-file>. Explicit CLI arguments override JSON.",
+        "usage": "Edit hyperparameters; load with --config <this-file>. CLI overrides JSON; for finite PPO runs max_updates sets the learning-rate horizon.",
     }
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, "hyperparameters.json")
@@ -617,7 +621,7 @@ if __name__ == "__main__":
     current_time_str = started_at.strftime("%Y-%m-%d_%H-%M-%S")
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    madrl_args = get_madrl_args()
+    madrl_args = configure_ppo_lr_horizon(get_madrl_args())
     base_overrides = {
         "seed": int(getattr(madrl_args, "seed", 42)),
         "target_layout": madrl_args.target_layout,
@@ -637,7 +641,7 @@ if __name__ == "__main__":
     scene_seed_offset = int(getattr(madrl_args, "scene_seed_offset", 0)) if sync_training else 1
     writer = get_tensorboard_writer(log_dir=os.path.join(
         _OUTER_ROOT,
-        f"runs/beta-hppo/{current_time_str}_beta-hppo_{'sync' if sync_training else 'async'}_result",
+        f"runs/MHBPPO/{current_time_str}_MHBPPO_{'sync' if sync_training else 'async'}_result",
     ))
     setSeed(seed=base_args.seed)
 
@@ -649,6 +653,8 @@ if __name__ == "__main__":
     bs_continuous_action_splits = env.bs_continuous_action_splits
     bs_continuous_action_space = env.action_space["bs"]["continuous"]
     bs_discrete_action_space = env.action_space["bs"]["discrete"]
+    physical_units = {"uav_angles": "rad", "uav_distances": "m",
+                      "uav_off_durations": "s", "cu_off_powers": "W"}
     action_log_metadata = {
         "algorithm": "MHBPPO",
         "started_at": started_at.isoformat(timespec="microseconds"),
@@ -665,29 +671,16 @@ if __name__ == "__main__":
         "continuous_low": bs_continuous_action_space.low.tolist(),
         "continuous_high": bs_continuous_action_space.high.tolist(),
         "discrete_action_dims": bs_discrete_action_space.nvec.tolist(),
-        "structured_beam_alpha_configured": float(madrl_args.structured_beam_alpha),
+        "analytic_receive_beam_only": env.analytic_receive_beam_only,
         **env.receive_beam_mapping,
         "sensing_penalty_coef": float(getattr(madrl_args, "sensing_penalty_coef", 0.0)),
         "sensing_penalty_reference_factor": float(getattr(madrl_args, "sensing_penalty_reference_factor", 10.0)),
         "sensing_penalty_contract": SENSING_PENALTY_CONTRACT,
         "episode_success_bonus": float(getattr(madrl_args, "episode_success_bonus", 0.0)),
         "episode_success_bonus_contract": EPISODE_SUCCESS_BONUS_CONTRACT,
-        "physical_units": {"uav_angles": "rad", "uav_distances": "m",
-                           "uav_off_durations": "s", "cu_off_powers": "W",
-                           "uav_rec_beam_amplitude": "MVDR residual real latent [0,1]" if env.mvdr_residual_enabled else "dimensionless, before per-UAV L2 normalization",
-                           "uav_rec_beam_phase": "MVDR residual imaginary latent [0,1]" if env.mvdr_residual_enabled else "residual rad" if env.phase_residual_enabled else "absolute rad"},
-        "receive_beam_parameterization": (
-            "matched_unit_norm_v1: g=principal_eigenvector(target_channel)"
-            if getattr(madrl_args, "structured_beam_reference", "mvdr") == "matched" else
-            "mvdr_complex_residual_v1: g=normalize(g_mvdr+rho*project(u)/max(1,norm(project(u))))"
-            if env.mvdr_residual_enabled else
-            "mvdr_unit_norm_v1: g=normalize(solve(R,a)), R=noise*I+sum(eta*p*conj(h)*h.T)"
-            if float(madrl_args.structured_beam_alpha) <= 0.0 else
-            "mvdr_aligned_mix_v1: g=normalize((1-alpha)*g_mvdr+alpha*phase_aligned_actor)"
-            if float(madrl_args.structured_beam_alpha) < 1.0 else
-            "target_phase_residual_v1: g=normalize(amplitude*g_ref*exp(1j*residual)), per UAV"
-            if env.phase_residual_enabled else
-            "amplitude_phase_v1: g=a*exp(1j*phase)/norm(a), per UAV"),
+        "physical_units": physical_units,
+        "receive_beam_parameterization":
+            "g=normalize(solve(R,a)), R=noise*I+sum(eta*p*conj(h)*h.T)",
         "cu_tasks": env.cu_tasks.metadata(),
         "observation_contract": BS_OBSERVATION_CONTRACT,
         "bs_position": np.asarray(base_args.bs_pos, dtype=float).tolist(),
@@ -729,45 +722,19 @@ if __name__ == "__main__":
         batch_size=madrl_args.batch_size,
         continuous_entropy_coef=madrl_args.continuous_entropy_coef,
         discrete_entropy_coef=madrl_args.discrete_entropy_coef,
+        expected_duplicate_matching_coef=madrl_args.expected_duplicate_matching_coef,
         lr_min_ratio=madrl_args.lr_min_ratio,
-        structured_beam_alpha=getattr(madrl_args, "structured_beam_alpha", 1.0),
-        receive_beam_phase_mode=getattr(madrl_args, "receive_beam_phase_mode", "absolute"),
-        receive_beam_phase_limit_deg=getattr(madrl_args, "receive_beam_phase_limit_deg", 45.0),
-        mvdr_residual=getattr(madrl_args, "mvdr_residual", False),
-        mvdr_residual_radius=getattr(madrl_args, "mvdr_residual_radius", 0.2),
-        structured_beam_reference=getattr(madrl_args, "structured_beam_reference", "mvdr"),
+        structured_beam_alpha=0.0,
     )
-    loaded_initialization = None
-    initialization_path = str(getattr(madrl_args, "policy_initialization", "") or "")
-    receive_encoder = str(getattr(madrl_args, "receive_beam_encoder", "shared"))
-    if initialization_path:
-        loaded_initialization = load_policy_initialization(
-            initialization_path, expected_architecture=actor_architecture_metadata(agent_bs.actor),
-            expected_receive_beam_encoder=receive_encoder, expected_scene=shared_scene,
-            expected_seed=int(base_args.seed), expected_scene_seed_offset=scene_seed_offset,
-            expected_environment={"base_args": base_args.as_dict(),
-                "inner_parameter_source": vars(base_args._params).copy(),
-                "madrl_args": vars(madrl_args).copy(),
-                "continuous_low": bs_continuous_action_space.low.tolist(),
-                "continuous_high": bs_continuous_action_space.high.tolist()},
-            outer_root=_OUTER_ROOT, device=device)
-        agent_bs.policy_initialization_metadata = apply_policy_initialization(agent_bs, loaded_initialization)
-    elif receive_encoder == "dedicated":
-        agent_bs.policy_initialization_metadata = convert_agent_to_dedicated(agent_bs)
     architecture_metadata = actor_architecture_metadata(agent_bs.actor)
     probability_metadata = agent_bs.actor.action_probability_metadata()
     action_log_metadata.update(probability_metadata)
-    action_log_metadata.update(actor_architecture=architecture_metadata,
-        policy_initialization=getattr(agent_bs, "policy_initialization_metadata", None))
+    action_log_metadata["actor_architecture"] = architecture_metadata
 
     output_dir = os.path.join(
         _OUTER_ROOT, "ckpt", "MHBPPO", f"{current_time_str}_mhbppo_seed_{base_args.seed}",
     )
     os.makedirs(output_dir, exist_ok=True)
-    if hasattr(agent_bs, "policy_initialization_metadata"):
-        with open(os.path.join(output_dir, "initialization_provenance.json"), "x", encoding="utf-8") as stream:
-            json.dump(agent_bs.policy_initialization_metadata, stream, ensure_ascii=False, indent=2,
-                      default=_configuration_json_default, allow_nan=False)
     root_csv_path = os.path.join(output_dir, f"training_rewards_seed_{base_args.seed}.csv")
     pd.DataFrame(columns=["episode", "reward", "obj", "completion_rate"]).to_csv(
         root_csv_path, index=False, mode="x",
@@ -820,16 +787,12 @@ if __name__ == "__main__":
     checksum_by_version = {}  # version -> 该版本广播时的 actor 指纹，用于与采样端回传值比对
     state_norm_stats = StateNormStats(state_dim_bs)
     reward_norm_stats = StateNormStats(1)
-    if loaded_initialization is not None:
-        restore_initial_state_normalization(state_norm_stats, loaded_initialization.normalizer)
 
     # ── BC 暖机（可选）：必须在首次权重广播之前完成，使 v0 即为预热后的策略 ──
     # 采样端只在 episode 边界加载权重，第一份 payload 就是 version=0，因此晚于此处
     # 预热会让第一个 episode 仍用随机策略采样。
     bc_dataset_path = str(getattr(madrl_args, "bc_dataset", "") or "")
     if bc_dataset_path:
-        if loaded_initialization is not None:
-            raise ValueError("policy initialization cannot be combined with behavior cloning")
         bc_data = load_behavior_cloning_dataset(bc_dataset_path)
         if bc_data["state_norm_mean"] is not None and bc_data["state_norm_mean"].size != state_dim_bs:
             raise RuntimeError(
@@ -883,13 +846,10 @@ if __name__ == "__main__":
     )
     logger.info(
         "[startup] BS observation_dim=%d | actor_input=%d | critic_input=%d | "
-        "state_norm_dim=%d | structured_beam_alpha=%.6g | "
-        "receive_beam_phase_mode=%s | phase_residual_limit_deg=%s | beam_mapping=%s | "
+        "state_norm_dim=%d | beam_mapping=%s | "
         "log_detail_level=%s | jsonl_segment_mib=%.1f | jsonl_backups=%d",
         state_dim_bs, agent_bs.actor.fc1.in_features, agent_bs.critic.fc1.in_features,
-        state_norm_stats.mean.size, agent_bs.actor.structured_beam_alpha_effective,
-        agent_bs.actor.receive_beam_mapping["receive_beam_phase_mode"],
-        agent_bs.actor.receive_beam_mapping["receive_beam_phase_limit_deg"],
+        state_norm_stats.mean.size,
         agent_bs.actor.receive_beam_mapping["receive_beam_mapping_version"],
         madrl_args.log_detail_level, madrl_args.log_rotate_max_bytes / 2**20,
         madrl_args.log_rotate_backup_segments,
@@ -932,6 +892,7 @@ if __name__ == "__main__":
     logger.info(f"[learner] 动作概率契约: {probability_metadata}")
     logger.info(f"[learner] 输出目录: {output_dir}")
     logger.info(f"[learner] 超参数配置: {hyperparameters_path}")
+    logger.info(f"[learner] expected_duplicate_matching_coef={agent_bs.expected_duplicate_matching_coef:g}")
     logger.info(f"[learner] 初始环境图: {env_plot_path}（sampler-0 / episode-0，二维）")
     logger.info(f"[learner] 实时日志: {log_path}")
     logger.info(f"[learner] 动作日志: {action_log_path} | detail={madrl_args.log_detail_level} "
@@ -972,7 +933,8 @@ if __name__ == "__main__":
     weights_sync_warned = False  # 权重同步故障只告警一次（该类故障表现为内层恒不可行，必须显眼提示）
     training_error = None
 
-    pbar = tqdm(total=None, desc="Training Progress", unit="update", dynamic_ncols=True)
+    pbar = tqdm(total=None, desc="Training Progress", unit="update", dynamic_ncols=True,
+                disable=bool(os.environ.get("ISCC_BACKGROUND_LOG_FILE")))
     try:
         while not shutdown_requested:
             collection_wait_started = time.perf_counter()
@@ -1066,7 +1028,7 @@ if __name__ == "__main__":
 
             update_start = time.time()
             checkpoint_ready = False
-            agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
+            expected_duplicate_matching = agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
             update_cost = time.time() - update_start
 
             # 采样端使用的是本 episode 开始时的归一化快照；新统计量从下一个 episode 生效。
@@ -1090,7 +1052,6 @@ if __name__ == "__main__":
                 "actor_architecture": architecture_metadata,
                 "observation_contract": BS_OBSERVATION_CONTRACT,
                 "energy_statistics_contract": ENERGY_STATISTICS_CONTRACT,
-                "policy_initialization": getattr(agent_bs, "policy_initialization_metadata", None),
                 "num_envs": num_samplers,
                 "transitions_last_update": n_transitions,
                 "cumulative_env_steps": cumulative_env_steps,
@@ -1118,6 +1079,9 @@ if __name__ == "__main__":
                 "reward": item["avg_total_reward"], "base_reward": item.get("avg_base_reward", item["avg_total_reward"]),
                 "completion_rate": item["completion_rate"],
                 "all_slots_success_rate": item.get("all_slots_success_rate", float("nan")),
+                "spectrum_penalty_rate": item["spectrum_penalty_rate"],
+                "no_solution_rate": item["no_solution_rate"],
+                "actor_expected_duplicate_matching": expected_duplicate_matching,
                 "episode_success_bonus": item.get("avg_episode_success_bonus", 0.0),
                 "optimal_count": item.get("solver_status_counts", {}).get("optimal", 0),
                 **{f"solver_{kind}_count": item.get("solver_status_counts", {}).get(kind, 0)
@@ -1212,6 +1176,7 @@ if __name__ == "__main__":
                 f"no_solution={item.get('no_solution_rate', float('nan')):.1f}% "
                 f"collision={item.get('collision_rate', float('nan')):.1f}% "
                 f"spectrum={item.get('spectrum_penalty_rate', float('nan')):.1f}% "
+                f"actor_expected_duplicate_matching={expected_duplicate_matching:.6g} "
                 f"action_range=[{item.get('action_min', float('nan')):.3f},{item.get('action_max', float('nan')):.3f}] "
                 f"solver_status={solver_status_rate} "
                 f"norm_count={state_norm_stats.count:.0f} "
@@ -1220,7 +1185,6 @@ if __name__ == "__main__":
                 f"diag_beam_valid={diag_summary['recovered_beam_pass_rate']:.1f}%"
                 f" | base_reward={item.get('avg_base_reward', item['avg_total_reward']):.3f} "
                 f"beam_gain={beam_summary['receive_beam_gain_mean']:.4f} "
-                f"phase_boundary={beam_summary['phase_residual_boundary_fraction']:.4f} "
                 f" episode_all_success={item.get('all_slots_success_rate', float('nan')):.1f}% "
                 f" | envs={num_samplers} env_steps={cumulative_env_steps} episodes={cumulative_episodes} "
                 f"collection_wait={collection_wait_cost:.3f}s log_cost={logging_cost:.3f}s "

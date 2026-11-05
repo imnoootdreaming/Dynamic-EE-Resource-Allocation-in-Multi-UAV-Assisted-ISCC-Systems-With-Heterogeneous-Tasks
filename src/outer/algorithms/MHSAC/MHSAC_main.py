@@ -29,6 +29,8 @@ if str(_OUTER_ROOT) not in sys.path:
 from algorithms.MHSAC.MHSAC_agent import HSAC, ReplayBuffer
 from algorithms.MHSAC.normalization import Normalization, RewardScaling
 from algorithms.MHBPPO.rollout_batch import derive_action_seed, actor_state_signature
+from algorithms.baseline_output import setup_run, check_scene, TraceLogs, atomic_checkpoint, capture, aggregate_metrics, METRIC_COLUMNS, log_scalar_metrics, training_log_stream, log_training_failure
+from algorithms.training_schedule import training_rounds
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
 from environment.my_env import MyEnv
@@ -118,11 +120,13 @@ def worker_main(base, args, worker_id, control, results):
             elif command["op"] == "step":
                 position = np.asarray(env.getPosUAV(), dtype=float).copy()
                 state, total, reward, done, obj, success = env.step({"bs": command["action"]}, command["episode"])
+                action_trace, diagnostic_trace = capture(env, reward, total, obj, success, done, args)
                 results.put({"worker_id": worker_id, "op": "step", "episode": command["episode"],
                              "slot": command["slot"], "raw_next": np.asarray(state["bs"], dtype=np.float32),
                              "reward": float(reward["bs"]), "total": float(total), "done": bool(done),
                              "objective": float(obj), "success": int(success), "position": position,
-                             "solver_status": str(reward.get("components", {}).get("solver_status_kind", "unknown"))})
+                             "solver_status": str(reward.get("components", {}).get("solver_status_kind", "unknown")),
+                             "action_trace": action_trace, "diagnostic_trace": diagnostic_trace})
             else:
                 raise ValueError("unexpected worker command")
     except BaseException:
@@ -192,6 +196,7 @@ def learn_one(replay, agent, normalizer, args, sac, transition, writer, env_step
     return updates
 
 
+@atomic_checkpoint
 def save_checkpoint(output, iteration, env_steps, updates, agent, normalizer, episodes, config):
     path = output / f"iter_{iteration}"
     path.mkdir(parents=True, exist_ok=True)
@@ -229,8 +234,8 @@ def save_checkpoint(output, iteration, env_steps, updates, agent, normalizer, ep
 def run_training(args, sac, *, output_dir=None):
     if not args.sync_training:
         raise ValueError("MHSAC supports synchronous parallel environment steps only")
-    if args.policy_initialization or args.bc_dataset or args.receive_beam_encoder != "shared":
-        raise ValueError("MHSAC does not support MHBPPO initialization/BC/encoder")
+    if args.bc_dataset:
+        raise ValueError("MHSAC does not support MHBPPO behavior cloning")
     base_kw = {"seed": int(args.seed), "target_layout": args.target_layout}
     if args.uavs_num is not None:
         base_kw["uavs_num"] = args.uavs_num
@@ -258,10 +263,9 @@ def run_training(args, sac, *, output_dir=None):
     normalizer = Normalization(state_dim)
     scalers = [RewardScaling(shape=1, gamma=args.gamma) for _ in range(args.num_samplers)]
     streams = ActionRandomStreams(base.seed, args.num_samplers, device)
-    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f") + "_" + uuid.uuid4().hex[:8]
-    output = Path(output_dir) if output_dir is not None else _OUTER_ROOT / "runs" / "mhsac" / stamp
-    output.mkdir(parents=True, exist_ok=False)
-    config = {"algorithm": "MHSAC", "hyperparameters": {k: v for k, v in vars(args).items() if k != "config"},
+    output, log_dir, tb_dir, run_paths, expected_scene = setup_run(_OUTER_ROOT, "MHSAC", "MHSAC", args, probe, output_dir)
+    config = {"algorithm": "MHSAC", "receive_beam": "analytic_mvdr_no_policy_actions",
+              "hyperparameters": {k: v for k, v in vars(args).items() if k not in ("config", "analytic_receive_beam_only")},
               "sac_hyperparameters": vars(sac), "state_dim": state_dim, "continuous_action_splits": splits,
               "discrete_action_dims": discrete.nvec.tolist(), "joint_action_dim": joint_dim,
               "initial_exogenous_scene": probe.get_exogenous_scene_signature(), "action_seeds": streams.seeds,
@@ -269,28 +273,30 @@ def run_training(args, sac, *, output_dir=None):
               "reward_scaling": "legacy_per_worker_persistent_stats_reset_return_each_episode",
               "sampling": "synchronous_step_barrier_learner_policy_one_update_opportunity_per_transition",
               "checkpoint_note": "evaluation only; no optimizer, RNG, reward scaler or replay"}
+    config["run_paths"] = run_paths
     (output / "configuration.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     from torch.utils.tensorboard import SummaryWriter
-    writer = SummaryWriter(log_dir=str(output / "tensorboard"))
+    writer = SummaryWriter(log_dir=str(tb_dir))
+    detailed = TraceLogs(log_dir, Path(run_paths["training_log"]).stem, {"algorithm": "MHSAC", **run_paths, "log_detail_level": args.log_detail_level, "initial_exogenous_scene": expected_scene}, args)
     context = mp.get_context("spawn")
     results = context.Queue(maxsize=args.num_samplers)
     controls = [context.Queue(maxsize=1) for _ in range(args.num_samplers)]
     workers = [context.Process(target=worker_main, args=(base, args, i, controls[i], results),
                                name=f"mhsac-sampler-{i}") for i in range(args.num_samplers)]
     completed, last_episodes, env_steps, updates, checkpoint_ready = 0, None, 0, 0, False
-    max_rounds = min(args.episodes, args.max_updates) if args.max_updates else args.episodes
     try:
         for worker in workers:
             worker.start()
         with (output / "training_updates.csv").open("w", newline="", encoding="utf-8") as stream, \
                 (output / "episode_metadata.jsonl").open("w", encoding="utf-8") as episode_stream, \
-                (output / "mhsac_train.log").open("w", encoding="utf-8") as log_stream:
+                training_log_stream(run_paths["training_log"]) as log_stream:
             columns = ["iteration", "env_steps", "episodes", "sac_updates", "replay_size", "reward",
                        "completion_rate", "finite_obj_mean", "finite_obj_slots", "max_policy_lag_updates",
                        "elapsed_seconds", "solver_status_counts"]
+            columns += METRIC_COLUMNS
             csv_writer = csv.DictWriter(stream, fieldnames=columns)
             csv_writer.writeheader()
-            for episode_idx in range(max_rounds):
+            for episode_idx in training_rounds(args.max_updates):
                 # Resetting observations also changes the learner normalizer.
                 # Do not save a prior-version actor with partially advanced stats
                 # if this collection/update round is interrupted.
@@ -299,12 +305,17 @@ def run_training(args, sac, *, output_dir=None):
                 for q in controls:
                     q.put({"op": "reset", "episode": episode_idx})
                 resets = collect_batch(results, workers, "reset", episode_idx)
+                for item in resets:
+                    check_scene(expected_scene, item["scene"], args)
+                log_event = detailed.begin_round(episode_idx + 1)
+                if log_event:
+                    log_stream.write(log_event + "\n"); log_stream.flush()
                 raw_states = [item["raw_state"] for item in resets]
                 norm_states = [normalizer(raw) for raw in raw_states]
                 for scaler in scalers:
                     scaler.reset()
                 episodes = [{"trajectory": [], "rewards": [], "objectives": [], "successes": [],
-                             "statuses": [], "policy_versions": [], "policy_signatures": [], "policy_lags": [],
+                             "statuses": [], "policy_versions": [], "policy_signatures": [], "policy_lags": [], "detailed_traces": [],
                              "scene": resets[i]["scene"]} for i in range(args.num_samplers)]
                 for slot in range(args.total_time_slots):
                     sampled_version = updates
@@ -320,6 +331,11 @@ def run_training(args, sac, *, output_dir=None):
                         if item["done"] != expected_done:
                             raise RuntimeError("unexpected episode termination during synchronous step")
                         lag = updates - sampled_version
+                        detailed.record({"iteration": episode_idx + 1, "worker_id": i, "episode": episode_idx,
+                                         "slot": slot, "policy_version": sampled_version, "actor_signature": sampled_signature,
+                                         "policy_lag_updates": lag, "scene_signature": resets[i]["scene"]["signature"],
+                                         "raw_action": {"continuous": actions[i]["continuous"], "discrete": actions[i]["discrete"]}},
+                                        item["action_trace"], item["diagnostic_trace"])
                         next_raw = item["raw_next"]
                         scaled = float(np.asarray(scalers[i](item["reward"])).item())
                         next_norm = normalizer(next_raw)
@@ -333,6 +349,7 @@ def run_training(args, sac, *, output_dir=None):
                         env_steps += 1
                         raw_states[i], norm_states[i] = next_raw, next_norm
                         ep = episodes[i]
+                        ep["detailed_traces"].append((item["action_trace"], item["diagnostic_trace"]))
                         ep["trajectory"].append(item["position"])
                         ep["rewards"].append(item["total"])
                         ep["objectives"].append(item["objective"])
@@ -341,6 +358,7 @@ def run_training(args, sac, *, output_dir=None):
                         ep["policy_versions"].append(sampled_version)
                         ep["policy_signatures"].append(sampled_signature)
                         ep["policy_lags"].append(lag)
+                detailed.flush()
                 completed = episode_idx + 1
                 last_episodes = episodes
                 solver_counts = {}
@@ -356,6 +374,9 @@ def run_training(args, sac, *, output_dir=None):
                            finite_obj_mean=float(np.mean(finite)) if finite else "", finite_obj_slots=len(finite),
                            max_policy_lag_updates=max_lag, elapsed_seconds=time.monotonic() - started,
                            solver_status_counts=json.dumps(solver_counts, sort_keys=True))
+                metrics = aggregate_metrics([pair for ep in episodes for pair in ep["detailed_traces"]])
+                row.update(metrics)
+                log_scalar_metrics(writer, metrics, completed)
                 csv_writer.writerow(row); stream.flush()
                 for i, ep in enumerate(episodes):
                     episode_stream.write(json.dumps({"iteration": completed, "worker_id": i,
@@ -372,6 +393,9 @@ def run_training(args, sac, *, output_dir=None):
                 checkpoint_ready = True
                 if args.checkpoint_interval > 0 and completed % args.checkpoint_interval == 0:
                     save_checkpoint(output, completed, env_steps, updates, agent, normalizer, episodes, config)
+    except BaseException:
+        log_training_failure(run_paths["training_log"], traceback.format_exc())
+        raise
     finally:
         for q in controls:
             try:
@@ -385,6 +409,7 @@ def run_training(args, sac, *, output_dir=None):
                     worker.terminate(); worker.join(timeout=5)
         if completed and last_episodes and checkpoint_ready:
             save_checkpoint(output, completed, env_steps, updates, agent, normalizer, last_episodes, config)
+        detailed.close()
         writer.close()
         for q in [*controls, results]:
             q.cancel_join_thread(); q.close()

@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from torch.distributions import Beta, Categorical, Normal
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
+from algorithms.training_schedule import ppo_lr_multiplier
+
 
 def orthogonal_init(layer, gain=1.0):
     nn.init.orthogonal_(layer.weight, gain=gain)
@@ -217,7 +219,7 @@ class HPPO:
     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
-                 continuous_entropy_coef=0.05, continuous_dist_type="beta"):
+                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
         self.actor = MultiHeadActor(
@@ -237,6 +239,7 @@ class HPPO:
         self.eps = eps
         self.epochs = epochs
         self.num_episodes = num_episodes
+        self.lr_min_ratio = float(lr_min_ratio)
         self.device = device
         self.entropy_coef = entropy_coef
         self.action_low = np.asarray(action_low, dtype=np.float32)
@@ -375,8 +378,9 @@ class HPPO:
 
 
     def lr_decay(self, total_steps):
-        lr_a_now = self.actor_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
-        lr_c_now = self.critic_optimizer.defaults["lr"] * (1 - total_steps / self.num_episodes)
+        decay = ppo_lr_multiplier(total_steps, self.num_episodes, self.lr_min_ratio)
+        lr_a_now = self.actor_optimizer.defaults["lr"] * decay
+        lr_c_now = self.critic_optimizer.defaults["lr"] * decay
 
         for param_group in self.actor_optimizer.param_groups:
             param_group["lr"] = lr_a_now

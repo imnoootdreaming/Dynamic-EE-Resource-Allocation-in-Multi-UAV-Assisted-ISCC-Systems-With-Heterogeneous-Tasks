@@ -84,6 +84,10 @@ class MultiHeadActor(nn.Module):
             name for name in self.continuous_head_names
             if name not in self.masked_continuous_head_names
         )
+        self.analytic_receive_beam_only = (
+            not self.RECEIVE_BEAM_HEADS.intersection(self.continuous_head_names)
+            and self.receive_beam_mapping["receive_beam_mapping_version"] == "mvdr_unit_norm_v1"
+        )
         # 20260403 - 引入高斯分布对应的修改
         self.continuous_dist_type = str(continuous_dist_type).lower()
         if self.continuous_dist_type == "beta":
@@ -111,6 +115,12 @@ class MultiHeadActor(nn.Module):
 
     def action_probability_metadata(self):
         """Runtime configuration, deliberately absent from parameter state_dict."""
+        if self.analytic_receive_beam_only:
+            return {
+                "action_probability_contract": "analytic_mvdr_no_receive_beam_actions_v1",
+                "active_continuous_heads": list(self.active_continuous_head_names),
+                "active_continuous_action_dim": sum(self.continuous_action_splits.values()),
+            }
         return {
             # Keep legacy absolute contracts byte-compatible with saved packages.
             **(self.receive_beam_mapping if self.receive_beam_mapping[
@@ -231,7 +241,8 @@ class MultiHeadActor(nn.Module):
             return (*result, stats)
         return result
 
-    def evaluate_actions(self, s, continuous_actions, discrete_actions):
+    def evaluate_actions(self, s, continuous_actions, discrete_actions, *,
+                         return_expected_duplicate_matching=False):
         continuous_dists, discrete_dists = self._get_dists(s)
         batch_size = s.size(0)
         device = s.device
@@ -262,8 +273,20 @@ class MultiHeadActor(nn.Module):
             disc_entropy += dist.entropy().unsqueeze(-1)
 
         # 返回总和以及分量
-        return (cont_log_prob + disc_log_prob), (cont_entropy + disc_entropy), \
-            cont_log_prob, disc_log_prob, cont_entropy, disc_entropy
+        evaluation = (cont_log_prob + disc_log_prob, cont_entropy + disc_entropy,
+                      cont_log_prob, disc_log_prob, cont_entropy, disc_entropy)
+        if not return_expected_duplicate_matching:
+            return evaluation
+
+        # Each head adds one excess assignment if it chooses an already selected CU.
+        selected_probability = 0.0
+        expected_duplicates = torch.zeros_like(disc_log_prob)
+        for dist in discrete_dists:
+            probabilities = dist.probs
+            expected_duplicates = expected_duplicates + (
+                probabilities * selected_probability).sum(dim=-1, keepdim=True)
+            selected_probability = selected_probability + (1.0 - selected_probability) * probabilities
+        return (*evaluation, expected_duplicates)
 
 
 class Critic(nn.Module):
@@ -290,9 +313,15 @@ class HPPO:
                  continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1,
                  structured_beam_alpha=1.0, batch_size=32,
                  receive_beam_phase_mode="absolute", receive_beam_phase_limit_deg=45.0,
-                 mvdr_residual=False, mvdr_residual_radius=0.2, structured_beam_reference="mvdr"):
+                 mvdr_residual=False, mvdr_residual_radius=0.2, structured_beam_reference="mvdr",
+                 expected_duplicate_matching_coef=0.0):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
+        self.expected_duplicate_matching_coef = float(expected_duplicate_matching_coef)
+        if not np.isfinite(self.expected_duplicate_matching_coef) or self.expected_duplicate_matching_coef < 0:
+            raise ValueError("expected_duplicate_matching_coef must be nonnegative and finite")
+        if self.expected_duplicate_matching_coef > 0 and len(set(self.discrete_action_dims)) > 1:
+            raise ValueError("expected duplicate matching requires a shared CU set across discrete heads")
         self.actor = MultiHeadActor(
             state_dim=state_dim,
             hidden_dim=hidden_dim,
@@ -470,6 +499,7 @@ class HPPO:
 
         batch_size = states.size(0)
         mini_batch_size = min(self.batch_size, batch_size)
+        use_duplicate_penalty = self.expected_duplicate_matching_coef > 0
         
         # 辅助函数
         def _surr(ratio, a):
@@ -478,11 +508,13 @@ class HPPO:
     
         for _ in range(self.epochs):
             for index in BatchSampler(SubsetRandomSampler(range(batch_size)), mini_batch_size, False):
-                log_probs, total_entropy, c_lp, d_lp, c_ent, d_ent = self.actor.evaluate_actions(
+                evaluation = self.actor.evaluate_actions(
                     states[index],
                     continuous_actions[index],
-                    discrete_actions[index]
+                    discrete_actions[index],
+                    return_expected_duplicate_matching=use_duplicate_penalty,
                 )
+                _, _, c_lp, d_lp, c_ent, d_ent = evaluation[:6]
                 # 为连续动作和离散动作各自独立 ratio + clip
                 cont_ratio = torch.exp(c_lp - old_cont_lps[index])
                 disc_ratio = torch.exp(d_lp - old_disc_lps[index])
@@ -492,6 +524,8 @@ class HPPO:
                     - self.continuous_entropy_coef * c_ent
                     - self.discrete_entropy_coef   * d_ent
                 )
+                if use_duplicate_penalty:
+                    actor_loss = actor_loss + self.expected_duplicate_matching_coef * evaluation[6].mean()
                 # # ratio = torch.exp(log_probs - old_log_probs[index])
                 # surr1 = ratio * adv[index]
                 # surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * adv[index]
@@ -518,7 +552,18 @@ class HPPO:
         if step is not None:
             self.lr_decay(step)
 
-        if writer is not None and step is not None:
+        expected_duplicate_matching = float("nan")
+        write_metrics = writer is not None and step is not None
+        if write_metrics or use_duplicate_penalty:
+            with torch.no_grad():
+                res = self.actor.evaluate_actions(
+                    states, continuous_actions, discrete_actions,
+                    return_expected_duplicate_matching=use_duplicate_penalty,
+                )
+                if use_duplicate_penalty:
+                    expected_duplicate_matching = res[6].mean().item()
+
+        if write_metrics:
             writer.add_scalar(f"{agent_name}/Actor_Loss", np.mean(actor_losses), step)
             writer.add_scalar(f"{agent_name}/Critic_Loss", np.mean(critic_losses), step)
             writer.add_scalar(f"{agent_name}/Continuous_LogProb", np.mean(c_lps), step)
@@ -526,10 +571,12 @@ class HPPO:
             writer.add_scalar(f"{agent_name}/continuous_entropy", np.mean(c_ents), step)
             writer.add_scalar(f"{agent_name}/discrete_entropy", np.mean(d_ents), step)
             old_lps = old_cont_lps + old_disc_lps          # 仅用于监控，不参与训练
-            res = self.actor.evaluate_actions(states, continuous_actions, discrete_actions)
             kl_c_lp, kl_d_lp = res[2], res[3]             # 取分开的 log prob
             kl = (old_lps - (kl_c_lp + kl_d_lp)).mean().item()
             writer.add_scalar(f"{agent_name}/KL_Divergence", kl, step)
+            if use_duplicate_penalty:
+                writer.add_scalar(f"{agent_name}/actor_expected_duplicate_matching", expected_duplicate_matching, step)
+        return expected_duplicate_matching
 
 
     def lr_decay(self, total_steps):
