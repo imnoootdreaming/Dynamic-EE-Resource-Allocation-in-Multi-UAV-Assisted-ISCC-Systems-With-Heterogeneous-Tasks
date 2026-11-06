@@ -159,6 +159,8 @@ case "$ACTION" in
         args+=(--actor_lr 3e-4)
         # 设置 critic 学习率。
         args+=(--critic_lr 3e-4)
+        # 本轮调试默认使用 0.3；后续用户参数可覆盖为 0 或 0.1 以复现对照。
+        args+=(--expected_duplicate_matching_coef 0.3)
         # 用 nohup 脱离 SSH；先恢复 SIGINT 默认状态再 exec Python，保证基线可用中断信号清理。
         # 标准输入来自 /dev/null，标准输出和错误均写入本次日志；& 表示后台执行。
         nohup "$PYTHON_BIN" -u -c 'import os, signal, sys; signal.signal(signal.SIGINT, signal.SIG_DFL); os.execv(sys.executable, [sys.executable, "-u", *sys.argv[1:]])' "$ENTRY" "${args[@]}" "$@" "${limit_args[@]}" >> "$LOG_FILE" 2>&1 < /dev/null &

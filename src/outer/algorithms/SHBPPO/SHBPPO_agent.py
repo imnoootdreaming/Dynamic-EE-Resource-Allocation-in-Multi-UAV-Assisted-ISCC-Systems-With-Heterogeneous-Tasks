@@ -6,6 +6,7 @@ from torch.distributions import Beta
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 from algorithms.training_schedule import ppo_lr_multiplier
+from algorithms.SHBPPO.matching import beta_bin_probabilities, expected_duplicate_matching
 
 
 def orthogonal_init(layer, gain=1.0):
@@ -32,7 +33,7 @@ class BetaHead(nn.Module):
 class SingleHeadActor(nn.Module):
     """单头 Beta Actor：只有一个 Beta 分布头，覆盖所有动作维度（连续 + 离散统一编码为 [0,1]）。"""
 
-    def __init__(self, state_dim, hidden_dim, action_dim):
+    def __init__(self, state_dim, hidden_dim, action_dim, uavs_num=0, cus_num=0):
         super(SingleHeadActor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
@@ -41,6 +42,8 @@ class SingleHeadActor(nn.Module):
         orthogonal_init(self.fc2)
 
         self.action_dim = action_dim
+        self.uavs_num = int(uavs_num)
+        self.cus_num = int(cus_num)
         self.beta_head = BetaHead(hidden_dim, action_dim)
 
     def _forward_features(self, s):
@@ -56,12 +59,19 @@ class SingleHeadActor(nn.Module):
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
         return action, log_prob, entropy
 
-    def evaluate_actions(self, s, actions):
+    def evaluate_actions(self, s, actions, *, return_expected_duplicate_matching=False):
         features = self._forward_features(s)
         dist = self.beta_head.get_dist(features)
         log_prob = dist.log_prob(actions).sum(dim=-1, keepdim=True)
         entropy = dist.entropy().sum(dim=-1, keepdim=True)
-        return log_prob, entropy
+        if not return_expected_duplicate_matching:
+            return log_prob, entropy
+        if not 0 < self.uavs_num <= self.action_dim or self.cus_num <= 0:
+            raise ValueError("CU-bin penalty requires valid uavs_num and cus_num")
+        probabilities = beta_bin_probabilities(
+            dist.concentration1[:, -self.uavs_num:],
+            dist.concentration0[:, -self.uavs_num:], self.cus_num)
+        return log_prob, entropy, expected_duplicate_matching(probabilities)
 
 
 class Critic(nn.Module):
@@ -84,7 +94,7 @@ class Critic(nn.Module):
 class SHBPPO:
     """单头 Beta PPO（Single-Head Beta PPO）。
 
-    与多头 HPPO 的唯一区别：Actor 只输出一个 Beta 分布向量（维度 =
+    Actor 只输出一个 Beta 分布向量（维度 =
     连续动作维度 + uavs_num），不再区分连续/离散头。离散动作（每个 UAV 选
     哪个 CU）在 [0,1] 采样空间中作为连续值输出，在交给环境前由外部映射函数
     离散化为 CU 索引。PPO 内部的 log_prob / entropy / ratio 全部统一处理。
@@ -92,12 +102,18 @@ class SHBPPO:
 
     def __init__(self, state_dim, hidden_dim, action_dim, action_low, action_high,
                  actor_lr, critic_lr, lmbda, eps, gamma, epochs, num_episodes,
-                 device, entropy_coef=0.01, lr_min_ratio=0.1):
+                 device, entropy_coef=0.01, lr_min_ratio=0.1,
+                 uavs_num=0, cus_num=0, expected_duplicate_matching_coef=0.0):
         self.action_dim = action_dim
+        self.expected_duplicate_matching_coef = float(expected_duplicate_matching_coef)
+        if not np.isfinite(self.expected_duplicate_matching_coef) or self.expected_duplicate_matching_coef < 0:
+            raise ValueError("expected_duplicate_matching_coef must be nonnegative and finite")
+        if self.expected_duplicate_matching_coef > 0 and not (0 < uavs_num <= action_dim and cus_num > 0):
+            raise ValueError("CU-bin penalty requires valid uavs_num and cus_num")
         self.actor = SingleHeadActor(
             state_dim=state_dim,
             hidden_dim=hidden_dim,
-            action_dim=action_dim
+            action_dim=action_dim, uavs_num=uavs_num, cus_num=cus_num
         ).to(device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
 
@@ -169,6 +185,7 @@ class SHBPPO:
 
         batch_size = states.size(0)
         mini_batch_size = min(32, batch_size)
+        use_duplicate_penalty = self.expected_duplicate_matching_coef > 0
 
         def _surr(ratio, a):
             return -torch.min(ratio * a,
@@ -176,13 +193,17 @@ class SHBPPO:
 
         for _ in range(self.epochs):
             for index in BatchSampler(SubsetRandomSampler(range(batch_size)), mini_batch_size, False):
-                log_probs, entropy = self.actor.evaluate_actions(
-                    states[index], actions[index]
+                evaluation = self.actor.evaluate_actions(
+                    states[index], actions[index],
+                    return_expected_duplicate_matching=use_duplicate_penalty,
                 )
+                log_probs, entropy = evaluation[:2]
                 ratio = torch.exp(log_probs - old_log_probs[index])
                 actor_loss = torch.mean(
                     _surr(ratio, adv[index]) - self.entropy_coef * entropy
                 )
+                if use_duplicate_penalty:
+                    actor_loss = actor_loss + self.expected_duplicate_matching_coef * evaluation[2].mean()
                 critic_loss = F.mse_loss(self.critic(states[index]), v_target[index].detach())
 
                 self.actor_optimizer.zero_grad()
@@ -202,6 +223,12 @@ class SHBPPO:
         if step is not None:
             self.lr_decay(step)
 
+        expected_duplicates = float("nan")
+        if use_duplicate_penalty:
+            with torch.no_grad():
+                expected_duplicates = self.actor.evaluate_actions(
+                    states, actions, return_expected_duplicate_matching=True)[2].mean().item()
+
         if writer is not None and step is not None:
             writer.add_scalar(f"{agent_name}/Actor_Loss", np.mean(actor_losses), step)
             writer.add_scalar(f"{agent_name}/Critic_Loss", np.mean(critic_losses), step)
@@ -210,6 +237,9 @@ class SHBPPO:
             res = self.actor.evaluate_actions(states, actions)
             kl = (old_log_probs - res[0]).mean().item()
             writer.add_scalar(f"{agent_name}/KL_Divergence", kl, step)
+            if use_duplicate_penalty:
+                writer.add_scalar(f"{agent_name}/actor_expected_duplicate_matching", expected_duplicates, step)
+        return expected_duplicates
 
     def lr_decay(self, total_steps):
         decay = ppo_lr_multiplier(total_steps, self.num_episodes, self.lr_min_ratio)

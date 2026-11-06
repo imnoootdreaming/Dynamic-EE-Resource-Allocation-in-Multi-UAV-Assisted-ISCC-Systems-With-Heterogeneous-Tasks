@@ -10,6 +10,24 @@ python src/outer/algorithms/Pure_MHBPPO/Pure_MHBPPO_main.py --num_samplers 2 --w
 
 多头 Beta/Categorical 策略输出 8 组连续动作，包括飞行角、飞行距离、UAV 卸载时长、UAV 卸载波束方向的实部和虚部、UAV 卸载功率、CU 发射功率和 CU 卸载时长。每架 UAV 另有一个离散 CU 匹配头。默认 I=4、J=10、N=10 时为 116 维连续动作和 4 个十类离散头。旧 200 维 actor 检查点使用原动作结构。
 
+匹配辅助损失与 MHBPPO 一致：按独立 Categorical 头的概率计算 `E[sum_j max(N_j-1, 0)]`，以 `--expected_duplicate_matching_coef` 加入 Actor loss，保留全部 CU 选择、原始潜变量和原 log-prob/entropy/ratio。Python 参数默认 `0`，后台脚本默认 `0.3`，显式传 `0` 可关闭。CSV/TensorBoard 的 `actor_expected_duplicate_matching` 是更新后策略在本轮状态上的期望；关闭时 CSV 为 NaN。该辅助项是否改善长期完成率需训练消融验证。
+
+奖励预处理与 MHBPPO/SHBPPO/MHGPPO 一致：worker 返回原始 `reward["bs"]`；learner 用更新前的全局历史即时奖励均值和标准差做 `(r-mean)/(std+1e-8)`，PPO 更新成功后加入整轮原始奖励。直接复用 MHBPPO 的 `StateNormStats`，包括初始单位标准差和 `1e-4` 下限。状态归一化沿用现有单环境在线／多环境冻结快照顺序。原始物理 reward 公式及日志/曲线口径保持不变。checkpoint 不保存全局奖励统计、优化器或随机数，仍只用于评估，不能精确续训。
+
+两套多头 PPO 的匹配辅助项与奖励口径回归检查：`python src/outer/algorithms/MHGPPO/test_matching_reward.py -v`。
+
+新运行默认开启 **时间条件解码**（`--pure_time_decoder conditional`）。仍保留全部 116 个连续潜变量，网络输出和 PPO 概率均使用原始 `[0,1]` Beta 样本；只有执行时的 4 个 UAV 时间和 10 个 CU 时间按当前匹配、速率、任务和共享 BS 算力映射。先为未解码任务保留最小必要算力，再逐个确定当前时间的上下界，减少「单个时间都在范围内、组合后却来不及上传或计算」的无效尝试。速率与原物理评价共用一次计算，不新增优化求解器。
+
+重复匹配、零上传速率或当前功率/波束组合无法补全时间时，保留原时间映射及原处罚；不会把它当成可行动作。其余移动、功率、波束范围和原始 reward 公式不变。时间解码本身不改变熵或学习率；是否能在 5000 轮内稳定超过 reward=0.90 仍需完整训练验证。
+
+对照旧映射使用 `--pure_time_decoder legacy`。加载**未记录该选项的旧配置**时默认保持 `legacy`；若沿用旧配置测试新解码，必须显式追加：
+
+```powershell
+python src/outer/algorithms/Pure_MHBPPO/Pure_MHBPPO_main.py --config <旧配置路径> --pure_time_decoder conditional
+```
+
+启动日志显示 `time_decoder=conditional_v1`，每轮显示 `time_decoded=N/总槽数` 和 `time_fallback=M`；CSV/TensorBoard 保存对应计数。物理 trace 的 `time_decoding` 记录原因、实际区间和算力；`raw_continuous` 保留网络原始样本，`mapped_continuous` 记录执行动作。配置与 checkpoint 元数据保存解码版本，旧 checkpoint 不会默认为新映射。
+
 环境由当前目标信道计算感知发射方向，并根据当前 CU 匹配、CU 功率和 MVDR 接收增益选择感知功率，目标为线性 SINR 门限的 1.01 倍。若所需功率超过上限，则按上限执行并由原物理约束判定是否达标。发射功率计算和 MVDR 接收复用同一次 `numpy.linalg.solve`。物理日志继续记录实际执行的感知波束。
 
 环境复用当前场景、任务、信道和状态构造。当前任务时隙的 `L_j,C_j,D_j` 用于直接计算感知/卸载速率、三阶段 CU 传输、最小计算频率、实际候选能耗和附件 P0 的15类约束。频率总量超限不会被等比例压缩后冒充可行；分母非正的正负载频率不可行。当前实现按已有 `MyEnv` 时序先用当前信道结算、再更新位置和信道。
@@ -22,8 +40,11 @@ python src/outer/algorithms/Pure_MHBPPO/Pure_MHBPPO_main.py --num_samplers 2 --w
 
 检查点的状态归一化可通过 `algorithms.Pure_MHBPPO.checkpoint.load_normalization(iter_dir, expected_dim)` 校验 actor 哈希并加载；`normalize_state` 负责归一化。验证：
 
+重建评价环境应先用 `checkpoint.load_environment_args(iter_dir)` 恢复配套配置，再构造 `PureMyEnv`，以同时恢复正确的时间映射。不要仅加载 actor 后使用另一种解码模式评价。
+
 ```powershell
 python -m unittest discover -s src/outer/algorithms/Pure_MHBPPO -p test_pure_contract.py -v
+python -m unittest discover -s src/outer/algorithms/Pure_MHBPPO -p test_time_decoder.py -v
 python src/outer/algorithms/Pure_MHBPPO/verify_run.py <运行目录>
 ```
 

@@ -8,6 +8,7 @@ except ImportError:
 from environment.my_env import MyEnv
 from environment.mapping import build_uavs_cus_matched_matrix, build_uav_targets_matched_matrix
 from algorithms.Pure_MHBPPO.physical import evaluate_physical
+from algorithms.Pure_MHBPPO.time_decoder import decode_times
 
 
 class PureMyEnv(MyEnv):
@@ -15,6 +16,10 @@ class PureMyEnv(MyEnv):
         # Base initialization imports/constructs MyReward, but Pure.step never
         # invokes it. Existing MHBPPO environment behaviour remains unchanged.
         super().__init__(base_args, madrl_args, seed_offset=seed_offset)
+        # Direct/old callers and historical recipes retain their original mapping.
+        self.time_decoder = getattr(madrl_args, "pure_time_decoder", "legacy")
+        if self.time_decoder not in ("legacy", "conditional"):
+            raise ValueError("pure_time_decoder must be legacy or conditional")
         I, J, N = self.base_args.uavs_num, self.base_args.cus_num, self.base_args.antenna_nums
         self.bs_continuous_action_splits = {
             "uav_angles": I, "uav_distances": I, "uav_off_durations": I,
@@ -90,12 +95,29 @@ class PureMyEnv(MyEnv):
         after = before + np.stack([distance*np.cos(angle), distance*np.sin(angle), np.zeros(I)], axis=1)
         target_indices = self._get_current_uav_target_indices()
         A = self.uavs_2_targets_channels[np.arange(I), target_indices]
+        def decode(rates):
+            return decode_times(params=self.base_args, eta=eta, rates=rates,
+                task_bits=self.cus_entertaining_task_size, task_cycles=self.cus_task_cycles,
+                task_deadlines=self.cus_task_deadlines,
+                z_uav=normalized[2*I:3*I], z_cu=normalized[-J:],
+                lower_uav=low[2*I:3*I], upper_uav=high[2*I:3*I],
+                lower_cu=low[-J:], upper_cu=high[-J:], legacy_uav=du, legacy_cu=dc)
+
         physical = evaluate_physical(params=self.base_args, eta=eta, p_cu=p, duration_uav=du, duration_cu=dc,
             sensing_beams=None, offloading_beams=b, positions_before=before, positions_after=after,
             h_cu_uav=self.uavs_2_cus_channels, h_uav_bs=self.uavs_2_bs_channels,
             h_cu_bs=self.cus_2_bs_channels, sensing_channels=A, task_bits=self.cus_entertaining_task_size,
             task_cycles=self.cus_task_cycles, task_deadlines=self.cus_task_deadlines,
-            slot_seconds=float(self.current_slot_duration))
+            slot_seconds=float(self.current_slot_duration),
+            time_decoder=decode if self.time_decoder == "conditional" else None)
+        timing = physical.pop("time_decoding", {"mode": self.time_decoder, "applied": False,
+            "status": "legacy" if self.time_decoder == "legacy" else "invalid_physical_input"})
+        if timing["applied"]:
+            # Only executed times/bounds change; PPO still records the untouched raw latents.
+            mapped, low, high = (value.astype(np.float64) for value in (mapped, low, high))
+            mapped[2*I:3*I], mapped[-J:] = timing["uav_seconds"], timing["cu_seconds"]
+            low[2*I:3*I], high[2*I:3*I] = timing["uav_lower_seconds"], timing["uav_upper_seconds"]
+            low[-J:], high[-J:] = timing["cu_lower_seconds"], timing["cu_upper_seconds"]
         sensing_beams = physical.pop("sensing_transmit_beams", None)
         success = int(physical["feasible"])
         reward = float(physical["reward"])
@@ -103,6 +125,7 @@ class PureMyEnv(MyEnv):
         self.last_action_trace = {"time_slot": int(self.t), "raw_continuous": raw.tolist(),
             "discrete": discrete.tolist(), "mapped_continuous": mapped.tolist(),
             "continuous_low": low.tolist(), "continuous_high": high.tolist(),
+            "time_decoding": timing,
             "position_before": before.tolist(), "position_after": after.tolist(),
             "sensing_beams": sensing_beams,
             "offloading_beams": {"real": b.real.tolist(), "imag": b.imag.tolist()},

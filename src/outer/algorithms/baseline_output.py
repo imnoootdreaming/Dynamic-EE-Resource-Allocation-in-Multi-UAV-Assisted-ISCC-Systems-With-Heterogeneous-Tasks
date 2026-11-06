@@ -1,9 +1,11 @@
 """Output and scene contracts shared by legacy baseline trainers."""
 import functools
+import csv
 import hashlib
 import json
 import os
 import shutil
+import signal
 import sys
 import uuid
 from contextlib import nullcontext
@@ -16,6 +18,64 @@ from algorithms.MHBPPO.action_logging import ActionLogWriter, JsonlRotation, _js
 from algorithms.MHBPPO.log_compaction import compact_action_trace, compact_env_trace
 from algorithms.MHBPPO.energy_statistics import summarize_energy, energy_scalar_metrics
 from algorithms.background_logging import BACKGROUND_LOG_ENV
+
+
+class TrainingStop:
+    """Defer console interrupts until the learner can publish a complete round."""
+
+    def __init__(self):
+        self.requested = False
+        self.previous_handlers = {}
+
+    def request(self, signum, frame):
+        self.requested = True
+
+    def install(self):
+        for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
+            signum = getattr(signal, name, None)
+            if signum is not None:
+                try:
+                    self.previous_handlers[signum] = signal.signal(signum, self.request)
+                except (ValueError, OSError, RuntimeError):
+                    pass  # Signals are unavailable outside the main thread.
+
+    def restore(self):
+        for signum, handler in self.previous_handlers.items():
+            signal.signal(signum, handler)
+
+    @staticmethod
+    def ignore_worker_interrupts():
+        for name in ("SIGINT", "SIGBREAK"):
+            if hasattr(signal, name):
+                signal.signal(getattr(signal, name), signal.SIG_IGN)
+
+
+def save_reward_artifacts(output, seed, destination=None, *, algorithm=None):
+    """Export committed CSV rows independently of the current model's validity."""
+    source = output / "training_updates.csv"
+    if not source.is_file():
+        return
+    with source.open(newline="", encoding="utf-8") as stream:
+        records = [(int(row["iteration"]) - 1, row["reward"], row["finite_obj_mean"], row["completion_rate"])
+                   for row in csv.DictReader(stream)]
+    if not records:
+        return
+    destination = output if destination is None else destination
+    with (destination / f"training_rewards_seed_{seed}.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(["episode", "reward", "obj", "completion_rate"])
+        writer.writerows(records)
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(8, 5))
+    try:
+        ax.plot([row[0] + 1 for row in records], [float(row[1]) for row in records])
+        ax.set(xlabel="Iteration (outer rounds)", ylabel="Reward",
+               title=f"{algorithm} training reward" if algorithm else "Training reward")
+        fig.savefig(destination / "training_reward_curve.png", dpi=150, bbox_inches="tight")
+    finally:
+        plt.close(fig)
 
 
 class _BackgroundLogSink:

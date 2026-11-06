@@ -167,7 +167,8 @@ class MultiHeadActor(nn.Module):
 
         return continuous_actions, discrete_actions, total_log_prob, con_log_prob, dis_log_prob
 
-    def evaluate_actions(self, s, continuous_actions, discrete_actions):
+    def evaluate_actions(self, s, continuous_actions, discrete_actions, *,
+                         return_expected_duplicate_matching=False):
         continuous_dists, discrete_dists = self._get_dists(s)
         batch_size = s.size(0)
         device = s.device
@@ -194,8 +195,20 @@ class MultiHeadActor(nn.Module):
             disc_entropy += dist.entropy().unsqueeze(-1)
 
         # 返回总和以及分量
-        return (cont_log_prob + disc_log_prob), (cont_entropy + disc_entropy), \
-            cont_log_prob, disc_log_prob, cont_entropy, disc_entropy
+        evaluation = (cont_log_prob + disc_log_prob, cont_entropy + disc_entropy,
+                      cont_log_prob, disc_log_prob, cont_entropy, disc_entropy)
+        if not return_expected_duplicate_matching:
+            return evaluation
+
+        # Same expected excess-CU count as MHBPPO; all CU choices remain active.
+        selected_probability = 0.0
+        expected_duplicates = torch.zeros_like(disc_log_prob)
+        for dist in discrete_dists:
+            probabilities = dist.probs
+            expected_duplicates = expected_duplicates + (
+                probabilities * selected_probability).sum(dim=-1, keepdim=True)
+            selected_probability = selected_probability + (1.0 - selected_probability) * probabilities
+        return (*evaluation, expected_duplicates)
 
 
 class Critic(nn.Module):
@@ -219,9 +232,15 @@ class HPPO:
     def __init__(self, state_dim, hidden_dim, continuous_action_splits, discrete_action_dims,
                  action_low, action_high, actor_lr, critic_lr, lmbda, eps, gamma, epochs,
                  num_episodes, device, entropy_coef=0.01, discrete_entropy_coef=0.01,
-                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1):
+                 continuous_entropy_coef=0.05, continuous_dist_type="beta", lr_min_ratio=0.1,
+                 expected_duplicate_matching_coef=0.0):
         self.continuous_action_splits = continuous_action_splits
         self.discrete_action_dims = np.asarray(discrete_action_dims, dtype=np.int64)
+        self.expected_duplicate_matching_coef = float(expected_duplicate_matching_coef)
+        if not np.isfinite(self.expected_duplicate_matching_coef) or self.expected_duplicate_matching_coef < 0:
+            raise ValueError("expected_duplicate_matching_coef must be nonnegative and finite")
+        if self.expected_duplicate_matching_coef > 0 and len(set(self.discrete_action_dims)) > 1:
+            raise ValueError("expected duplicate matching requires a shared CU set across discrete heads")
         self.actor = MultiHeadActor(
             state_dim=state_dim,
             hidden_dim=hidden_dim,
@@ -315,6 +334,7 @@ class HPPO:
 
         batch_size = states.size(0)
         mini_batch_size = min(32, batch_size)
+        use_duplicate_penalty = self.expected_duplicate_matching_coef > 0
         
         # 辅助函数
         def _surr(ratio, a):
@@ -323,11 +343,13 @@ class HPPO:
     
         for _ in range(self.epochs):
             for index in BatchSampler(SubsetRandomSampler(range(batch_size)), mini_batch_size, False):
-                log_probs, total_entropy, c_lp, d_lp, c_ent, d_ent = self.actor.evaluate_actions(
+                evaluation = self.actor.evaluate_actions(
                     states[index],
                     continuous_actions[index],
-                    discrete_actions[index]
+                    discrete_actions[index],
+                    return_expected_duplicate_matching=use_duplicate_penalty,
                 )
+                log_probs, total_entropy, c_lp, d_lp, c_ent, d_ent = evaluation[:6]
                 # 为连续动作和离散动作各自独立 ratio + clip
                 cont_ratio = torch.exp(c_lp - old_cont_lps[index])
                 disc_ratio = torch.exp(d_lp - old_disc_lps[index])
@@ -337,6 +359,8 @@ class HPPO:
                     - self.continuous_entropy_coef * c_ent
                     - self.discrete_entropy_coef   * d_ent
                 )
+                if use_duplicate_penalty:
+                    actor_loss = actor_loss + self.expected_duplicate_matching_coef * evaluation[6].mean()
                 # # ratio = torch.exp(log_probs - old_log_probs[index])
                 # surr1 = ratio * adv[index]
                 # surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * adv[index]
@@ -363,6 +387,13 @@ class HPPO:
         if step is not None:
             self.lr_decay(step)
 
+        expected_duplicates = float("nan")
+        if use_duplicate_penalty:
+            with torch.no_grad():
+                expected_duplicates = self.actor.evaluate_actions(
+                    states, continuous_actions, discrete_actions,
+                    return_expected_duplicate_matching=True)[6].mean().item()
+
         if writer is not None and step is not None:
             writer.add_scalar(f"{agent_name}/Actor_Loss", np.mean(actor_losses), step)
             writer.add_scalar(f"{agent_name}/Critic_Loss", np.mean(critic_losses), step)
@@ -375,6 +406,9 @@ class HPPO:
             kl_c_lp, kl_d_lp = res[2], res[3]             # 取分开的 log prob
             kl = (old_lps - (kl_c_lp + kl_d_lp)).mean().item()
             writer.add_scalar(f"{agent_name}/KL_Divergence", kl, step)
+            if use_duplicate_penalty:
+                writer.add_scalar(f"{agent_name}/actor_expected_duplicate_matching", expected_duplicates, step)
+        return expected_duplicates
 
 
     def lr_decay(self, total_steps):

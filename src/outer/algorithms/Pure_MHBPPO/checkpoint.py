@@ -1,8 +1,24 @@
 """Read Pure-MHBPPO evaluation normalization paired with the saved actor."""
 import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
+
+
+def load_environment_args(checkpoint_dir):
+    """Restore the saved action mapping too; old checkpoints remain legacy."""
+    from algorithms.Pure_MHBPPO.Pure_MHBPPO_main import get_pure_args
+    from algorithms.Pure_MHBPPO.time_decoder import TIME_DECODER_VERSION
+
+    path = Path(checkpoint_dir) / "checkpoint_metadata.json"
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    args = get_pure_args(["--config", str(path)])
+    contract = metadata.get("action_parameterization", {})
+    if contract and (contract.get("time_decoder") != args.pure_time_decoder or
+                     contract.get("time_decoder_version") != TIME_DECODER_VERSION):
+        raise ValueError("unsupported or inconsistent Pure-MHBPPO time decoder contract")
+    return args
 
 
 def load_normalization(checkpoint_dir, expected_dim=None):

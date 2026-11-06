@@ -45,7 +45,7 @@ def validate_parallel_settings(args):
                              "disable " + ", ".join(conflicts))
 
 
-def get_madrl_args(argv=None):
+def get_madrl_args(argv=None, *, extend_parser=None):
     madrl_parser = argparse.ArgumentParser(description="MADRL 超参数")
     madrl_parser.add_argument("--seed", type=int, default=42,
                               help="MHBPPO 主随机种子；仅覆盖本算法，不改变其他算法默认值")
@@ -71,7 +71,7 @@ def get_madrl_args(argv=None):
     madrl_parser.add_argument("--continuous_entropy_coef", type=float, default=0.05, help="连续动作熵系数")
     madrl_parser.add_argument("--discrete_entropy_coef", type=float, default=0.01, help="离散动作熵系数")
     madrl_parser.add_argument("--expected_duplicate_matching_coef", type=float, default=0.0,
-                              help="MHBPPO actor 的期望重复匹配惩罚权重，0 表示关闭")
+                              help="MHBPPO/SHBPPO/MHGPPO/Pure_MHBPPO actor 的期望重复匹配惩罚权重，0 表示关闭")
     madrl_parser.add_argument("--lr_min_ratio", type=float, default=0.1, help="学习率下限相对初始学习率的比例")
     madrl_parser.add_argument("--config", type=str, default="", help="读取保存的hyperparameters.json；命令行显式参数优先")
     madrl_parser.add_argument("--episodes", type=int, default=10000, help="PPO 持续训练（max_updates=0）时的学习率衰减尺度；有限训练时由 max_updates 决定；MHSAC 不使用")
@@ -138,6 +138,8 @@ def get_madrl_args(argv=None):
                               help="默认复用逐时隙 NLoS 分量；开启后逐 episode 重生成整套场景")
     madrl_parser.add_argument("--debug_topology", action="store_true", default=False,
                               help="debug 模式：打印扇区调度表等场景细节（正常训练关闭，避免逐 episode 刷屏）")
+    if extend_parser is not None:
+        extend_parser(madrl_parser)
     # Load defaults first; normal argparse parsing then applies explicit CLI overrides.
     preliminary = argparse.ArgumentParser(add_help=False)
     preliminary.add_argument("--config", default="")

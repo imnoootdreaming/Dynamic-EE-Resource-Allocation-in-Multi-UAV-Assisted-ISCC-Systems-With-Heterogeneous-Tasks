@@ -3,8 +3,8 @@
 The policy and normalization modules derive from outer_old; PPO learning rates
 use a floor for unlimited training. One worker
 retains the original online normalization order. Multiple workers use a frozen
-state-normalization snapshot for each collection round and independent legacy
-reward scalers; their statistics and timing therefore differ from one worker.
+state-normalization snapshot for each collection round. Workers return raw
+rewards; the learner uses MHBPPO's global historical reward standardization.
 """
 import csv
 import hashlib
@@ -29,9 +29,11 @@ if str(_OUTER_ROOT) not in sys.path:
     sys.path.insert(0, str(_OUTER_ROOT))
 
 from algorithms.MHGPPO.MHGPPO_agent import HPPO, MultiHeadActor
-from algorithms.MHGPPO.normalization import Normalization, RewardScaling
+from algorithms.MHGPPO.normalization import Normalization
+from algorithms.MHBPPO.MHBPPO_main import StateNormStats
 from algorithms.MHBPPO.rollout_batch import derive_action_seed, actor_state_signature
 from algorithms.baseline_output import setup_run, check_scene, TraceLogs, atomic_checkpoint, capture, aggregate_metrics, METRIC_COLUMNS, log_scalar_metrics, training_log_stream, log_training_failure
+from algorithms.baseline_output import TrainingStop, save_reward_artifacts
 from algorithms.training_schedule import configure_ppo_lr_horizon, training_rounds
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
@@ -63,8 +65,9 @@ def frozen_normalize(raw, snapshot):
 
 
 def worker_main(base_args, args, worker_id, control, results):
-    """Own the environment and reward scaler for the entire worker lifetime."""
+    """Collect raw rewards; reward standardization belongs to the learner."""
     try:
+        TrainingStop.ignore_worker_interrupts()
         if args.worker_num_threads:
             torch.set_num_threads(args.worker_num_threads)
         action_seed = derive_action_seed(base_args.seed, worker_id)
@@ -75,7 +78,6 @@ def worker_main(base_args, args, worker_id, control, results):
                                env.action_space["bs"]["discrete"].nvec,
                                continuous_dist_type="gaussian")
         normalizer = Normalization(env.observation_space["bs"].shape[0])
-        scaler = RewardScaling(shape=1, gamma=args.gamma)
         while True:
             command = control.get()
             if command is None:
@@ -87,7 +89,6 @@ def worker_main(base_args, args, worker_id, control, results):
                 raise RuntimeError("worker actor signature does not match dispatched weights")
             snapshot = command["normalizer"]
             state = env.reset(version)
-            scaler.reset()
             transition = {key: [] for key in TRANSITION_KEYS}
             raw_pairs, totals, objectives, successes, trajectory, solver_statuses = [], [], [], [], [], []
             detailed_traces = []
@@ -103,13 +104,12 @@ def worker_main(base_args, args, worker_id, control, results):
                 next_state, total, reward, done, objective, success = env.step({"bs": action}, version)
                 detailed_traces.append(capture(env, reward, total, objective, success, done, args))
                 raw_next = np.asarray(next_state["bs"], dtype=np.float32)
-                scaled_reward = float(np.asarray(scaler(float(reward["bs"]))).item())
                 norm_next = normalizer(raw_next) if args.num_samplers == 1 else frozen_normalize(raw_next, snapshot)
                 transition["states"].append(norm)
                 transition["continuous_actions"].append(action["continuous"])
                 transition["discrete_actions"].append(action["discrete"])
                 transition["next_states"].append(norm_next)
-                transition["rewards"].append(scaled_reward)
+                transition["rewards"].append(float(reward["bs"]))
                 transition["old_cont_log_probs"].append(float(sample[3].item()))
                 transition["old_disc_log_probs"].append(float(sample[4].item()))
                 transition["dones"].append(bool(done))
@@ -131,9 +131,11 @@ def worker_main(base_args, args, worker_id, control, results):
         results.put({"worker_id": worker_id, "error": traceback.format_exc()})
 
 
-def collect_round(results, processes, version, expected_signature):
+def collect_round(results, processes, version, expected_signature, should_stop=lambda: False):
     episodes = {}
     while len(episodes) < len(processes):
+        if should_stop():
+            return None
         try:
             item = results.get(timeout=1.0)
         except queue.Empty:
@@ -192,6 +194,7 @@ def save_checkpoint(output, version, agent, norm, episodes, config):
                 "checkpoint_type": "evaluation_only_no_optimizer_or_rng"}
     (path / "checkpoint_metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
     shutil.copyfile(output / "training_updates.csv", path / "training_updates.csv")
+    save_reward_artifacts(output, config["hyperparameters"]["seed"], path, algorithm=config["algorithm"])
 
 
 def run_training(args, *, output_dir=None):
@@ -217,8 +220,10 @@ def run_training(args, *, output_dir=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     agent = HPPO(state_dim, args.hidden_dim, splits, discrete.nvec, continuous.low, continuous.high,
                  args.actor_lr, args.critic_lr, args.lmbda, args.eps, args.gamma, args.epochs,
-                 args.episodes, device, continuous_dist_type="gaussian", lr_min_ratio=args.lr_min_ratio)
+                 args.episodes, device, continuous_dist_type="gaussian", lr_min_ratio=args.lr_min_ratio,
+                 expected_duplicate_matching_coef=args.expected_duplicate_matching_coef)
     normalizer = Normalization(state_dim)
+    reward_norm_stats = StateNormStats(1)
     output, log_dir, tb_dir, run_paths, expected_scene = setup_run(_OUTER_ROOT, "MHGPPO", "MHGPPO", args, probe, output_dir)
     config = {"algorithm": "MHGPPO", "receive_beam": "analytic_mvdr_no_policy_actions",
               "hyperparameters": {k: v for k, v in vars(args).items() if k not in ("config", "analytic_receive_beam_only")}, "state_dim": state_dim,
@@ -227,10 +232,11 @@ def run_training(args, *, output_dir=None):
               "action_seeds": [int(derive_action_seed(base.seed, i)) for i in range(args.num_samplers)],
               "scene_seed_offset": args.scene_seed_offset,
               "normalization": "legacy_online" if args.num_samplers == 1 else "frozen_snapshot_per_round",
-              "reward_scaling": "legacy_per_worker_persistent_stats_reset_return_each_episode",
+              "reward_scaling": "mhbppo_learner_global_history_standardization",
+              "duplicate_matching_probability": "independent_categorical_cu_heads",
               "effective_mini_batch_size": 32, "continuous_entropy_coef": 0.05,
               "discrete_entropy_coef": 0.01, "lr_schedule": "linear_with_floor",
-              "checkpoint_note": "evaluation only; no optimizer, RNG, or scaler state"}
+              "checkpoint_note": "evaluation only; no optimizer, RNG, or reward normalization state"}
     config["run_paths"] = run_paths
     (output / "configuration.json").write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     from torch.utils.tensorboard import SummaryWriter
@@ -242,17 +248,21 @@ def run_training(args, *, output_dir=None):
     workers = [context.Process(target=worker_main, args=(base, args, i, controls[i], results),
                                name=f"mhgppo-sampler-{i}") for i in range(args.num_samplers)]
     completed, last_episodes, env_steps, checkpoint_ready = 0, None, 0, False
+    stop = TrainingStop()
     try:
+        stop.install()
         for worker in workers:
             worker.start()
         with (output / "training_updates.csv").open("w", newline="", encoding="utf-8") as stream, \
                 (output / "episode_metadata.jsonl").open("w", encoding="utf-8") as episode_stream, \
                 training_log_stream(run_paths["training_log"]) as log_stream:
-            columns = ["iteration", "env_steps", "episodes", "reward", "completion_rate", "finite_obj_mean", "finite_obj_slots", "policy_version", "elapsed_seconds", "solver_status_counts"]
+            columns = ["iteration", "env_steps", "episodes", "reward", "completion_rate", "finite_obj_mean", "finite_obj_slots", "policy_version", "elapsed_seconds", "solver_status_counts", "actor_expected_duplicate_matching"]
             columns += METRIC_COLUMNS
             csv_writer = csv.DictWriter(stream, fieldnames=columns)
             csv_writer.writeheader()
             for version in training_rounds(args.max_updates):
+                if stop.requested:
+                    break
                 started = time.monotonic()
                 actor = {key: value.detach().cpu().numpy().copy() for key, value in agent.actor.state_dict().items()}
                 signature = actor_state_signature(agent.actor)
@@ -260,7 +270,9 @@ def run_training(args, *, output_dir=None):
                 command = {"version": version, "actor": actor, "signature": signature, "normalizer": norm}
                 for control in controls:
                     control.put(command)
-                episodes = collect_round(results, workers, version, signature)
+                episodes = collect_round(results, workers, version, signature, should_stop=lambda: stop.requested)
+                if episodes is None or stop.requested:
+                    break
                 log_event = detailed.begin_round(version + 1)
                 if log_event:
                     log_stream.write(log_event + "\n"); log_stream.flush()
@@ -282,8 +294,13 @@ def run_training(args, *, output_dir=None):
                         "steps": len(ep["transition"]["rewards"])}, ensure_ascii=False) + "\n")
                 episode_stream.flush()
                 transition = merge_episodes(episodes)
+                raw_rewards = np.asarray(transition["rewards"], dtype=np.float64).reshape(-1, 1)
+                transition["rewards"] = (
+                    (raw_rewards - reward_norm_stats.mean) / (reward_norm_stats.std + 1e-8)
+                ).reshape(-1).tolist()
                 checkpoint_ready = False
-                agent.update(transition, version, writer, agent_name="BS")
+                expected_duplicates = agent.update(transition, version, writer, agent_name="BS")
+                reward_norm_stats.update(raw_rewards)
                 if args.num_samplers == 1:
                     state_stats = episodes[0]["normalizer"]
                     stats = normalizer.running_ms
@@ -309,7 +326,8 @@ def run_training(args, *, output_dir=None):
                            finite_obj_mean=float(np.mean(finite_objectives)) if finite_objectives else "",
                            finite_obj_slots=len(finite_objectives), policy_version=version,
                            elapsed_seconds=time.monotonic() - started,
-                           solver_status_counts=json.dumps(solver_counts, sort_keys=True))
+                           solver_status_counts=json.dumps(solver_counts, sort_keys=True),
+                           actor_expected_duplicate_matching=expected_duplicates)
                 metrics = aggregate_metrics([pair for ep in episodes for pair in ep["detailed_traces"]])
                 row.update(metrics)
                 log_scalar_metrics(writer, metrics, completed)
@@ -324,28 +342,36 @@ def run_training(args, *, output_dir=None):
                 checkpoint_ready = True
                 if args.checkpoint_interval > 0 and completed % args.checkpoint_interval == 0:
                     save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), episodes, config)
+    except KeyboardInterrupt:
+        print("[MHGPPO] interrupted; saving completed training results", flush=True)
     except BaseException:
         log_training_failure(run_paths["training_log"], traceback.format_exc())
         raise
     finally:
-        for control in controls:
-            try:
-                control.put_nowait(None)
-            except queue.Full:
-                pass
-        for worker in workers:
-            if worker.pid is not None:
-                worker.join(timeout=5)
-                if worker.is_alive():
-                    worker.terminate()
+        try:
+            for control in controls:
+                try:
+                    control.put_nowait(None)
+                except queue.Full:
+                    pass
+            for worker in workers:
+                if worker.pid is not None:
                     worker.join(timeout=5)
-        if completed and last_episodes and checkpoint_ready:
-            save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), last_episodes, config)
-        detailed.close()
-        writer.close()
-        for q in [*controls, results]:
-            q.cancel_join_thread()
-            q.close()
+                    if worker.is_alive():
+                        worker.terminate()
+                        worker.join(timeout=5)
+            save_reward_artifacts(output, base.seed, algorithm=config["algorithm"])
+            if completed and last_episodes and checkpoint_ready:
+                save_checkpoint(output, completed, agent, snapshot_normalizer(normalizer), last_episodes, config)
+        finally:
+            try:
+                detailed.close()
+                writer.close()
+                for q in [*controls, results]:
+                    q.cancel_join_thread()
+                    q.close()
+            finally:
+                stop.restore()
     return output
 
 

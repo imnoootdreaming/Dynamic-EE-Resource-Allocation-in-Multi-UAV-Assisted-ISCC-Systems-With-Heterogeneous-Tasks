@@ -30,6 +30,7 @@ from algorithms.MHSAC.MHSAC_agent import HSAC, ReplayBuffer
 from algorithms.MHSAC.normalization import Normalization, RewardScaling
 from algorithms.MHBPPO.rollout_batch import derive_action_seed, actor_state_signature
 from algorithms.baseline_output import setup_run, check_scene, TraceLogs, atomic_checkpoint, capture, aggregate_metrics, METRIC_COLUMNS, log_scalar_metrics, training_log_stream, log_training_failure
+from algorithms.baseline_output import TrainingStop, save_reward_artifacts
 from algorithms.training_schedule import training_rounds
 from configs.base_params import get_base_args
 from configs.madrl_args import get_madrl_args
@@ -105,6 +106,7 @@ def seed_process(seed):
 def worker_main(base, args, worker_id, control, results):
     """One persistent MyEnv; all actor inference and SAC updates are learner-side."""
     try:
+        TrainingStop.ignore_worker_interrupts()
         if args.worker_num_threads:
             torch.set_num_threads(args.worker_num_threads)
         env = MyEnv(base_args=base, madrl_args=args, seed_offset=args.scene_seed_offset)
@@ -229,6 +231,7 @@ def save_checkpoint(output, iteration, env_steps, updates, agent, normalizer, ep
                 "checkpoint_type": "evaluation_only_no_optimizer_rng_or_replay"}
     (path / "checkpoint_metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     shutil.copyfile(output / "training_updates.csv", path / "training_updates.csv")
+    save_reward_artifacts(output, config["hyperparameters"]["seed"], path, algorithm=config["algorithm"])
 
 
 def run_training(args, sac, *, output_dir=None):
@@ -284,7 +287,9 @@ def run_training(args, sac, *, output_dir=None):
     workers = [context.Process(target=worker_main, args=(base, args, i, controls[i], results),
                                name=f"mhsac-sampler-{i}") for i in range(args.num_samplers)]
     completed, last_episodes, env_steps, updates, checkpoint_ready = 0, None, 0, 0, False
+    stop = TrainingStop()
     try:
+        stop.install()
         for worker in workers:
             worker.start()
         with (output / "training_updates.csv").open("w", newline="", encoding="utf-8") as stream, \
@@ -297,6 +302,9 @@ def run_training(args, sac, *, output_dir=None):
             csv_writer = csv.DictWriter(stream, fieldnames=columns)
             csv_writer.writeheader()
             for episode_idx in training_rounds(args.max_updates):
+                # SAC changes weights and normalizer within a round; finish it before stopping.
+                if stop.requested:
+                    break
                 # Resetting observations also changes the learner normalizer.
                 # Do not save a prior-version actor with partially advanced stats
                 # if this collection/update round is interrupted.
@@ -393,26 +401,34 @@ def run_training(args, sac, *, output_dir=None):
                 checkpoint_ready = True
                 if args.checkpoint_interval > 0 and completed % args.checkpoint_interval == 0:
                     save_checkpoint(output, completed, env_steps, updates, agent, normalizer, episodes, config)
+    except KeyboardInterrupt:
+        print("[MHSAC] interrupted; saving completed training results", flush=True)
     except BaseException:
         log_training_failure(run_paths["training_log"], traceback.format_exc())
         raise
     finally:
-        for q in controls:
+        try:
+            for q in controls:
+                try:
+                    q.put_nowait(None)
+                except queue.Full:
+                    pass
+            for worker in workers:
+                if worker.pid is not None:
+                    worker.join(timeout=5)
+                    if worker.is_alive():
+                        worker.terminate(); worker.join(timeout=5)
+            save_reward_artifacts(output, base.seed, algorithm=config["algorithm"])
+            if completed and last_episodes and checkpoint_ready:
+                save_checkpoint(output, completed, env_steps, updates, agent, normalizer, last_episodes, config)
+        finally:
             try:
-                q.put_nowait(None)
-            except queue.Full:
-                pass
-        for worker in workers:
-            if worker.pid is not None:
-                worker.join(timeout=5)
-                if worker.is_alive():
-                    worker.terminate(); worker.join(timeout=5)
-        if completed and last_episodes and checkpoint_ready:
-            save_checkpoint(output, completed, env_steps, updates, agent, normalizer, last_episodes, config)
-        detailed.close()
-        writer.close()
-        for q in [*controls, results]:
-            q.cancel_join_thread(); q.close()
+                detailed.close()
+                writer.close()
+                for q in [*controls, results]:
+                    q.cancel_join_thread(); q.close()
+            finally:
+                stop.restore()
     return output
 
 

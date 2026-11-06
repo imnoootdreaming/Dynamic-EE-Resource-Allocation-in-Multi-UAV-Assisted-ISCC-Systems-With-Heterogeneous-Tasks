@@ -31,7 +31,7 @@ def _min_frequency(work, remaining):
 def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_beams,
                       offloading_beams, positions_before, positions_after, h_cu_uav,
                       h_uav_bs, h_cu_bs, sensing_channels, task_bits, task_cycles,
-                      task_deadlines, slot_seconds):
+                      task_deadlines, slot_seconds, time_decoder=None):
     """Evaluate one complete physical candidate and all 15 P0 constraints.
 
     With sensing_beams=None, construct the transmit beam for the rank-one
@@ -119,6 +119,14 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
     r3 = params.bandwidth * np.log2(1 + signal_cu / noise)
     r1 = params.bandwidth * np.log2(1 + signal_cu[None, :] / (noise + interference_sen[:, None]))
     r2 = params.bandwidth * np.log2(1 + signal_cu[None, :] / (noise + interference_off[:, None]))
+    timing = None
+    if time_decoder is not None:
+        # Reuse these exact link rates: decoding must not repeat MVDR or change physics.
+        timing = time_decoder({"sensed_bits": float(params.uav_sen_duration) * r_sen,
+                               "uav_offloading": r_off, "cu_stage1": r1,
+                               "cu_stage2": r2, "cu_stage3": r3})
+        du = np.asarray(timing["uav_seconds"], dtype=float)
+        dc = np.asarray(timing["cu_seconds"], dtype=float)
     ds = float(params.uav_sen_duration)
     remaining_stage = dc - eta.T @ (np.full(I, ds) + du)
     cu_bits = np.sum(eta * (ds * r1 + du[:, None] * r2), axis=0) + remaining_stage * r3
@@ -204,4 +212,6 @@ def evaluate_physical(*, params, eta, p_cu, duration_uav, duration_cu, sensing_b
             "receive_beams": {"real": g.real.tolist(), "imag": g.imag.tolist(), "fallback": g_fallback}}
     if analytic_sensing:
         result["sensing_transmit_beams"] = {"real": w.real.tolist(), "imag": w.imag.tolist()}
+    if timing is not None:
+        result["time_decoding"] = timing
     return result

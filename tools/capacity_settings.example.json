@@ -1,0 +1,7 @@
+{
+  "MHBPPO": {"args": ["--episodes", "3000", "--expected_duplicate_matching_coef", "0.3"]},
+  "MHGPPO": {"args": ["--episodes", "3000"]},
+  "SHBPPO": {"args": ["--episodes", "3000"]},
+  "Pure_MHBPPO": {"args": ["--episodes", "3000"]},
+  "MHSAC": {"args": []}
+}

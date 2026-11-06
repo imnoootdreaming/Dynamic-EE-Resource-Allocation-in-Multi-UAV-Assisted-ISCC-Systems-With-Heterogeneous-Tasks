@@ -10,7 +10,8 @@ import torch
 OUTER = Path(__file__).resolve().parents[2]
 if str(OUTER) not in sys.path:
     sys.path.insert(0, str(OUTER))
-from algorithms.Pure_MHBPPO.checkpoint import load_normalization, normalize_state
+from algorithms.Pure_MHBPPO.checkpoint import load_environment_args, load_normalization, normalize_state
+from algorithms.Pure_MHBPPO.time_decoder import TIME_CONSTRAINTS
 from algorithms.Pure_MHBPPO.Pure_MHBPPO_agent import MultiHeadActor
 from algorithms.MHBPPO.rollout_batch import actor_state_signature
 
@@ -34,6 +35,8 @@ def verify(run_dir):
             if previous.exists():
                 assert actor_state_signature(torch.load(previous, map_location="cpu", weights_only=True)) == batch[0]["actor_signature"]
     final = root / f"iter_{len(records)}"
+    environment_args = load_environment_args(final)
+    assert environment_args.pure_time_decoder == config["hyperparameters"].get("pure_time_decoder", "legacy")
     stats = load_normalization(final, expected_dim=config["state_dim"])
     assert stats["iteration"] == len(records)
     with np.load(final / "state_normalization.npz", allow_pickle=False) as saved:
@@ -60,6 +63,17 @@ def verify(run_dir):
                 assert value["physical"]["solver_status_kind"] == "not_called"
                 assert len(value["physical"]["checks"]) == 15
                 assert len(value["raw_continuous"]) == sample[0].shape[-1]
+                timing = value.get("time_decoding")
+                if timing is not None:
+                    assert timing["mode"] == environment_args.pure_time_decoder
+                    if timing["applied"]:
+                        assert all(value["physical"]["checks"][key]["passed"] for key in TIME_CONSTRAINTS)
+                        assert timing["used_cpu_hz"] <= timing["cpu_limit_hz"] * (1 + 1e-12)
+                        mapped = np.asarray(value["mapped_continuous"])
+                        latent = np.asarray(value["raw_continuous"])
+                        low, high = np.asarray(value["continuous_low"]), np.asarray(value["continuous_high"])
+                        # Legacy non-time mapping was float32; decoded times are float64.
+                        np.testing.assert_allclose(mapped, low + latent * (high - low), atol=2e-6, rtol=2e-6)
     assert traces, "no retained physical traces (check disk logging guard)"
     return {"rounds": len(records), "workers": count, "env_steps": int(records[-1]["env_steps"]),
             "retained_traces": len(traces), "status": "passed"}
