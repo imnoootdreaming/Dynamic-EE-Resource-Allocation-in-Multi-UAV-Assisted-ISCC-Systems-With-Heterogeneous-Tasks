@@ -108,7 +108,7 @@ class Parameters:
     mosek_tol_rel_gap: float = 1e-7
 
     # ── 随机种子  ─────────────
-    seed: int = 1208
+    seed: int = 42
 
     @property
     def target_hold_slots(self):

@@ -69,6 +69,8 @@ from algorithms.MHBPPO.rollout_batch import (
     actor_state_signature, actor_parameter_checksum, derive_action_seed, normalization_signature,
 )
 from environment.my_env import MyEnv
+from algorithms.MHBPPO.unknown_logging import unknown_start_iteration
+from p5_failure_capture import capture_unknown_slot
 
 
 def _set_seed(seed):
@@ -225,7 +227,8 @@ def _put_error_sentinel(sample_queue, error_msg):
 
 
 def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event,
-                   seed_offset=1, control_queue=None, *, worker_id=None, scene_seed_offset=None):
+                   seed_offset=1, control_queue=None, *, worker_id=None, scene_seed_offset=None,
+                   capture_unknown=False):
     # 环境的逐时隙诊断由 learner 侧聚合日志统一记录；采样子进程不向终端刷屏。
     sys.stdout = open(os.devnull, "w", encoding="utf-8")
     """采样进程主函数（必须是模块顶层函数，spawn 可 pickle）。
@@ -294,6 +297,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
         current_weights_version = -1
         current_weights_checksum = None
         last_collection_round = -1
+        capture_start = unknown_start_iteration(getattr(madrl_args, "max_updates", 0))
 
         while not stop_event.is_set():
             # 同步模式下由 learner 发放一次性许可；worker 采完一个 episode
@@ -355,6 +359,10 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
             solver_status_counts = {k: 0 for k in ("optimal", "infeasible", "unknown", "error", "other")}
             action_traces = []
             diagnostic_traces = []
+            unknown_capture_payloads = {}
+            # Async update assignment is only known when the learner consumes it.
+            capture_enabled = (capture_unknown and capture_start is not None and (
+                control_queue is None or capture_start <= collection_round + 1 <= madrl_args.max_updates))
             action_min = float("inf")
             action_max = float("-inf")
 
@@ -395,7 +403,10 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                     actor, state_bs_norm, return_distribution_stats=True,
                 )
 
-                next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
+                with capture_unknown_slot(capture_enabled) as capture_state:
+                    next_s, total_reward, r_dict, done, obj_fun, success_flag = env.step({"bs": action_bs}, episode_idx)
+                if capture_state is not None and capture_state["payload"] is not None:
+                    unknown_capture_payloads[len(action_traces)] = capture_state["payload"]
                 if env.last_action_trace is None:
                     raise RuntimeError("env.step 未产生动作诊断快照")
                 action_traces.append({
@@ -484,6 +495,7 @@ def sampler_worker(base_args, madrl_args, sample_queue, weight_queue, stop_event
                 ),
                 "trajectory_scene": trajectory_scene,
                 "diagnostic_traces": diagnostic_traces,
+                "unknown_capture_payloads": unknown_capture_payloads,
                 "diagnostic_scene": diagnostic_scene,
                 "diagnostics_enabled": env.env_diagnostics,
                 "sampler_id": worker_id,

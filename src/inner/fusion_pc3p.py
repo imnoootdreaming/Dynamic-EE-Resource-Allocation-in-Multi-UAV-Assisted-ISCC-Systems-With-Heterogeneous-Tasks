@@ -78,6 +78,7 @@ z_aux_rate、接近 0 的卸载功率）上，不影响最优值与能量口径�
 
 import numpy as np
 import mosek.fusion as mf
+from p5_failure_capture import SolverFailureCapture
 
 from cccp_params import compute_values, cu_row_constants
 from pc3p import (
@@ -736,6 +737,14 @@ def _read_solver_diagnostics(model):
         except Exception as exc:
             info[key] = None
             info.setdefault("unavailable_fields", {})[key] = type(exc).__name__
+    if any(word in str(info.get("problem_status", "")).lower() for word in ("unknown", "illposed")):
+        # Homogeneous-model progress measures, not original physical constraint residuals.
+        for name in ("intpntPrimalObj", "intpntDualObj", "intpntPrimalFeas", "intpntDualFeas", "intpntOptStatus"):
+            try:
+                info[name] = float(model.getSolverDoubleInfo(name))
+            except Exception as exc:
+                info[name] = None
+                info.setdefault("unavailable_fields", {})[name] = type(exc).__name__
     return info
 
 
@@ -778,12 +787,14 @@ def run_pc3p_fusion(ctx):
         model.setSolverParam("intpntCoTolDfeas", ctx.mosek_tol_feas)
         model.setSolverParam("intpntCoTolRelGap", ctx.mosek_tol_rel_gap)
 
+    capture = SolverFailureCapture(model)
     try:
         # 先按 x^(0) 写参数，之后每轮只 flushParameters 复用同一模型
         update_linearization_points(ctx)
         sync_fusion(model, fp, ctx)
 
         for n in range(1, ctx.max_iterations + 1):
+            capture.begin_iteration(n)
             try:
                 model.solve()
             except Exception as exc:                              # noqa: BLE001
@@ -791,6 +802,7 @@ def run_pc3p_fusion(ctx):
                 result["solver_diagnostics"]["solve_exception"] = str(exc)
                 result["status"] = "error: %s" % exc
                 result["iterations"] = n
+                capture.save_failure(ctx, fp, result)
                 return result
 
             status = model.getProblemStatus()
@@ -799,6 +811,7 @@ def run_pc3p_fusion(ctx):
             result["iterations"] = n
             # 与 run_pc3p 的控制流一致：非最优即返回
             if status != mf.ProblemStatus.PrimalAndDualFeasible:
+                capture.save_failure(ctx, fp, result)
                 return result
 
             # x^(n) ← x^⋆
@@ -862,6 +875,7 @@ def run_pc3p_fusion(ctx):
         result["D_cu_off"] = ctx.D_cu_off_prev
         return result
     finally:
+        capture.close()
         if not REUSE_MODEL:
             # 非复用路径必须显式释放原生 MOSEK Task（Model↔Variable 引用环使
             # 仅靠 del 无法及时触发 __del__），否则内存会随时隙单调增长。

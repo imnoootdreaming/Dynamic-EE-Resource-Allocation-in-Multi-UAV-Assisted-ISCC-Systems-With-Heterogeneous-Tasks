@@ -1,8 +1,9 @@
 """随机内外层变量采样 + 代回**原始问题 P1** 逐约束校验的可行外层变量采样器。
 
 采样方式（与旧版“只随机外层、内层靠 PC3P 求解判定”不同）：
-1. 随机生成**外层变量**（g_i、η_{i,j}、p_j、D_{u_i}^{off}、q 位移，由
-   `environment.build_outer_variables` 给出）与**内层变量**（P1 的决策变量
+1. 随机生成**外层变量**（η_{i,j}、p_j、D_{u_i}^{off}、q 位移，由
+   `environment.build_outer_variables` 给出），环境按当前信道计算 MVDR g_i；
+   再生成**内层变量**（P1 的决策变量
    w_i、b_i、f_{u_i}、D_{c_j}^{off}、f_{c_j}，见 `_sample_p1_variables`）；
 2. 把内层变量**代回论文原始问题 P1**（eq. 759–784），逐条校验其 9 条约束，
    记录每条约束的违反量；
@@ -19,7 +20,7 @@ CCCP 线性化（c11/c12）与秩一罚项，这些都属于“为求解而做�
 场景几何与信道沿用 `default_rng(params.seed)` 固定生成，保证 CSV 中保存的外层变量可复现；
 若需要场景也逐样本随机，把 `build_environment` 的 rng 改为逐样本新建即可。
 
-外层变量元组（与 environment.build_outer_variables 返回值一致）：
+外层变量元组（生成阶段的 g 为 None，占位到 build_environment 计算；保存阶段为实际 MVDR g）：
     (g_rec_beam (I, N) 复, eta_share (I, J), p_cu_power (J),
      D_uav_off (I), q_uav_pos_step (I, 3))
 """

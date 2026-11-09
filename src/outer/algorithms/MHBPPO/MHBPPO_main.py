@@ -64,6 +64,7 @@ from algorithms.MHBPPO.energy_statistics import (
     ENERGY_STATISTICS_CONTRACT, energy_scalar_metrics, log_energy_statistics, summarize_energy,
 )
 from algorithms.MHBPPO.MHBPPO_agent import HPPO
+from algorithms.MHBPPO.unknown_logging import UnknownLogWriter
 from algorithms.MHBPPO.MHBPPO_sampler import sampler_worker
 from algorithms.MHBPPO.rollout_batch import (
     actor_state_signature, actor_parameter_checksum, normalization_signature,
@@ -775,6 +776,15 @@ if __name__ == "__main__":
             **metadata, "action_log_path": action_log_path,
         })
     detailed_writers = [action_writer] if env_writer is None else [action_writer, env_writer]
+    unknown_writer = UnknownLogWriter(
+        os.path.splitext(log_path)[0] + "_unknown.jsonl", madrl_args.max_updates,
+        {"run_id": run_id, "seed": base_args.seed,
+         "num_envs": num_samplers, "total_time_slots": madrl_args.total_time_slots,
+         "expected_duplicate_matching_coef": agent_bs.expected_duplicate_matching_coef,
+         "source_sha256": {key: value for key, value in run_metadata["source_sha256"].items()
+                            if key.endswith(("fusion_pc3p.py", "cccp_bridge.py", "solver_status.py",
+                                             "p5_failure_capture.py", "unknown_logging.py"))}}, logger,
+    )
     log_rotation = JsonlRotation(
         iterations=madrl_args.log_rotate_iterations, max_bytes=madrl_args.log_rotate_max_bytes,
         keep_segments=madrl_args.log_rotate_backup_segments,
@@ -867,8 +877,9 @@ if __name__ == "__main__":
             # Identity/action stream are independent from the common scene offset.
             args=(base_args, madrl_args, sample_queue, weight_queues[worker_id], stop_event,
                   worker_id + 1, control_queues[worker_id] if sync_training else None),
-            kwargs=({"worker_id": worker_id, "scene_seed_offset": scene_seed_offset}
-                    if sync_training else {}),
+            kwargs={"capture_unknown": True,
+                    **({"worker_id": worker_id, "scene_seed_offset": scene_seed_offset}
+                       if sync_training else {})},
             daemon=True,
             name=f"sampler-{worker_id}",
         )
@@ -893,6 +904,13 @@ if __name__ == "__main__":
     logger.info(f"[learner] 输出目录: {output_dir}")
     logger.info(f"[learner] 超参数配置: {hyperparameters_path}")
     logger.info(f"[learner] expected_duplicate_matching_coef={agent_bs.expected_duplicate_matching_coef:g}")
+    logger.info(f"[learner] discrete_entropy_coef={agent_bs.discrete_entropy_coef:g} | "
+                f"discrete_entropy_anneal={madrl_args.discrete_entropy_anneal} "
+                "(hold through update 2400; linear to 0.001 at update 3000 when enabled)")
+    logger.info(f"[learner] UNKNOWN 专项日志: {unknown_writer.path} | "
+                f"start_iteration={unknown_writer.start_iteration} | max_bytes={unknown_writer.MAX_BYTES} | "
+                f"max_events={unknown_writer.MAX_EVENTS} | 最后1%（向上取整） | "
+                f"artifacts={unknown_writer.artifact_directory}（max_updates=0 时关闭）")
     logger.info(f"[learner] 初始环境图: {env_plot_path}（sampler-0 / episode-0，二维）")
     logger.info(f"[learner] 实时日志: {log_path}")
     logger.info(f"[learner] 动作日志: {action_log_path} | detail={madrl_args.log_detail_level} "
@@ -998,6 +1016,8 @@ if __name__ == "__main__":
 
             # 先落盘实际动作与原始奖励；即使 PPO 更新失败，也保留该批诊断。
             logging_started = time.perf_counter()
+            for episode in episodes:
+                unknown_writer.write_episode(episode, iteration=iteration + 1)
             rotate_index = 0
             if log_rotation.active:
                 if detailed_logging_paused and not paused_before:
@@ -1028,6 +1048,10 @@ if __name__ == "__main__":
 
             update_start = time.time()
             checkpoint_ready = False
+            if madrl_args.discrete_entropy_anneal:
+                # iteration is the completed-update count here; schedule the upcoming update.
+                entropy_progress = min(max((iteration + 1 - 2400) / 600.0, 0.0), 1.0)
+                agent_bs.discrete_entropy_coef = 0.01 * (1.0 - entropy_progress) + 0.001 * entropy_progress
             expected_duplicate_matching = agent_bs.update(transition_dict, iteration, writer, agent_name="BS")
             update_cost = time.time() - update_start
 
@@ -1082,6 +1106,7 @@ if __name__ == "__main__":
                 "spectrum_penalty_rate": item["spectrum_penalty_rate"],
                 "no_solution_rate": item["no_solution_rate"],
                 "actor_expected_duplicate_matching": expected_duplicate_matching,
+                "discrete_entropy_coef": agent_bs.discrete_entropy_coef,
                 "episode_success_bonus": item.get("avg_episode_success_bonus", 0.0),
                 "optimal_count": item.get("solver_status_counts", {}).get("optimal", 0),
                 **{f"solver_{kind}_count": item.get("solver_status_counts", {}).get(kind, 0)
@@ -1165,6 +1190,7 @@ if __name__ == "__main__":
                 f"[learner] iter={iteration} transitions={n_transitions} completion={item['completion_rate']:.2f}% "
                 f"reward={item['avg_total_reward']:.3f} | cost={update_cost:.3f}s "
                 f"| lr_actor={lr_actor:.3e} lr_critic={lr_critic:.3e} "
+                f"discrete_entropy_coef={agent_bs.discrete_entropy_coef:.6g} "
                 f"| wv={used_version} stale={stale} ck={'ok' if checksum_ok else 'MISMATCH'}"
                 f"| obj={item['avg_obj_fun']:.3f} "
                 f"completion={item['completion_rate']:.2f}% "
@@ -1220,6 +1246,7 @@ if __name__ == "__main__":
             writer.add_scalar("Reward/iteration", item["avg_total_reward"], iteration)
             writer.add_scalar("Reward/base_reward", item.get("avg_base_reward", item["avg_total_reward"]), iteration)
             writer.add_scalar("Episode/all_slots_success_rate", item.get("all_slots_success_rate", float("nan")), iteration)
+            writer.add_scalar("BS/discrete_entropy_coef", agent_bs.discrete_entropy_coef, iteration)
             writer.add_scalar("Obj/iteration", item["avg_obj_fun"], iteration)
             log_energy_statistics(writer, energy_summary, iteration)
             writer.add_scalar("Completion Rate/iteration", item["completion_rate"], iteration)
@@ -1305,7 +1332,8 @@ if __name__ == "__main__":
             except OSError:
                 print(f"Final checkpoint save failed: {exc}", file=sys.stderr)
         finally:
-            resources = [action_writer, env_writer, writer, pbar, sample_queue, *weight_queues, *control_queues]
+            resources = [action_writer, env_writer, unknown_writer, writer, pbar, sample_queue,
+                         *weight_queues, *control_queues]
             for resource in resources:
                 if resource is not None:
                     try:

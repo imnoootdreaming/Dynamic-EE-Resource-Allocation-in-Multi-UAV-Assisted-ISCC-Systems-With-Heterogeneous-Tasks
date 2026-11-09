@@ -1,6 +1,7 @@
 """PC3P 与 GC3P 的对比仿真（对齐 inner_problem/compare_penalty_gaussian_based_algorithm.py）。
 
 在同一环境、同一 MOSEK 求解器下，对每个外层样本分别运行两个算法：
+环境按当前信道、目标、η 和 p 重算 MVDR g，忽略 CSV 的旧 g；双方共用该接收波束。
 
     PC3P（fusion_pc3p.run_pc3p_fusion）：MOSEK Fusion 后端的 Penalty-CCCP（秩一罚项 + 自适应 ρ）
     GC3P（gc3p.run_gc3p）：  ρ ≡ 0 的 SDR 松弛 CCCP + 高斯随机化秩一恢复

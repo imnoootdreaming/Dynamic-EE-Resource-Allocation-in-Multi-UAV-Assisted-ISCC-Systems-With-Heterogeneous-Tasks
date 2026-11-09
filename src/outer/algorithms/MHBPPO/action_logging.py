@@ -249,6 +249,7 @@ def diagnostic_run_metadata(outer_root, base_args, madrl_args):
         "algorithms/MHBPPO/MHBPPO_main.py", "algorithms/MHBPPO/MHBPPO_sampler.py",
         "algorithms/MHBPPO/MHBPPO_agent.py", "algorithms/MHBPPO/action_logging.py",
         "algorithms/MHBPPO/log_compaction.py",
+        "algorithms/MHBPPO/unknown_logging.py", "../inner/p5_failure_capture.py",
         "configs/base_params.py", "configs/madrl_args.py", "configs/seed_manager.py",
         "environment/my_env.py", "environment/channel_models.py", "environment/topology.py",
         "environment/observation.py", "environment/mapping.py", "environment/cu_tasks.py",

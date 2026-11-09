@@ -1,8 +1,9 @@
 """内层问题（P5）求解入口：装配仿真环境 -> PC3P 迭代求解 -> 打印结果。
 
-外层变量（g_i、η_{i,j}、p_j、D_{u_i}^{off}、q 位移）优先从 CSV 读取；CSV 不存在时
+外层变量（η_{i,j}、p_j、D_{u_i}^{off}、q 位移）优先从 CSV 读取；CSV 不存在时
 先用 outer_sampler.sample_random_feasible 采样（只保留代回 P1 后全约束通过的样本）
 并写回 CSV，再逐组代入环境送入 PC3P 求解。
+CSV 格式保留 g 列，但独立求解会按当前信道、目标、η 和 p 重算 MVDR g。
 
 求解后端默认使用 MOSEK Fusion（fusion_pc3p.run_pc3p_fusion），
 可用环境变量 PC3P_BACKEND=cvxpy 切换回 cvxpy 后端（pc3p.run_pc3p）。

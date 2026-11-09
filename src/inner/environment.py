@@ -1,8 +1,8 @@
 """系统状态与外层给定量（论文 Section \ref{sec: System Description} / \ref{sec: Problem Formulation}）。
 
-说明：内层问题 P1 需要外层给定 g_i(t)、q_{u_i}(t)、D_{u_i}^{off}(t)、η_{i,j}(t)、p_j(t)。
-当前外层（MHBPPO）尚未接入，这些量在此以随机方式给出；后续只需把本文件中的
-`build_outer_variables` 换成外层智能体的输出即可，其余模块无需改动。
+独立内层采样 / CSV 回放在 build_environment 中，根据当前信道、目标、η 和 p
+计算单位范数 MVDR 接收波束；CSV 中保留的旧 g 列不参与该路径的计算。
+MHBPPO 桥接直接调用 assemble_environment，继续使用外层传入的 g。
 """
 
 from dataclasses import dataclass
@@ -154,16 +154,11 @@ def _assign_nearest_targets(q_uav_pos, q_target_pos, params):
 
 
 def build_outer_variables(params, rng):
-    """外层（MHBPPO）给定量，当前以随机方式生成。
+    """独立内层的随机外层量；g 在场景信道确定后由 MVDR 计算。
 
-    :return: g_rec_beam (I, N)、eta_share (I, J)、p_cu_power (J,)、
-             D_uav_off (I,)、q_uav_pos_next (I, 3)
+    :return: None（g 占位）、eta_share (I, J)、p_cu_power (J,)、
+             D_uav_off (I,)、q_uav_pos_step (I, 3)
     """
-    # g_i(t)：接收波束成形向量，满足 ‖g_i(t)‖^2 = 1
-    g_rec_beam = (rng.standard_normal((params.I, params.N))
-                  + 1j * rng.standard_normal((params.I, params.N))) / np.sqrt(2.0)
-    g_rec_beam /= np.linalg.norm(g_rec_beam, axis=1, keepdims=True)
-
     # η_{i,j}(t)：每个 UAV 独占一个 CU 的频谱（满足 Σ_j η_{i,j} = 1 且 Σ_i η_{i,j} ≤ 1）
     eta_share = np.zeros((params.I, params.J))
     cu_indices = rng.permutation(params.J)[:params.I]
@@ -184,7 +179,49 @@ def build_outer_variables(params, rng):
     q_uav_pos_step = np.zeros((params.I, 3))
     q_uav_pos_step[:, :2] = direction_xy * speed[:, None] * params.tau_slot  # z 方向位移为 0（定高飞行）
 
-    return g_rec_beam, eta_share, p_cu_power, D_uav_off, q_uav_pos_step
+    return None, eta_share, p_cu_power, D_uav_off, q_uav_pos_step
+
+
+def _build_mvdr_rec_beam(A_theta, h_cu_2_uav, eta_share, p_cu_power, noise_power):
+    """与外层 mapping.build_mvdr_rec_beam 一致的单位范数 MVDR。
+
+    当前秩一模型 A=beta*a_r*a_t^H 且 a_t[0]=1，第一列给出接收导向。
+    CU 信道按行存储，故 R=noise*I+sum(eta*p*outer(conj(h),h))。
+    此纯 NumPy 函数仅由独立内层 build_environment 调用，不介入训练装配。
+    """
+    A = np.asarray(A_theta, dtype=np.complex128)
+    h = np.asarray(h_cu_2_uav, dtype=np.complex128)
+    eta = np.asarray(eta_share, dtype=np.float64)
+    power = np.asarray(p_cu_power, dtype=np.float64)
+    noise = float(noise_power)
+    if (A.ndim != 3 or min(A.shape) <= 0 or A.shape[1] != A.shape[2]
+            or not np.all(np.isfinite(A))):
+        raise ValueError("MVDR sensing channels must be finite and shaped (I,N,N)")
+    uavs, antennas, _ = A.shape
+    if h.ndim != 3 or h.shape[0] != uavs or h.shape[2] != antennas:
+        raise ValueError("MVDR CU channels must have shape (I,J,N)")
+    if eta.shape != h.shape[:2] or power.shape != (h.shape[1],):
+        raise ValueError("MVDR matching/power shapes must be (I,J) and (J,)")
+    if (not np.isfinite(noise) or noise <= 0 or not np.all(np.isfinite(h))
+            or not np.all(np.isfinite(eta)) or np.any(eta < 0)
+            or not np.all(np.isfinite(power)) or np.any(power < 0)):
+        raise ValueError("MVDR needs finite channels, positive noise and nonnegative weights")
+    column = A[:, :, 0]
+    scale = np.maximum(np.max(np.abs(column.real), axis=1, keepdims=True),
+                       np.max(np.abs(column.imag), axis=1, keepdims=True))
+    if np.any(scale == 0):
+        raise ValueError("MVDR target steering is undefined for a zero sensing column")
+    scaled = column.real / scale + 1j * (column.imag / scale)
+    reference = scaled / np.linalg.norm(scaled, axis=1, keepdims=True)
+    weights = eta * power[None, :]
+    covariance = noise * np.eye(antennas, dtype=np.complex128)[None, :, :] + np.einsum(
+        "ij,ijn,ijm->inm", weights, h.conj(), h)
+    scale = np.max(np.abs(covariance), axis=(1, 2))
+    direction = np.linalg.solve(covariance / scale[:, None, None], reference[..., None])[..., 0]
+    norms = np.linalg.norm(direction, axis=1, keepdims=True)
+    if not np.all(np.isfinite(direction)) or np.any(norms <= 0):
+        raise ValueError("MVDR returned a nonfinite or zero direction")
+    return direction / norms
 
 
 @dataclass
@@ -204,7 +241,7 @@ class Environment:
     h_cu_2_bs: np.ndarray            # h_{c_j,BS}(t) ∈ C^{1×1}    (J,)
     A_theta: np.ndarray              # A(θ_i(t)) ∈ C^{N×N}        (I, N, N)
 
-    # ── 外层给定量（当前随机生成） ────────────────────────────────────────
+    # ── 给定量：独立采样的 g 由 MVDR 派生，训练的 g 由外层传入 ──────────
     g_rec_beam: np.ndarray           # g_i(t)            (I, N)
     eta_share: np.ndarray            # η_{i,j}(t)        (I, J)
     p_cu_power: np.ndarray           # p_j(t)            (J,)
@@ -226,8 +263,9 @@ def build_environment(params, rng, outer_variables=None):
 
     :param outer_variables: 可选，外层给定量的元组
         (g_rec_beam, eta_share, p_cu_power, D_uav_off, q_uav_pos_step)。
-        若为 None，则调用 build_outer_variables(rng) 随机生成（默认行为）；
-        若为注入值，则直接使用，便于复现确定场景（如从 CSV 读取的样本）。
+        若为 None，则调用 build_outer_variables 随机生成非波束外层量；
+        若为注入值，则使用其中的 η、p、D 和位移，忽略旧 g 并按当前场景重算 MVDR。
+        外层训练的显式 g 注入仍由 assemble_environment 处理。
     """
     bs_pos = np.asarray(params.bs_pos, dtype=float)
     q_uav_pos, q_cu_pos, q_target_pos = _generate_positions(params, rng)
@@ -265,13 +303,15 @@ def build_environment(params, rng, outer_variables=None):
     for j in range(params.J):
         h_cu_2_bs[j] = _rician_siso(q_cu_pos[j], bs_pos, params.alpha_3, params, rng)
 
-    # ── 外层给定量（当前随机生成；允许注入确定值以复现场景） ─────────────
+    # ── 非波束外层量（随机生成或从 CSV 注入），接收波束统一由 MVDR 派生 ──
     if outer_variables is None:
         g_rec_beam, eta_share, p_cu_power, D_uav_off, q_uav_pos_step = build_outer_variables(params, rng)
     else:
         (g_rec_beam, eta_share, p_cu_power,
          D_uav_off, q_uav_pos_step) = outer_variables
     q_uav_pos_next = q_uav_pos + q_uav_pos_step
+    g_rec_beam = _build_mvdr_rec_beam(
+        A_theta, h_cu_2_uav, eta_share, p_cu_power, params.sigma_2)
 
     return assemble_environment(
         params,

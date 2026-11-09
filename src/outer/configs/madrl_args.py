@@ -70,6 +70,8 @@ def get_madrl_args(argv=None, *, extend_parser=None):
     madrl_parser.add_argument("--batch_size", type=int, default=32, help="PPO mini-batch大小；实际取不超过本次采样条数的值")
     madrl_parser.add_argument("--continuous_entropy_coef", type=float, default=0.05, help="连续动作熵系数")
     madrl_parser.add_argument("--discrete_entropy_coef", type=float, default=0.01, help="离散动作熵系数")
+    madrl_parser.add_argument("--discrete_entropy_anneal", action=argparse.BooleanOptionalAction, default=False,
+                              help="MHBPPO：前2400轮熵系数0.01，随后600轮线性降至0.001")
     madrl_parser.add_argument("--expected_duplicate_matching_coef", type=float, default=0.0,
                               help="MHBPPO/SHBPPO/MHGPPO/Pure_MHBPPO actor 的期望重复匹配惩罚权重，0 表示关闭")
     madrl_parser.add_argument("--lr_min_ratio", type=float, default=0.1, help="学习率下限相对初始学习率的比例")
@@ -214,6 +216,8 @@ def get_madrl_args(argv=None, *, extend_parser=None):
     for key in ("continuous_entropy_coef", "discrete_entropy_coef", "expected_duplicate_matching_coef"):
         if not math.isfinite(getattr(args, key)) or getattr(args, key) < 0:
             madrl_parser.error(key + " must be nonnegative and finite")
+    if args.discrete_entropy_anneal and args.discrete_entropy_coef != 0.01:
+        madrl_parser.error("discrete_entropy_anneal requires discrete_entropy_coef=0.01")
     if not math.isfinite(args.lr_min_ratio) or not 0 < args.lr_min_ratio <= 1:
         madrl_parser.error("lr_min_ratio must lie in (0, 1]")
     if args.max_updates < 0:

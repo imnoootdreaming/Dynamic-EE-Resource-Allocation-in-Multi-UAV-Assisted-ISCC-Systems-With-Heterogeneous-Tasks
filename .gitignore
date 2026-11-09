@@ -52,13 +52,3 @@ Thumbs.db
 # 训练过程生成的检查点、曲线和实验分析
 /src/outer/ckpt/
 /src/outer/algorithms/MHBPPO/analysis/
-
-# 内层求解器的对比与收敛分析输出（保留可供预训练使用的样本数据）
-/src/inner/compare_pc3p_gc3p_details.csv
-/src/inner/compare_pc3p_gc3p_results.csv
-/src/inner/convergence_iterations.csv
-/src/inner/convergence_iterations_details.csv
-/src/inner/first_sample_cccp_history.csv
-
-# 论文绘图和生成的图表数据
-/src/fig/
