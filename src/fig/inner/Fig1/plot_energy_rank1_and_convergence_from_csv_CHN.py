@@ -93,7 +93,7 @@ def plot_energy_rank1(ax):
         marker="s",
         linestyle="-",
         markersize=8,
-        label="问题 P4 的能量项",
+        label="问题 P5 的能耗项",
         color=OBJECTIVE_COLOR,
         linewidth=2,
         markerfacecolor="white",
@@ -105,7 +105,7 @@ def plot_energy_rank1(ax):
         marker="o",
         linestyle=":",
         markersize=8,
-        label="问题 P4 的卸载波束成形惩罚项",
+        label="问题 P5 的卸载波束成形惩罚项",
         color=RANK1_OFF_COLOR,
         linewidth=2,
         markerfacecolor="white",
@@ -118,7 +118,7 @@ def plot_energy_rank1(ax):
         marker="^",
         linestyle="--",
         markersize=8,
-        label="问题 P4 的感知波束成形惩罚项",
+        label="问题 P5 的感知波束成形惩罚项",
         color=RANK1_SEN_COLOR,
         linewidth=2,
         markerfacecolor="white",
@@ -126,14 +126,14 @@ def plot_energy_rank1(ax):
         clip_on=False,
     )
 
-    ax1.set_xlabel("迭代次数", fontsize=24)
-    ax1.set_ylabel("问题 P4 的能量项", fontsize=24, color=OBJECTIVE_COLOR)
-    ax2.set_ylabel("问题 P4 的惩罚项", fontsize=24, color=RANK1_OFF_COLOR)
+    ax1.set_xlabel("迭代次数", fontsize=20)
+    ax1.set_ylabel("问题 P5 的能耗项", fontsize=20, color=OBJECTIVE_COLOR)
+    ax2.set_ylabel("问题 P5 的惩罚项", fontsize=20, color=RANK1_OFF_COLOR)
     ax1.spines["left"].set_color(OBJECTIVE_COLOR)
     ax2.spines["right"].set_color(RANK1_OFF_COLOR)
 
-    ax1.tick_params(axis="y", which="major", labelsize=18, colors=OBJECTIVE_COLOR)
-    ax2.tick_params(axis="y", which="major", labelsize=18, colors=RANK1_OFF_COLOR)
+    ax1.tick_params(axis="y", which="major", labelsize=20, colors=OBJECTIVE_COLOR)
+    ax2.tick_params(axis="y", which="major", labelsize=20, colors=RANK1_OFF_COLOR)
     ax1.spines['left'].set_color(OBJECTIVE_COLOR)
     ax2.spines['right'].set_color(RANK1_OFF_COLOR)
     ax2.spines['left'].set_visible(False)
@@ -143,7 +143,7 @@ def plot_energy_rank1(ax):
     obj_span = max(float(objective_values.max() - objective_values.min()), 1e-6)
     ax1.set_ylim(objective_values.min() - 0.30 * obj_span,
                  objective_values.max() + 0.15 * obj_span)
-    ax1.tick_params(axis="x", which="major", labelsize=18)
+    ax1.tick_params(axis="x", which="major", labelsize=20)
     ax1.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax1.grid(
         True,
@@ -155,7 +155,7 @@ def plot_energy_rank1(ax):
     )
 
     # 内嵌图
-    axins = inset_axes(ax1, width="35%", height="35%", bbox_to_anchor=(0.35, -0.05, 0.55, 0.55), bbox_transform=ax2.transAxes)
+    axins = inset_axes(ax1, width="35%", height="35%", bbox_to_anchor=(0.35, -0.05, 0.6, 0.6), bbox_transform=ax2.transAxes)
     start_idx = 1
     axins.plot(
         iters_objective[start_idx:],
@@ -189,7 +189,7 @@ def plot_energy_rank1(ax):
 
     # 内嵌图 2：放大 offloading beam（蓝色点线 :）与 sensing beam（蓝色虚线 --）的 rank-1 惩罚项收敛尾部
     # 注意：parent 用 ax2（右轴），保证 mark_inset 连线在右轴坐标下正确指向蓝色曲线区域
-    axins2 = inset_axes(ax2, width="35%", height="35%", bbox_to_anchor=(0.01, -0.05, 0.55, 0.55), bbox_transform=ax2.transAxes)
+    axins2 = inset_axes(ax2, width="35%", height="35%", bbox_to_anchor=(0.01, -0.05, 0.6, 0.6), bbox_transform=ax2.transAxes)
     # offloading beam rank-1 penalty（蓝色点线）
     axins2.plot(
         iters_rank1_off[start_idx:],
@@ -240,7 +240,7 @@ def plot_energy_rank1(ax):
     # 图例挂到 figure 上，使其在 figure 层级拥有最高 zorder，不被独立的内嵌图 axes 遮挡
     fig = ax1.figure
     legend = fig.legend(
-        lines, labels, fontsize=20, loc="upper right",
+        lines, labels, fontsize=18, loc="upper right",
         bbox_to_anchor=(1.0, 1.0), bbox_transform=ax1.transAxes,
     )
     legend.set_zorder(100)
@@ -266,10 +266,10 @@ def plot_case_convergence(ax):
         clip_on=False,
     )
 
-    ax.set_xlabel("随机案例", fontsize=24)
-    ax.set_ylabel("总迭代次数", fontsize=24)
-    ax.tick_params(axis="x", which="major", labelsize=18)
-    ax.tick_params(axis="y", which="major", labelsize=18)
+    ax.set_xlabel("随机案例", fontsize=20)
+    ax.set_ylabel("总迭代次数", fontsize=20)
+    ax.tick_params(axis="x", which="major", labelsize=20)
+    ax.tick_params(axis="y", which="major", labelsize=20)
     ax.xaxis.set_major_locator(MultipleLocator(5))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_xlim(1, 30)
@@ -303,6 +303,8 @@ def main():
         overflow = label.get_window_extent(renderer).y1 - (fig.bbox.y1 - 1)
         if overflow > 0:
             label.set_y(label.get_position()[1] - overflow / ax.bbox.height)
+    pdf_path = os.path.splitext(os.path.abspath(__file__))[0] + ".pdf"
+    fig.savefig(pdf_path, bbox_inches="tight", pad_inches=0.4)
     plt.show()
 
 

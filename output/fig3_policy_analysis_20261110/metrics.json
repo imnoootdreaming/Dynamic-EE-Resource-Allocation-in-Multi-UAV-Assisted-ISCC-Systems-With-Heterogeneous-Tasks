@@ -1,0 +1,752 @@
+{
+  "runtime": {
+    "python": "3.9.21 (main, Dec 11 2024, 16:35:24) [MSC v.1929 64 bit (AMD64)]",
+    "torch": "2.5.1",
+    "numpy": "1.25.2",
+    "platform": "Windows-10-10.0.19045-SP0"
+  },
+  "recorded_scenes_identical": true,
+  "hyperparameter_differences": {
+    "discrete_entropy_anneal": [
+      true,
+      false
+    ]
+  },
+  "algorithms": {
+    "MHBPPO": {
+      "input_hashes": {
+        "src\\fig\\outer\\Fig3\\MHBPPO.csv": "0bbc9172f82d6b93451068d878ebb2349f3710eba977929d864cdb36f82cfff3",
+        "src\\outer\\ckpt\\MHBPPO\\BEST_CKPT\\training_updates.csv": "05289acd6690c29e1cc26cad7b85c07d7e138898085795e47419b4571369a7b5"
+      },
+      "rows": 3000,
+      "env_steps": 960000,
+      "windows": [
+        {
+          "start": 1,
+          "end": 100,
+          "reward_mean": 0.4438327680975262,
+          "reward_population_sd": 0.12089085074230645,
+          "completion_percent": 58.88125,
+          "recorded_phase_seconds_mean": 23.688237941265108,
+          "weighted_energy_j": 103.26219991768433,
+          "flight_energy_j": 258.0248485968971
+        },
+        {
+          "start": 101,
+          "end": 500,
+          "reward_mean": 0.9072411230474572,
+          "reward_population_sd": 0.037912197321231904,
+          "completion_percent": 97.884375,
+          "recorded_phase_seconds_mean": 21.640379412006588,
+          "weighted_energy_j": 74.3233623716665,
+          "flight_energy_j": 185.6949316236884
+        },
+        {
+          "start": 501,
+          "end": 1000,
+          "reward_mean": 0.9564560207717258,
+          "reward_population_sd": 0.01065170017068452,
+          "completion_percent": 99.610625,
+          "recorded_phase_seconds_mean": 22.50543713286519,
+          "weighted_energy_j": 40.666670997736624,
+          "flight_energy_j": 101.54643657869863
+        },
+        {
+          "start": 1001,
+          "end": 1500,
+          "reward_mean": 0.9721902073910859,
+          "reward_population_sd": 0.006644667138538349,
+          "completion_percent": 99.790625,
+          "recorded_phase_seconds_mean": 23.511163484096528,
+          "weighted_energy_j": 26.14419423885242,
+          "flight_energy_j": 65.24019775973579
+        },
+        {
+          "start": 1501,
+          "end": 2000,
+          "reward_mean": 0.9864055901602461,
+          "reward_population_sd": 0.0044755538566806285,
+          "completion_percent": 99.88125,
+          "recorded_phase_seconds_mean": 26.057781790301203,
+          "weighted_energy_j": 12.435316398611985,
+          "flight_energy_j": 30.967155049391174
+        },
+        {
+          "start": 2001,
+          "end": 2500,
+          "reward_mean": 0.9907897072108806,
+          "reward_population_sd": 0.00257134851286669,
+          "completion_percent": 99.865,
+          "recorded_phase_seconds_mean": 27.814133479624985,
+          "weighted_energy_j": 7.801301566171646,
+          "flight_energy_j": 19.375621990672435
+        },
+        {
+          "start": 2501,
+          "end": 3000,
+          "reward_mean": 0.9930812995261615,
+          "reward_population_sd": 0.0021080778481356085,
+          "completion_percent": 99.91625,
+          "recorded_phase_seconds_mean": 28.935197570607066,
+          "weighted_energy_j": 6.0499859623662475,
+          "flight_energy_j": 14.999209705497355
+        }
+      ],
+      "early_windows": [
+        {
+          "start": 1,
+          "end": 20,
+          "reward_mean": 0.34179640167578457,
+          "completion_percent": 50.9375,
+          "updated_actor_expected_duplicate_matching_mean": 0.5590243995189667,
+          "weighted_energy_j": 104.08592440655555
+        },
+        {
+          "start": 21,
+          "end": 40,
+          "reward_mean": 0.35798844317186035,
+          "completion_percent": 51.875,
+          "updated_actor_expected_duplicate_matching_mean": 0.5419561415910721,
+          "weighted_energy_j": 102.93424229274802
+        },
+        {
+          "start": 41,
+          "end": 60,
+          "reward_mean": 0.39671201755605623,
+          "completion_percent": 54.859375,
+          "updated_actor_expected_duplicate_matching_mean": 0.501755490899086,
+          "weighted_energy_j": 103.0911767606956
+        },
+        {
+          "start": 61,
+          "end": 80,
+          "reward_mean": 0.47612758824156365,
+          "completion_percent": 60.71875,
+          "updated_actor_expected_duplicate_matching_mean": 0.4080897271633148,
+          "weighted_energy_j": 102.36435185647034
+        },
+        {
+          "start": 81,
+          "end": 100,
+          "reward_mean": 0.6465393898423661,
+          "completion_percent": 76.015625,
+          "updated_actor_expected_duplicate_matching_mean": 0.24348312690854074,
+          "weighted_energy_j": 103.83722881283049
+        },
+        {
+          "start": 101,
+          "end": 200,
+          "reward_mean": 0.8602744353990155,
+          "completion_percent": 95.025,
+          "updated_actor_expected_duplicate_matching_mean": 0.048710108967497945,
+          "weighted_energy_j": 93.1652791221821
+        }
+      ],
+      "thresholds": {
+        "0.9": {
+          "first_100_round_mean": 274,
+          "stays_above_until_end": 274,
+          "first_env_steps": 87680
+        },
+        "0.95": {
+          "first_100_round_mean": 651,
+          "stays_above_until_end": 759,
+          "first_env_steps": 208320
+        },
+        "0.98": {
+          "first_100_round_mean": 1558,
+          "stays_above_until_end": 1558,
+          "first_env_steps": 498560
+        },
+        "0.99": {
+          "first_100_round_mean": 1944,
+          "stays_above_until_end": 2435,
+          "first_env_steps": 622080
+        }
+      },
+      "tail_diagnostics": {
+        "strict_feasible_count": 0,
+        "failed_slots": 134,
+        "finite_weighted_energy": {
+          "mean": 6.0499859623662475,
+          "count": 159992
+        },
+        "finite_physical_energy": {
+          "mean": 15.130612238611787,
+          "count": 159992
+        },
+        "finite_flight_energy": {
+          "mean": 14.999209705497355,
+          "count": 159992
+        },
+        "recorded_solver_seconds_sum_per_round_mean": 204.2597421976775,
+        "duplicate_slots": 126,
+        "unknown_slots": 8
+      },
+      "recorded_phase_seconds_total": 75436.83228767663
+    },
+    "MHGPPO": {
+      "input_hashes": {
+        "src\\fig\\outer\\Fig3\\MHGPPO.csv": "48999c6e0f647eb531e3a38fad223c50ca0f425576ffd937ce264f499450c7f1",
+        "src\\outer\\ckpt\\MHGPPO\\BEST_CKPT\\training_updates.csv": "c9244370ea5e5d1021c88d1a55efcfa2cadba44f31d1598c1bc95d8b2b28ee26"
+      },
+      "rows": 3000,
+      "env_steps": 960000,
+      "windows": [
+        {
+          "start": 1,
+          "end": 100,
+          "reward_mean": 0.6000192659460846,
+          "reward_population_sd": 0.2511500709983459,
+          "completion_percent": 74.525,
+          "recorded_phase_seconds_mean": 24.436655696555974,
+          "weighted_energy_j": 123.7428579358671,
+          "flight_energy_j": 309.1668162510416
+        },
+        {
+          "start": 101,
+          "end": 500,
+          "reward_mean": 0.9374215967913714,
+          "reward_population_sd": 0.015748283230471654,
+          "completion_percent": 99.37265625,
+          "recorded_phase_seconds_mean": 26.95343477440998,
+          "weighted_energy_j": 59.20601687667173,
+          "flight_energy_j": 147.87252525013037
+        },
+        {
+          "start": 501,
+          "end": 1000,
+          "reward_mean": 0.9474210886161167,
+          "reward_population_sd": 0.005848037844494779,
+          "completion_percent": 99.799375,
+          "recorded_phase_seconds_mean": 26.84427675154805,
+          "weighted_energy_j": 53.4858766228383,
+          "flight_energy_j": 133.57937458017523
+        },
+        {
+          "start": 1001,
+          "end": 1500,
+          "reward_mean": 0.9495416324494889,
+          "reward_population_sd": 0.005482210351894715,
+          "completion_percent": 99.82125,
+          "recorded_phase_seconds_mean": 27.574695069149136,
+          "weighted_energy_j": 51.38465225002544,
+          "flight_energy_j": 128.3267059645802
+        },
+        {
+          "start": 1501,
+          "end": 2000,
+          "reward_mean": 0.9607588362327698,
+          "reward_population_sd": 0.004088410437647416,
+          "completion_percent": 99.899375,
+          "recorded_phase_seconds_mean": 27.932522125810383,
+          "weighted_energy_j": 40.08541953031136,
+          "flight_energy_j": 100.08479263826732
+        },
+        {
+          "start": 2001,
+          "end": 2500,
+          "reward_mean": 0.9651853086681635,
+          "reward_population_sd": 0.004169697352045297,
+          "completion_percent": 99.899375,
+          "recorded_phase_seconds_mean": 28.478423088774086,
+          "weighted_energy_j": 35.29141988093395,
+          "flight_energy_j": 88.10232848766978
+        },
+        {
+          "start": 2501,
+          "end": 3000,
+          "reward_mean": 0.9685213911216138,
+          "reward_population_sd": 0.005163570682373235,
+          "completion_percent": 99.8325,
+          "recorded_phase_seconds_mean": 28.876745951473712,
+          "weighted_energy_j": 30.925474937386277,
+          "flight_energy_j": 77.19024028869521
+        }
+      ],
+      "early_windows": [
+        {
+          "start": 1,
+          "end": 20,
+          "reward_mean": 0.32353653371649566,
+          "completion_percent": 51.390625,
+          "updated_actor_expected_duplicate_matching_mean": 0.5535667210817337,
+          "weighted_energy_j": 132.05209056386977
+        },
+        {
+          "start": 21,
+          "end": 40,
+          "reward_mean": 0.33420075440087676,
+          "completion_percent": 54.8125,
+          "updated_actor_expected_duplicate_matching_mean": 0.4983628153800964,
+          "weighted_energy_j": 166.3185473665603
+        },
+        {
+          "start": 41,
+          "end": 60,
+          "reward_mean": 0.6007021749360723,
+          "completion_percent": 74.890625,
+          "updated_actor_expected_duplicate_matching_mean": 0.2532853625714779,
+          "weighted_energy_j": 140.71125674897857
+        },
+        {
+          "start": 61,
+          "end": 80,
+          "reward_mean": 0.8431906524887226,
+          "completion_percent": 93.859375,
+          "updated_actor_expected_duplicate_matching_mean": 0.05428887261077762,
+          "weighted_energy_j": 100.27475227019043
+        },
+        {
+          "start": 81,
+          "end": 100,
+          "reward_mean": 0.8984662141882552,
+          "completion_percent": 97.671875,
+          "updated_actor_expected_duplicate_matching_mean": 0.018371987203136087,
+          "weighted_energy_j": 79.82029085909966
+        },
+        {
+          "start": 101,
+          "end": 200,
+          "reward_mean": 0.9258322746483918,
+          "completion_percent": 98.775,
+          "updated_actor_expected_duplicate_matching_mean": 0.00911550544667989,
+          "weighted_energy_j": 64.89056633495376
+        }
+      ],
+      "thresholds": {
+        "0.9": {
+          "first_100_round_mean": 161,
+          "stays_above_until_end": 161,
+          "first_env_steps": 51520
+        },
+        "0.95": {
+          "first_100_round_mean": 1029,
+          "stays_above_until_end": 1464,
+          "first_env_steps": 329280
+        },
+        "0.98": {
+          "first_100_round_mean": null,
+          "stays_above_until_end": null,
+          "first_env_steps": null
+        },
+        "0.99": {
+          "first_100_round_mean": null,
+          "stays_above_until_end": null,
+          "first_env_steps": null
+        }
+      },
+      "tail_diagnostics": {
+        "strict_feasible_count": 0,
+        "failed_slots": 268,
+        "finite_weighted_energy": {
+          "mean": 30.925474937386277,
+          "count": 159946
+        },
+        "finite_physical_energy": {
+          "mean": 77.31938904288323,
+          "count": 159946
+        },
+        "finite_flight_energy": {
+          "mean": 77.19024028869521,
+          "count": 159946
+        },
+        "recorded_solver_seconds_sum_per_round_mean": 198.62735009638965,
+        "solver_status_counts": {
+          "optimal": 159946,
+          "unknown": 50,
+          "infeasible": 4
+        }
+      },
+      "recorded_phase_seconds_total": 83078.37097279727
+    }
+  },
+  "source_matches_B_checkpoint": {
+    "algorithms/MHBPPO/MHBPPO_main.py": true,
+    "algorithms/MHBPPO/MHBPPO_sampler.py": true,
+    "algorithms/MHBPPO/MHBPPO_agent.py": true,
+    "algorithms/MHBPPO/action_logging.py": true,
+    "algorithms/MHBPPO/log_compaction.py": true,
+    "algorithms/MHBPPO/unknown_logging.py": true,
+    "../inner/p5_failure_capture.py": true,
+    "configs/base_params.py": true,
+    "configs/madrl_args.py": true,
+    "configs/seed_manager.py": true,
+    "environment/my_env.py": true,
+    "environment/channel_models.py": true,
+    "environment/topology.py": true,
+    "environment/observation.py": true,
+    "environment/mapping.py": true,
+    "environment/cu_tasks.py": true,
+    "reward/my_reward.py": true,
+    "reward/cccp_bridge.py": true,
+    "reward/feasibility_diagnostics.py": true,
+    "reward/solver_status.py": true,
+    "reward/sensing_penalty.py": true,
+    "reward/episode_success_bonus.py": true,
+    "algorithms/MHBPPO/checkpoint.py": true,
+    "algorithms/MHBPPO/policy_diagnostics.py": true,
+    "algorithms/MHBPPO/rollout_batch.py": true,
+    "algorithms/MHBPPO/energy_statistics.py": true,
+    "algorithms/MHBPPO/policy_initialization.py": true,
+    "algorithms/MHBPPO/beam_branch.py": true,
+    "algorithms/MHBPPO/beam_pretraining.py": true,
+    "../inner/parameters.py": false,
+    "../inner/environment.py": false,
+    "../inner/target_layout.py": true,
+    "../inner/pc3p.py": true,
+    "../inner/fusion_pc3p.py": true,
+    "../inner/variables.py": true,
+    "../inner/cccp_params.py": true
+  },
+  "policy_probe": {
+    "scope": "one reconstructed initial observation; not a rollout performance estimate",
+    "changed_component_hashes": [
+      "uav_initial",
+      "targets"
+    ],
+    "initial_uav_max_absolute_difference_from_saved_trajectory_m": 5.684341886080802e-14,
+    "policies": {
+      "MHBPPO": {
+        "1000": {
+          "actor_sha256": "dc22ae0dc21fee4db75b939d33ea3a6c816d64026a34db4649a038b7214b3404",
+          "normalization_sha256": "888c3d860953b48480a540e80d1ce04c94271d5aac7091528aa70bcab97e27d3",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            13.039505004882812,
+            13.120409965515137,
+            17.09122085571289,
+            15.716697692871094
+          ],
+          "speed_p90_by_uav": [
+            21.59778366088867,
+            22.375383567810054,
+            28.413541984558098,
+            25.324602317810058
+          ],
+          "flight_energy_mc_mean_j": 92.53804779052734,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.0,
+          "actions_with_any_element_outside_evaluation_clamp": 0.0,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.0,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "distance_alpha": [
+            1.1826510429382324,
+            1.039508581161499,
+            1.2499094009399414,
+            1.5060899257659912
+          ],
+          "distance_beta": [
+            4.003573894500732,
+            3.408390760421753,
+            2.3464784622192383,
+            3.4232571125030518
+          ]
+        },
+        "2000": {
+          "actor_sha256": "48a02a6fb7af9a9a017ccf13bd12a5ca6c43b9ed4df1a226fa2c5ecaa3e1b3b0",
+          "normalization_sha256": "ec3fb16c0bba895ef8b2397948ea57e15911675cb2f1636531e485fa04348df7",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            8.629512786865234,
+            9.438244819641113,
+            8.068474769592285,
+            10.075626373291016
+          ],
+          "speed_p90_by_uav": [
+            12.570706367492676,
+            13.857257080078123,
+            11.810205841064452,
+            14.528847312927246
+          ],
+          "flight_energy_mc_mean_j": 21.618419647216797,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.0,
+          "actions_with_any_element_outside_evaluation_clamp": 0.0,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.0,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "distance_alpha": [
+            1.3418489694595337,
+            1.5563560724258423,
+            1.1044572591781616,
+            1.9561347961425781
+          ],
+          "distance_beta": [
+            11.555445671081543,
+            10.807456016540527,
+            11.441643714904785,
+            11.508910179138184
+          ]
+        },
+        "3000": {
+          "actor_sha256": "a2c6e670475779698ee2da4c5cae896ed9982111367ab8169ac3aae34002c4aa",
+          "normalization_sha256": "99698c90954a0e7def087ab5a92566ff47350c3980430063cf3ef9ff8fb14ed5",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            6.798259258270264,
+            7.178097724914551,
+            6.834156036376953,
+            7.059208869934082
+          ],
+          "speed_p90_by_uav": [
+            9.071932983398437,
+            9.773966407775879,
+            9.159799194335937,
+            9.566297340393065
+          ],
+          "flight_energy_mc_mean_j": 12.913382530212402,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.0,
+          "actions_with_any_element_outside_evaluation_clamp": 0.0,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.0,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "distance_alpha": [
+            1.0390803813934326,
+            1.1489295959472656,
+            1.0403913259506226,
+            1.1150412559509277
+          ],
+          "distance_beta": [
+            19.07082176208496,
+            17.261150360107422,
+            18.72577667236328,
+            17.903844833374023
+          ]
+        }
+      },
+      "MHGPPO": {
+        "1000": {
+          "actor_sha256": "81d68e1cc3855b38cea6a3ba985fe03ca1e8522b96dac81cc8ac7945867220eb",
+          "normalization_sha256": "0324a014add8d73a0e0da744aea0b5ae8be0fb3a3489e1d31c8189dd98b34f0b",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            11.271419525146484,
+            13.660664558410645,
+            10.818708419799805,
+            12.037317276000977
+          ],
+          "speed_p90_by_uav": [
+            37.480218124389644,
+            39.49717559814453,
+            36.14466667175293,
+            38.46337051391601
+          ],
+          "flight_energy_mc_mean_j": 164.1341094970703,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.08597078919410706,
+          "actions_with_any_element_outside_evaluation_clamp": 0.85791015625,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.837646484375,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            2.8418006896972656,
+            6.9087677001953125,
+            11.084631347656252,
+            16.76068878173828
+          ],
+          "distance_mu": [
+            -6.953677654266357,
+            -5.221209526062012,
+            -7.377282619476318,
+            -6.365105628967285
+          ],
+          "std_by_head": {
+            "uav_angles": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_distances": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_off_durations": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "cu_off_powers": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ]
+          }
+        },
+        "2000": {
+          "actor_sha256": "c13f5ced8718b778a82cfd0313ffc12daa592243d2fac07ff70a9fc349c3c278",
+          "normalization_sha256": "d250c2f8092362a57df7bc0c3424d9edf0e18203da4e6cd07f9cf0111a709330",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            11.079435348510742,
+            10.037311553955078,
+            9.260000228881836,
+            9.326516151428223
+          ],
+          "speed_p90_by_uav": [
+            36.747930908203124,
+            33.19896812438964,
+            27.699504280090306,
+            28.155617523193353
+          ],
+          "flight_energy_mc_mean_j": 115.24565887451172,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.09726784378290176,
+          "actions_with_any_element_outside_evaluation_clamp": 0.903564453125,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.8837890625,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            3.5041885375976562,
+            7.954755783081055,
+            12.369078826904303,
+            17.649635314941406
+          ],
+          "distance_mu": [
+            -7.187519550323486,
+            -8.0322847366333,
+            -8.92456340789795,
+            -8.75256633758545
+          ],
+          "std_by_head": {
+            "uav_angles": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_distances": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_off_durations": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "cu_off_powers": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ]
+          }
+        },
+        "3000": {
+          "actor_sha256": "6daa1cb1a2557ca060e8ad6caa283b47405c5491de23c045bf15fef45239467c",
+          "normalization_sha256": "9455d5364e8f41ec02cad8e97359365349c603235c778a9e3e1cfd7abeb36799",
+          "actor_parameters": 174804,
+          "speed_mean_by_uav": [
+            8.562629699707031,
+            8.766097068786621,
+            8.139619827270508,
+            8.121768951416016
+          ],
+          "speed_p90_by_uav": [
+            20.70532112121582,
+            22.702004432678205,
+            16.282871818542468,
+            16.028632164001433
+          ],
+          "flight_energy_mc_mean_j": 79.6732177734375,
+          "mc_distance_samples": 50000,
+          "same_policy_samples": 4096,
+          "elements_outside_evaluation_clamp": 0.10848721861839294,
+          "actions_with_any_element_outside_evaluation_clamp": 0.9296875,
+          "same_policy_cont_ratio_outside_0p8_1p2": 0.916015625,
+          "same_policy_cont_logprob_absolute_difference_quantiles": [
+            4.138179779052734,
+            9.115890502929688,
+            13.407733535766614,
+            18.284255981445312
+          ],
+          "distance_mu": [
+            -9.658193588256836,
+            -9.430327415466309,
+            -10.101974487304688,
+            -10.245184898376465
+          ],
+          "std_by_head": {
+            "uav_angles": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_distances": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "uav_off_durations": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ],
+            "cu_off_powers": [
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512,
+              7.389056205749512
+            ]
+          }
+        }
+      }
+    },
+    "fresh_seed42_categorical_probabilities_exactly_equal": true,
+    "fresh_seed42_categorical_probability_max_difference": 0.0
+  },
+  "flight_power_minimizer_m_per_s": 5.426809873735697,
+  "timing_scope": "CSV measured phases only; timers differ and exclude some aggregation/checkpoints",
+  "probe_scope": "current implementation + saved weights/normalization; no solver or training",
+  "user_scope": "discrete entropy annealing is not used as the main explanation",
+  "current_source_sha256": {
+    "algorithms/MHBPPO/MHBPPO_agent.py": "6374cc5c5851e4bd2a77313cac4db73cf34e401f7defaeedc55d2a148b8b4bfc",
+    "algorithms/MHGPPO/MHGPPO_agent.py": "9429d2e5831d7fecfa508f6081bd414d77e3fe7b0992009ce520d155d04a1732",
+    "environment/my_env.py": "23c71d90df34e3df4ef4def1131bc545d363f0b735affc36192afb1065a52d53",
+    "reward/my_reward.py": "05bc316a0e401055a9954d6d2d61e65ac45e856e846dd6a87faff6250db1d753"
+  }
+}

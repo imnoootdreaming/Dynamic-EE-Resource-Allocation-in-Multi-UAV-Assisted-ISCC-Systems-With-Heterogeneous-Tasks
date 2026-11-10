@@ -84,7 +84,7 @@ def main():
     ax_time.set_xticklabels(case_ids[tick_mask])
     ax_time.tick_params(axis="x", which="major", labelsize=18)
     ax_time.tick_params(axis="y", which="major", labelsize=18)
-    ax_time.set_ylim(0, max(max(penalty_times), max(gaussian_times)) * 1.55)
+    ax_time.set_ylim(0, max(max(penalty_times), max(gaussian_times)) * 1.5)
     ax_time.grid(
         True,
         linestyle=(0, (3, 5)),
@@ -122,7 +122,7 @@ def main():
     ax_obj.set_xticklabels(case_ids[tick_mask])
     ax_obj.tick_params(axis="x", which="major", labelsize=18)
     ax_obj.tick_params(axis="y", which="major", labelsize=18)
-    ax_obj.set_ylim(0, max(max(penalty_values), max(gaussian_values)) * 1.3)
+    ax_obj.set_ylim(0, max(max(penalty_values), max(gaussian_values)) * 1.55)
 
     ax_obj.grid(
         True,
@@ -149,6 +149,8 @@ def main():
     if overflow > 0:
         label.set_y(label.get_position()[1] + overflow / ax_obj.bbox.height)
 
+    pdf_path = os.path.splitext(os.path.abspath(__file__))[0] + ".pdf"
+    fig.savefig(pdf_path, bbox_inches="tight", pad_inches=0.4)
     plt.show()
 
 

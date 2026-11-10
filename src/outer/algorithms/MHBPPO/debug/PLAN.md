@@ -484,3 +484,16 @@ bash run_background.sh start --discrete_entropy_anneal
 - 上限30新增4组UNKNOWN（样本6、7、16、18）；上限20新增29组UNKNOWN。原始终止码为100000，即达到最大迭代数。两配置均不采用，提前失败造成的耗时／外层轮数下降不计为加速。未更改未知状态接受条件、失败惩罚、reward或PPO。
 - 恢复默认后的30组能耗与此前默认基线逐值相同；Python语法编译、入口帮助和指定文件diff空白检查通过。本试验不是完整外层训练回归，不保证跨场景UNKNOWN为0。后台训练仍通过原桥接层调用原Fusion路径；未新增外层参数透传。
 - 证据、状态／步数原始数据、源码一致性核验与官方参数／终止码依据见 [回退及上限试验报告](../../../../../simulation_result/pc3p_mosek_caps_20261109/REPORT.md)。此前γ试验产物仅作已撤回方案的历史记录，不再代表当前源码。
+
+## 20. 2026-11-10 Fig3 Gaussian/Beta 前期学习速度核验
+
+**状态：已核验两份3000轮CSV及保存策略，完成无训练、无求解器的前向诊断。遵从用户补充要求，重点分析Gaussian为什么前期较快，不把后期离散熵退火作为主要解释。未修改任何训练或求解代码，未启动新训练。**
+
+- Fig3的两份reward/completion_rate与各自`ckpt/<算法>/BEST_CKPT/training_updates.csv`逐行精确一致，均为8env×40槽×3000轮，各960000时隙；两者保存的完整外生场景签名相同，均为`988aeeaa…936fac1e`。连续动作均22维、Actor均174804个参数。
+- 实际现象是Gaussian早期更早达到较低门槛，而Beta更早达到较高门槛。100轮reward均值首次达到0.90：MHGPPO161轮、MHBPPO274轮；达到0.95：1029轮与651轮；达到0.98：Gaussian在3000轮内未达到、Beta1558轮。末500轮reward分别为0.9685213911、0.9930812995，不能写成Gaussian最终奖励更高。
+- 前期直接证据指向匹配改善更早：第41–60轮Gaussian/Beta完成率74.890625%/54.859375%，更新后期望重复匹配惩罚0.253285/0.501755；但Gaussian有限候选加权能耗更高，为140.7113/103.0912J。第61–80轮完成率93.859375%/60.71875%，期望重复惩罚0.054289/0.408090。不能把早期奖励跃升直接解释为连续低能耗解优化更快。
+- 两套Actor的匹配头、重复期望公式与权重相同，连续/离散共用特征网络和advantage。相同seed重新初始化后，同输入Categorical概率精确一致。因此更深层候选是连续分支梯度/熵、状态访问、优势估计与随机采样路径对匹配学习的间接影响；单种子汇总不能确认各机制贡献，也不能断言Gaussian普遍更快。
+- 已向用户澄清：当前Gaussian先采样z再sigmoid映射到(0,1)，之后映射物理区间，是代码原有处理，不是直接硬裁剪无界动作。采样log-prob使用原始z，更新时把a夹到[1e-6,1−1e-6]再logit反算，存在概率不一致。当前实现+iter3000权重+配套归一化，在一个重建初始状态4096次抽样中，Gaussian同策略连续ratio已有91.6016%超出[0.8,1.2]，Beta为0%；这是单状态诊断，不是原训练分布发生率，也未证明其对早期速度的贡献。
+- Gaussian计算变换前Normal熵，Beta计算动作熵，连续系数同为0.05并不代表等价目标。在该初始状态的iter1000/2000/3000前向，Gaussian全部22维σ达到exp(2)。末500轮候选加权能耗Beta/Gaussian为6.049986/30.925475J，飞行能耗为14.999210/77.190240J。双方严格可行计数仍为0，不能将旧完成率或有限候选能耗表述为严格物理可行性能。
+- 已核验Liu等（2023）IEEE TWC《Energy Efficient Computation Offloading in Aerial Edge Networks With Multi-Agent Cooperation》，DOI10.1109/TWC.2023.3235997，以及Braga等（2023）IEEE TVT《Decentralized Joint Pilot and Data Power Control Based on Deep Reinforcement Learning for the Uplink of Cell-Free Systems》，DOI10.1109/TVT.2022.3211908。它们提供Beta处理有界动作的先例，不支持“Gaussian必然前期更快”；硬裁剪论证不能直接套用本项目sigmoid策略。PPO同策略ratio=1依据Schulman等（2017）式(6)附近定义。
+- 完整数据、推导边界、原文定位、DOI/PDF、输入哈希与复现脚本见[Fig3分析报告](../../../../../output/fig3_policy_analysis_20261110/REPORT.md)及[指标JSON](../../../../../output/fig3_policy_analysis_20261110/metrics.json)。脚本已实际执行，CSV对齐/样本数/配套归一化哈希断言通过。下一步先用前100–200轮状态核查概率一致性及匹配学习路径，再做多种子同门槛验证；未实施修复或新训练。

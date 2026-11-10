@@ -111,7 +111,7 @@ def load_and_process_rewards(file_template, seeds, column_name='reward'):
 
     for seed in seeds:
         try:
-            filepath = file_template.format(seed)
+            filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), file_template.format(seed))
             df = pd.read_csv(filepath)
             all_rewards_data.append(df[column_name])
         except FileNotFoundError:

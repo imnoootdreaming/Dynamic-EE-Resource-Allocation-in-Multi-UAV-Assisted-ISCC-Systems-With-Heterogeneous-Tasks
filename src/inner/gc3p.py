@@ -21,11 +21,11 @@
 
 秩一恢复子问题的求解后端（GC3P 独有部分，不影响与 PC3P 共用的松弛阶段）：
     50 个候选子问题的变量 / 约束 / 目标完全相同，只有秩一方向 V_i / U_i 在变，
-    因此把方向做成 cvxpy Parameter、把候选之间不变的 CCCP 线性化量冻结成常数
-    （FrozenCcpParams）后，同一个 cp.Problem 只编译一次，后续候选只刷新方向参数
-    即可求解：DPP 成立（每个乘积只含一个参数），省掉每候选一次的 canonicalize。
-    实测恢复阶段耗时降到约 1/6~1/7，而代理目标、真实能量与可行性判定的差异在
-    1e-14（目标）/ 1e-6（解向量，相对量级）以内，最终解与判定结果不变。
+    因此把方向的实部 / 虚部分别做成实 cvxpy Parameter，并把候选之间不变的 CCCP
+    线性化量冻结成常数（FrozenCcpParams）。同一个 cp.Problem 只编译一次，后续
+    候选只刷新方向参数。实参数拆分还避免了 CVXPY 1.7 对复数 Parameter 插入
+    EvalParams、即使 is_dpp() 为 True 仍关闭编译缓存的问题。
+    该参数化保持原数学模型；编译时浮点运算顺序不同可能造成微小数值差异。
     置 "rebuild" 可回退到「每个候选重建问题」的旧实现（仅用于数值对照/回退）。
 """
 
@@ -164,8 +164,8 @@ class Rank1RecoveryContext:
     objective.build_objective 与 constraints.collect_constraints。
 
     frozen_ccp：可选，传入 FrozenCcpParams 时覆盖 ccp 属性（常数版线性化量）。
-        秩一方向可为 numpy 常数矩阵（每个候选重建问题），也可为 cp.Parameter
-        （编译一次、逐个候选刷方向，见 _recovery_cached）。
+        秩一方向可为 numpy 常数矩阵（每个候选重建问题），也可为实 / 虚部两个实
+        cp.Parameter 组成的复表达式（编译一次、逐个候选刷方向，见 _recovery_cached）。
     """
 
     def __init__(self, ctx, sen_directions, off_directions, frozen_ccp=None):
@@ -290,10 +290,12 @@ def _recovery_rebuild(ctx, candidate_specs, mosek_params):
 
 
 def _recovery_cached(ctx, candidate_specs, mosek_params):
-    """默认实现：方向做成 cp.Parameter、ccp 冻结成常数，问题只编译一次。
+    """默认实现：方向拆成实参数、ccp 冻结成常数，问题只编译一次。
 
     候选之间只有方向参数在变，DPP 成立时 cvxpy 复用同一份编译结果，每次求解只刷新
-    参数数值并让 MOSEK 重新优化，省掉每候选一次的 canonicalize 开销（实测 ~92%）。
+    参数数值并让 MOSEK 重新优化，省掉每候选一次的 canonicalize 开销。
+    不能直接使用 complex=True 的 Parameter：CVXPY 1.7 会因此插入 EvalParams，
+    导致 is_dpp() 虽为 True，参数化编译缓存却始终为空。
     若问题不再是 DPP（例如后续新增了参数彼此相乘的约束），自动回退到
     _recovery_rebuild，保证结果与旧实现一致。
     """
@@ -301,14 +303,24 @@ def _recovery_cached(ctx, candidate_specs, mosek_params):
         return None
 
     n = ctx.N
-    sen_params = [cp.Parameter((n, n), complex=True) for _ in range(ctx.I)]
-    off_params = [cp.Parameter((n, n), complex=True) for _ in range(ctx.I)]
-    # 先写入第 1 个候选的方向（参数必须全部有取值才能编译）
-    for i in range(ctx.I):
-        sen_params[i].value = candidate_specs[0][1][i]
-        off_params[i].value = candidate_specs[0][2][i]
+    sen_re = [cp.Parameter((n, n)) for _ in range(ctx.I)]
+    sen_im = [cp.Parameter((n, n)) for _ in range(ctx.I)]
+    off_re = [cp.Parameter((n, n)) for _ in range(ctx.I)]
+    off_im = [cp.Parameter((n, n)) for _ in range(ctx.I)]
+    sen_directions = [sen_re[i] + 1j * sen_im[i] for i in range(ctx.I)]
+    off_directions = [off_re[i] + 1j * off_im[i] for i in range(ctx.I)]
 
-    recovery_ctx = Rank1RecoveryContext(ctx, sen_params, off_params,
+    def set_directions(sen_dirs, off_dirs):
+        for i in range(ctx.I):
+            sen_re[i].value = sen_dirs[i].real
+            sen_im[i].value = sen_dirs[i].imag
+            off_re[i].value = off_dirs[i].real
+            off_im[i].value = off_dirs[i].imag
+
+    # 先写入第 1 个候选的方向（参数必须全部有取值才能编译）
+    set_directions(candidate_specs[0][1], candidate_specs[0][2])
+
+    recovery_ctx = Rank1RecoveryContext(ctx, sen_directions, off_directions,
                                         frozen_ccp=FrozenCcpParams(ctx))
     problem = cp.Problem(
         cp.Minimize(build_objective(recovery_ctx)),
@@ -318,9 +330,7 @@ def _recovery_cached(ctx, candidate_specs, mosek_params):
         return _recovery_rebuild(ctx, candidate_specs, mosek_params)
 
     def solve_one(sen_dirs, off_dirs):
-        for i in range(ctx.I):
-            sen_params[i].value = sen_dirs[i]
-            off_params[i].value = off_dirs[i]
+        set_directions(sen_dirs, off_dirs)
         try:
             problem.solve(solver=cp.MOSEK, mosek_params=mosek_params)
         except Exception:

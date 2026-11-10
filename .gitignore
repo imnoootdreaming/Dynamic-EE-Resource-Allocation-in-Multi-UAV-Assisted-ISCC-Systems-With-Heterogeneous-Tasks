@@ -50,5 +50,4 @@ Thumbs.db
 /src/outer/logs
 
 # 训练过程生成的检查点、曲线和实验分析
-/src/outer/ckpt/
 /src/outer/algorithms/MHBPPO/analysis/

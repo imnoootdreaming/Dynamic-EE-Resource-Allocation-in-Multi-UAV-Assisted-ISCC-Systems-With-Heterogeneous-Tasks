@@ -123,8 +123,8 @@ def plot_energy_rank1(ax):
     )
 
     ax1.set_xlabel("The number of iterations", fontsize=20)
-    ax1.set_ylabel("The energy term in problem P4", fontsize=20, color=OBJECTIVE_COLOR)
-    ax2.set_ylabel("The penalty term in problem P4", fontsize=20, color=RANK1_OFF_COLOR)
+    ax1.set_ylabel("The energy term in problem P5", fontsize=20, color=OBJECTIVE_COLOR)
+    ax2.set_ylabel("The penalty term in problem P5", fontsize=20, color=RANK1_OFF_COLOR)
     ax1.spines["left"].set_color(OBJECTIVE_COLOR)
     ax2.spines["right"].set_color(RANK1_OFF_COLOR)
 
@@ -297,6 +297,8 @@ def main():
         overflow = label.get_window_extent(renderer).y1 - (fig.bbox.y1 - 1)
         if overflow > 0:
             label.set_y(label.get_position()[1] - overflow / ax.bbox.height)
+    pdf_path = os.path.splitext(os.path.abspath(__file__))[0] + ".pdf"
+    fig.savefig(pdf_path, bbox_inches="tight", pad_inches=0.4)
     plt.show()
 
 
